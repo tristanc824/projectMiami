@@ -5,7 +5,7 @@ For Tristan, building the app in Cursor. This is the current source of truth for
 ## What to open first
 | What | Where | How |
 |---|---|---|
-| **App screens** (16 mockups) | [`app-design/nest-app-screens.html`](./app-design/nest-app-screens.html) | Open in any browser. No build step. |
+| **App screens** (16 mockups, audited) | [`app-design/nest-app-screens.html`](./app-design/nest-app-screens.html) | Open in any browser. No build step. |
 | **Website** | [`web-earth/`](./web-earth) | `cd web-earth && npm install && npm run dev` → http://localhost:5175 |
 | Pitch, angle and demo script | [PITCH_PLAYBOOK.md](./PITCH_PLAYBOOK.md) | |
 | Solana stack and architecture | [BLOCKCHAIN_STACK.md](./BLOCKCHAIN_STACK.md) | |
@@ -41,8 +41,8 @@ Ana lives in Miami. Her mom, Rosa ("Mamá"), lives in Buenos Aires; Tío Luis in
 **Everyday** (tab bar: Home, Save, Security, You)
 4. **Home**: balance in dollars + "≈ ARS 4.15M" chip, Send (the only dark action) / Add / Receive, activity with "Arrived in 0.9s · $0 fee" and "Undone · money returned".
 5. **Receive**: QR code with the Nest mark, @handle, "Share my link".
-6. **Save**: "Saved stays saved." $1,000 in Nest vs $321 in pesos (Argentina 2023), vaults, New vault.
-7. **Vault**: Rainy day $1,240 of $2,000, round-ups toggle, recent round-ups, Withdraw / Add money. No interest.
+6. **Save**: "What $1,000 was worth a year later": $1,000 in Nest vs $321 in pesos (Argentina 2023). Goals ($620, $430, $1,090) are set aside from the $4,280.12 balance. All goals use moss green. New goal.
+7. **Goal**: Rainy day $620 of $1,000, weekly top-up toggle ($25 every Friday), recent top-ups, Withdraw / Add money. No interest. (No round-ups: Nest has no card yet.)
 
 **Send to Mamá**
 8. **Send to**: search, faces first, recents; a new number flagged "New · undo on for 24h".
@@ -59,7 +59,14 @@ Ana lives in Miami. Her mom, Rosa ("Mamá"), lives in Buenos Aires; Tío Luis in
 15. **Sent by text**: "Your $250 is on its way to Mamá." / "We sent it by text message." Signed on this phone with Face ID, $0 fee; note for no signal at all.
 16. **Waiting to send**: offline banner, "$80.00 to Tío Luis · Ready to send", payments go out in order on reconnect.
 
-**Main demo flow:** 4 → 8 → 9 → 10 → 11 (normal send), then 8 (new number) → 9 → 12 → send anyway → 13 → Undo → back to 4 showing "Undone · money returned". Open with 1 if there's time; 3 is the bonus for "what if she doesn't have the app?"
+**Main demo flow:** 4 → 8 → 9 → 10 → 11 (normal send), then 8 (new number) → 9 → 12 → hold to send anyway → **10 (Face ID, Undo row says "On")** → 13 → Undo → back to 4 with "Undone · Money back" at the top of Activity. Open with 1 if there's time; 3 is the bonus for "what if she doesn't have the app?"
+
+## Audit and bank basics (Nov 7)
+- [APP_AUDIT.md](./APP_AUDIT.md): 82 issues found across the 16 screens. Every Critical and High issue is fixed in the screens; Medium and Low items are listed there for the build.
+- [FINTECH_FLAWS_CASE_STUDY.md](./FINTECH_FLAWS_CASE_STUDY.md): where Cash App, Revolut, Wise, Chime, Nubank and Monzo failed users, and the bank basics Nest needs.
+- Added from that study, kept small: "Lost your phone? Get back in" and the not-FDIC disclosure on Welcome; "Lock Nest" and "Talk to a person" on Security; "Something wrong?" on Arrived; "Get paid by direct deposit" on Receive (**needs a partner** for account and routing numbers); "· example rate" on every peso value.
+- Still to design (one screen each, from the study): lost-phone recovery, "Account on hold" (reason, what to do, answer-by date, a person to talk to), report a problem with a status line, statements and search in Activity, limits shown only near a limit, calm one-line notifications.
+- Open question: whether US dispute rules (Reg E) apply to a USDC wallet. Build as if they do.
 
 ## Brand tokens
 **Colors** (flat only: no gradients, glows or glass inside the app)
@@ -69,7 +76,7 @@ Ana lives in Miami. Her mom, Rosa ("Mamá"), lives in Buenos Aires; Tío Luis in
 | white | `#FFFFFF` | Cards |
 | ink | `#17201A` | Text, primary (dark) buttons |
 | ink-600 | `#4A544D` | Secondary text |
-| ink-400 | `#7C857E` | Labels, hints |
+| ink-400 | `#646C66` | Labels, hints (passes WCAG AA on the page color) |
 | line | `#DDD7CA` | Dividers |
 | moss | `#2F5D3A` | Brand green: logo, success, progress |
 | moss-900 | `#16301D` | Pressed / deep green |
@@ -77,7 +84,7 @@ Ana lives in Miami. Her mom, Rosa ("Mamá"), lives in Buenos Aires; Tío Luis in
 | sage | `#A9C4A1` | Soft accents |
 | sky | `#8CC8EA` / sky-100 `#DCEEF8` | Secondary accent, local-currency chip |
 | sand | `#E9E1D1` | Progress track |
-| amber / amber-100 | `#9A6412` / `#F6EBD3` | Warnings (scam check) |
+| amber / amber-100 | `#8A5A10` / `#F6EBD3` | Check this: new numbers, scam check, money on hold |
 
 **Type**: [Figtree](https://fonts.google.com/specimen/Figtree), one family only. Display 600 weight, tight tracking (−0.035 to −0.05em). Body 400–500. Amounts use tabular numbers. Nothing under 13px.
 
@@ -97,7 +104,7 @@ Ana lives in Miami. Her mom, Rosa ("Mamá"), lives in Buenos Aires; Tío Luis in
 ## Copy rules (this is the brand)
 - **Say more with less.** One short line per idea. Never explain the mechanics on screen.
 - Sentence case. No exclamation marks. "Digital dollars" or "dollars", never "crypto" or "tokens" in the UI.
-- Approved lines: "Protect what matters." · "Always open." · "Send it all. Keep it all." · "Your money answers to you." · "Scammed? Undo it." · "Saved stays saved." · "Arrived in 0.9s." · "Only you can move your money."
+- Approved lines: see [COPY_DECK.md](./COPY_DECK.md). That file and `app-design/nest-app-screens.html` are the source of truth for every string.
 - Status words: "Arrived", "Undone · money returned", "Held in US dollars", "$0 fee".
 
 ## Honest limits (keep these true in the app and on stage)

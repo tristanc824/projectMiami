@@ -14,7 +14,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400..700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --page:#F3F0EA; --white:#FFFFFF; --ink:#17201A; --ink6:#4A544D; --ink4:#7C857E; --line:#E3DED3;
+    --page:#F3F0EA; --white:#FFFFFF; --ink:#17201A; --ink6:#4A544D; --ink4:#646C66; --line:#E3DED3;
     --moss:#2F5D3A; --moss9:#16301D; --sage:#A9C4A1; --sage1:#E4ECDF; --sky:#8CC8EA; --sky1:#DCEEF8; --sand:#E9E1D1;
     --amber:#8A5A10; --amber1:#F6EBD3; --clay:#B4562E; --clay1:#F6E4DA;
     --photos:url("../web-earth/public/photos/");
@@ -68,7 +68,7 @@
   .avatar.sm{width:40px;height:40px}.avatar.lg{width:64px;height:64px;font-size:20px}.avatar.xl{width:84px;height:84px}
   .avatar.ring{box-shadow:0 0 0 3px var(--page),0 0 0 5px var(--sage)}
   .rosa{background-image:url("../web-earth/public/photos/selfie.jpg");background-size:300%;background-position:60% 46%}
-  .luis{background-image:url("../web-earth/public/photos/shop.jpg");background-size:260%;background-position:52% 26%}
+  .luis{background-image:url("../web-earth/public/photos/shop.jpg");background-size:420%;background-position:50% 30%}
   .dani{background-image:url("../web-earth/public/photos/phone.jpg");background-size:330%;background-position:52% 28%}
   .ana{background-image:url("../web-earth/public/photos/laugh.jpg");background-size:250%;background-position:42% 22%}
   .btn{height:56px;border-radius:999px;border:0;font:600 16px Figtree,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;letter-spacing:-.01em}
@@ -158,10 +158,12 @@
       <div class="body" style="justify-content:flex-end;color:#fff;z-index:1">
         <span class="brand" style="color:#fff"><svg class="mark" style="color:#fff"><use href="#nest"/></svg>Nest</span>
         <h1 class="h1" style="font-size:46px;color:#fff">Protect what matters.</h1>
-        <div style="color:rgba(255,255,255,.75);font-size:17px;margin-top:-6px">A US dollar account with no fees.</div>
+        <div style="color:rgba(255,255,255,.75);font-size:17px;margin-top:-6px">A US dollar account with no fees to send or receive.</div>
         <div class="stack" style="margin-top:22px">
           <button class="btn light">Create account</button>
           <button class="btn ghost" style="color:rgba(255,255,255,.85)">I already have one</button>
+          <div class="note" style="color:rgba(255,255,255,.7);text-align:center">Lost your phone? <u>Get back in</u></div>
+          <div class="note" style="color:rgba(255,255,255,.55);text-align:center;font-size:11.5px">Digital dollars (USDC by Circle). Not a bank account. Not FDIC insured.</div>
         </div>
       </div>
       <div class="homebar light"></div>
@@ -200,7 +202,7 @@
         <div style="color:rgba(255,255,255,.75);font-size:17px">You don't need a bank account to get it.</div>
         <div class="stack" style="width:100%">
           <button class="btn light">Claim with your phone number</button>
-          <div class="note" style="color:rgba(255,255,255,.6)">Opens a Nest account in seconds.</div>
+          <div class="note" style="color:rgba(255,255,255,.6)">Yours to use in 24 hours, since it's Ana's first payment to you.</div>
         </div>
       </div>
       <div class="homebar light"></div>
@@ -234,7 +236,7 @@
           <div class="row between" style="margin-top:6px;font-size:12px;color:var(--ink4)"><span><b style="color:var(--moss);font-weight:600">In dollars</b> · <span style="color:#235C7D">same money in pesos</span></span><span>Past year</span></div>
           <div class="row gap8" style="margin-top:16px">
             <span class="chip green"><svg width="13" height="13"><use href="#leaf"/></svg>Held in US dollars</span>
-            <span class="chip sky">≈ ARS 4.15M</span>
+            <span class="chip sky">≈ ARS 4.15M · example rate</span>
           </div>
         </div>
         <div class="actions">
@@ -245,9 +247,9 @@
         <div>
           <div class="row between" style="margin-bottom:2px"><span class="label">Activity</span><span class="label">See all</span></div>
           <div class="list">
-            <div class="item"><span class="avatar rosa"></span><div class="grow"><div class="t1">Mamá</div><div class="t2">Arrived in 0.9s · No fee</div></div><span class="amt">−$250.00</span></div>
             <div class="item"><span class="avatar" style="background:var(--amber1);color:var(--amber)">?</span><div class="grow"><div class="t1">New number</div><div class="t2">Undone · Money back</div></div><span class="amt" style="color:var(--ink4);text-decoration:line-through">$500.00</span></div>
-            <div class="item"><span class="avatar dani"></span><div class="grow"><div class="t1">Daniel</div><div class="t2">Received</div></div><span class="amt" style="color:var(--moss)">+$120.00</span></div>
+            <div class="item"><span class="avatar rosa"></span><div class="grow"><div class="t1">Mamá</div><div class="t2">Arrived in 0.9s · No fee</div></div><span class="amt">−$250.00</span></div>
+            <div class="item"><span class="avatar dani"></span><div class="grow"><div class="t1">Daniela</div><div class="t2">Received</div></div><span class="amt" style="color:var(--moss)">+$120.00</span></div>
           </div>
         </div>
       </div>
@@ -284,6 +286,7 @@
         <div class="row gap8" style="margin-top:4px"><span class="chip green">No fee to receive</span><span class="chip green">Arrives in a second</span></div>
         <div class="stack" style="width:100%">
           <button class="btn dark"><svg width="18" height="18"><use href="#share"/></svg>Share my link</button>
+          <button class="btn ghost">Get paid by direct deposit</button>
         </div>
       </div>
       <div class="homebar"></div>
@@ -297,6 +300,7 @@
       <div class="status"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><svg width="16" height="12"><use href="#wifi"/></svg><svg width="27" height="13"><use href="#battery"/></svg></span></div>
       <div class="body">
         <h1 class="h1">Save</h1>
+        <div class="label" style="margin-top:-10px">Goals are set aside from your $4,280.12 balance.</div>
         <div class="card">
           <div class="t1">What $1,000 was worth a year later</div>
           <div class="col gap10" style="margin-top:18px">
@@ -306,9 +310,9 @@
           <div class="note" style="margin-top:12px">Saved in January 2023. Argentina had 211% inflation that year (INDEC).</div>
         </div>
         <div class="list">
-          <div class="item"><span class="ic-tile"><svg class="icon"><use href="#shield"/></svg></span><div class="grow"><div class="row between"><span class="t1">Rainy day</span><span class="amt">$1,240</span></div><div class="bar" style="margin-top:9px"><i style="width:62%"></i></div></div></div>
-          <div class="item"><span class="ic-tile" style="background:var(--sky1);color:#235C7D"><svg class="icon"><use href="#sprout"/></svg></span><div class="grow"><div class="row between"><span class="t1">School fees</span><span class="amt">$860</span></div><div class="bar" style="margin-top:9px"><i style="width:43%;background:var(--sky)"></i></div></div></div>
-          <div class="item"><span class="ic-tile" style="background:var(--amber1);color:var(--amber)"><svg class="icon"><use href="#home"/></svg></span><div class="grow"><div class="row between"><span class="t1">First home</span><span class="amt">$2,180</span></div><div class="bar" style="margin-top:9px"><i style="width:22%;background:#D9A441"></i></div></div></div>
+          <div class="item"><span class="ic-tile"><svg class="icon"><use href="#shield"/></svg></span><div class="grow"><div class="row between"><span class="t1">Rainy day</span><span class="amt">$620</span></div><div class="bar" style="margin-top:9px"><i style="width:62%"></i></div></div></div>
+          <div class="item"><span class="ic-tile"><svg class="icon"><use href="#sprout"/></svg></span><div class="grow"><div class="row between"><span class="t1">School fees</span><span class="amt">$430</span></div><div class="bar" style="margin-top:9px"><i style="width:43%"></i></div></div></div>
+          <div class="item"><span class="ic-tile"><svg class="icon"><use href="#home"/></svg></span><div class="grow"><div class="row between"><span class="t1">First home</span><span class="amt">$1,090</span></div><div class="bar" style="margin-top:9px"><i style="width:22%"></i></div></div></div>
         </div>
         <button class="btn light" style="margin-top:auto;margin-bottom:12px"><svg width="18" height="18"><use href="#plus"/></svg>New goal</button>
       </div>
@@ -332,18 +336,18 @@
         <div class="col" style="align-items:center;text-align:center;gap:8px;margin-top:6px">
           <span class="ic-tile" style="width:56px;height:56px;border-radius:18px"><svg width="26" height="26"><use href="#shield"/></svg></span>
           <div class="h2" style="margin-top:6px">Rainy day</div>
-          <div class="big" style="font-size:48px">$1,240</div>
-          <div class="label">of $2,000</div>
+          <div class="big" style="font-size:48px">$620</div>
+          <div class="label">of $1,000</div>
         </div>
         <div class="bar" style="height:10px"><i style="width:62%"></i></div>
         <div class="card tight">
-          <div class="row between"><div><div class="t1">Round-ups</div><div class="t2">Save the change from every purchase</div></div><span class="toggle"></span></div>
+          <div class="row between"><div><div class="t1">Weekly top-up</div><div class="t2">$25 every Friday</div></div><span class="toggle"></span></div>
         </div>
         <div>
           <div class="label" style="margin-bottom:2px">This week</div>
           <div class="list">
-            <div class="item"><div class="grow"><div class="t1">Round-up · Café</div><div class="t2">Today</div></div><span class="amt" style="color:var(--moss)">+$0.62</span></div>
-            <div class="item"><div class="grow"><div class="t1">Round-up · Market</div><div class="t2">Yesterday</div></div><span class="amt" style="color:var(--moss)">+$0.35</span></div>
+            <div class="item"><div class="grow"><div class="t1">Weekly top-up</div><div class="t2">Friday</div></div><span class="amt" style="color:var(--moss)">+$25.00</span></div>
+            <div class="item"><div class="grow"><div class="t1">Weekly top-up</div><div class="t2">Last Friday</div></div><span class="amt" style="color:var(--moss)">+$25.00</span></div>
             <div class="item"><div class="grow"><div class="t1">Added</div><div class="t2">Friday</div></div><span class="amt" style="color:var(--moss)">+$50.00</span></div>
           </div>
         </div>
@@ -372,7 +376,7 @@
         <div class="row gap12" style="justify-content:space-between">
           <div class="col" style="align-items:center;gap:6px;font-size:13px;font-weight:600"><span class="avatar lg ring rosa"></span>Mamá</div>
           <div class="col" style="align-items:center;gap:6px;font-size:13px;font-weight:600"><span class="avatar lg luis"></span>Tío Luis</div>
-          <div class="col" style="align-items:center;gap:6px;font-size:13px;font-weight:600"><span class="avatar lg dani"></span>Daniel</div>
+          <div class="col" style="align-items:center;gap:6px;font-size:13px;font-weight:600"><span class="avatar lg dani"></span>Daniela</div>
           <div class="col" style="align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--ink4)"><span class="avatar lg" style="background:var(--white);color:var(--ink4)"><svg width="22" height="22"><use href="#plus"/></svg></span>New</div>
         </div>
         <div>
@@ -397,7 +401,8 @@
         <div class="row between"><svg width="24" height="24"><use href="#back"/></svg><span class="row gap8"><span class="avatar sm rosa"></span><span class="t1">Mamá</span></span><span style="width:24px"></span></div>
         <div style="text-align:center;margin-top:40px">
           <div class="big" style="font-size:84px">$250</div>
-          <div class="label" style="margin-top:12px;font-size:15px">≈ ARS 242,500</div>
+          <div class="label" style="margin-top:12px;font-size:15px">≈ ARS 242,500 · example rate</div>
+          <div class="label" style="margin-top:4px">$4,280.12 available</div>
         </div>
         <div class="row gap8 center-x"><span class="chip green">No fee</span><span class="chip green">Arrives in a second</span></div>
         <div class="keys">
@@ -426,7 +431,7 @@
           <div class="kv"><span>Fee</span><span>$0.00</span></div>
           <div class="kv"><span>Arrives</span><span>About a second</span></div>
           <div class="kv"><span>She gets</span><span>$250.00 (≈ ARS 242,500)</span></div>
-          <div class="kv"><span>Undo</span><span>Not needed. You've paid her before.</span></div>
+          <div class="kv"><span>Undo</span><span>Off. You've paid her before.</span></div>
         </div>
         <div style="height:62px;border-radius:999px;background:var(--ink);position:relative;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.75);font-size:16px;font-weight:600;margin-top:4px">
           Slide to send
@@ -460,6 +465,7 @@
         <div class="stack" style="width:100%">
           <button class="btn dark">Done</button>
           <button class="btn ghost">Share receipt</button>
+          <div class="note" style="text-align:center"><u>Something wrong?</u></div>
         </div>
       </div>
       <div class="homebar"></div>
@@ -477,13 +483,13 @@
     <div class="phone"><div class="island"></div>
       <div class="status"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><svg width="16" height="12"><use href="#wifi"/></svg><svg width="27" height="13"><use href="#battery"/></svg></span></div>
       <div class="body">
-        <div style="margin-top:40px;width:64px;height:64px;border-radius:22px;background:var(--amber1);display:grid;place-items:center;color:var(--amber)"><svg width="30" height="30"><use href="#shield"/></svg></div>
+        <div style="margin-top:40px;width:64px;height:64px;border-radius:22px;background:var(--amber1);display:grid;place-items:center;color:var(--amber);font-size:32px;font-weight:700">!</div>
         <h1 class="h1" style="font-size:36px">This might be a scam.</h1>
         <div class="card" style="background:var(--amber1)">
           <div class="col" style="gap:14px;font-size:16px;color:#4B3507">
             <div class="row gap10"><span style="width:8px;height:8px;border-radius:50%;background:var(--amber)"></span>You've never paid this number</div>
-            <div class="row gap10"><span style="width:8px;height:8px;border-radius:50%;background:var(--amber)"></span>"Ana, it's Mamá. New number."</div>
-            <div class="row gap10"><span style="width:8px;height:8px;border-radius:50%;background:var(--amber)"></span>They want it sent right now</div>
+            <div class="row gap10"><span style="width:8px;height:8px;border-radius:50%;background:var(--amber)"></span>It's using Mamá's name, but it isn't her saved number</div>
+            <div class="row gap10"><span style="width:8px;height:8px;border-radius:50%;background:var(--amber)"></span>$500 is a lot for a first payment</div>
           </div>
         </div>
         <div class="label" style="text-align:center">If you send it, you can still undo it for 24 hours.</div>
@@ -504,7 +510,7 @@
       <div class="body" style="align-items:center;text-align:center">
         <h1 class="h1" style="margin-top:36px">You have 24 hours to undo this.</h1>
         <div style="position:relative;width:200px;height:200px;margin-top:10px">
-          <svg viewBox="0 0 200 200" width="200" height="200" style="transform:rotate(-90deg)"><circle cx="100" cy="100" r="90" fill="none" stroke="#E4ECDF" stroke-width="12"/><circle cx="100" cy="100" r="90" fill="none" stroke="#2F5D3A" stroke-width="12" stroke-linecap="round" stroke-dasharray="565.5" stroke-dashoffset="18"/></svg>
+          <svg viewBox="0 0 200 200" width="200" height="200" style="transform:rotate(-90deg)"><circle cx="100" cy="100" r="90" fill="none" stroke="#E4ECDF" stroke-width="12"/><circle cx="100" cy="100" r="90" fill="none" stroke="#8A5A10" stroke-width="12" stroke-linecap="round" stroke-dasharray="565.5" stroke-dashoffset="0.3"/></svg>
           <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
             <div style="font-size:34px;font-weight:600;letter-spacing:-.04em;font-variant-numeric:tabular-nums">23:59:12</div>
             <div class="label">left to undo</div>
@@ -513,7 +519,7 @@
         <div class="card tight" style="width:100%">
           <div class="kv"><span>To</span><span>+54 9 11 5555 0142</span></div>
           <div class="kv"><span>Amount</span><span>$500.00</span></div>
-          <div class="kv"><span>If you do nothing</span><span>It goes to them Monday, 9:41 PM</span></div>
+          <div class="kv"><span>Releases</span><span>Monday, 9:41 PM</span></div>
           <div class="kv"><span>Status</span><span style="color:var(--amber)">On hold</span></div>
         </div>
         <div class="stack" style="width:100%">
@@ -537,11 +543,13 @@
           <div><div class="t1" style="color:#fff">Only you can move your money.</div><div style="font-size:13px;color:rgba(255,255,255,.75);margin-top:2px">All protections are on.</div></div>
         </div>
         <div class="card" style="padding:4px 20px">
+          <div class="item"><span class="ic-tile"><svg class="icon"><use href="#key"/></svg></span><div class="grow"><div class="t1">Lock Nest</div><div class="t2">Stops all sends until you unlock</div></div><span class="toggle off"></span></div>
           <div class="item"><span class="ic-tile"><svg class="icon"><use href="#user"/></svg></span><div class="grow"><div class="t1">Face ID</div><div class="t2">Passkey on this iPhone</div></div><span class="toggle"></span></div>
           <div class="item"><span class="ic-tile"><svg class="icon"><use href="#shield"/></svg></span><div class="grow"><div class="t1">Scam check</div><div class="t2">Before you pay someone new</div></div><span class="toggle"></span></div>
           <div class="item"><span class="ic-tile"><svg class="icon"><use href="#clock"/></svg></span><div class="grow"><div class="t1">Undo window</div><div class="t2">24 hours for someone new</div></div><svg width="18" height="18" style="color:var(--ink4)"><use href="#chev"/></svg></div>
-          <div class="item"><span class="ic-tile"><svg class="icon"><use href="#key"/></svg></span><div class="grow"><div class="t1">Family safe word</div><div class="t2">For sends over $500</div></div><svg width="18" height="18" style="color:var(--ink4)"><use href="#chev"/></svg></div>
+          <div class="item"><span class="ic-tile"><svg class="icon"><use href="#key"/></svg></span><div class="grow"><div class="t1">Family safe word</div><div class="t2">Releases a held payment early</div></div><svg width="18" height="18" style="color:var(--ink4)"><use href="#chev"/></svg></div>
           <div class="item"><span class="avatar sm rosa"></span><div class="grow"><div class="t1">Trusted contact</div><div class="t2">Mamá</div></div><svg width="18" height="18" style="color:var(--ink4)"><use href="#chev"/></svg></div>
+          <div class="item"><span class="ic-tile"><svg class="icon"><use href="#heart"/></svg></span><div class="grow"><div class="t1">Talk to a person</div><div class="t2">Replies in about 5 minutes</div></div><svg width="18" height="18" style="color:var(--ink4)"><use href="#chev"/></svg></div>
         </div>
       </div>
       <div class="tabbar">
@@ -563,7 +571,7 @@
   <!-- Offline send -->
   <figure>
     <div class="phone"><div class="island"></div>
-      <div class="status"><span>9:41</span><span class="icons"><svg width="18" height="12" style="opacity:.35"><use href="#signal"/></svg><span style="font-size:12px;font-weight:600">SOS</span><svg width="27" height="13"><use href="#battery"/></svg></span></div>
+      <div class="status"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><span style="font-size:12px;font-weight:600">No data</span><svg width="27" height="13"><use href="#battery"/></svg></span></div>
       <div class="body" style="align-items:center;text-align:center">
         <div style="margin-top:22px;align-self:stretch" class="row gap8 center-x"><span class="chip amber">No Wi-Fi or data</span></div>
         <div style="position:relative;margin-top:30px">
@@ -606,10 +614,10 @@
           <div class="label" style="margin-bottom:2px">Activity</div>
           <div class="list">
             <div class="item"><span class="avatar rosa"></span><div class="grow"><div class="t1">Mamá</div><div class="t2">Sent by text · No fee</div></div><span class="amt">−$250.00</span></div>
-            <div class="item"><span class="avatar dani"></span><div class="grow"><div class="t1">Daniel</div><div class="t2">Received</div></div><span class="amt" style="color:var(--moss)">+$120.00</span></div>
+            <div class="item"><span class="avatar dani"></span><div class="grow"><div class="t1">Daniela</div><div class="t2">Received</div></div><span class="amt" style="color:var(--moss)">+$120.00</span></div>
           </div>
         </div>
-        <div class="note" style="margin-top:auto;margin-bottom:40px;text-align:center">You can keep sending. Each payment is saved and goes out in order.</div>
+        <div class="note" style="margin-top:auto;margin-bottom:40px;text-align:center">Payments wait here and go out in order when you're back online.</div>
       </div>
       <div class="homebar"></div>
     </div>
