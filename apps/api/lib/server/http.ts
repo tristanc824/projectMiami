@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { PublicKey } from '@solana/web3.js';
 import { solanaWallet, userById, verifyAccessToken } from './privy';
+import { SubmittedError } from './solana.mjs';
 
 export const json = (body: unknown, status = 200) => NextResponse.json(body, { status });
 export const fail = (message: string, status = 400) => json({ error: message }, status);
@@ -15,6 +16,20 @@ export function allow(key: string, max: number, windowMs = 3_600_000) {
   hits.set(key, recent);
   return true;
 }
+
+// Returns the JSON object body, or null for invalid JSON, null, arrays, or other non-objects.
+export async function readJson(req: Request): Promise<Record<string, unknown> | null> {
+  try {
+    const body = await req.json();
+    return body && typeof body === 'object' && !Array.isArray(body) ? (body as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+// 202: the transaction was sent but not yet confirmed. The client must not send it again.
+export const pending = (signature: string) =>
+  json({ signature, status: 'pending', message: 'Sent. Waiting for the network to confirm. Do not send it again.' }, 202);
 
 export type AuthedUser = { id: string; wallet: PublicKey };
 
@@ -32,6 +47,7 @@ export function route<A extends unknown[]>(handler: (...args: A) => Promise<Resp
       return await handler(...args);
     } catch (err) {
       console.error(err);
+      if (err instanceof SubmittedError) return pending(err.signature);
       const message = err instanceof Error ? err.message : '';
       if (message === 'TREASURY_LOW') return fail('The demo supply of test USDC is low. Try a smaller amount.', 503);
       return fail('Something went wrong. Please try again.', 500);

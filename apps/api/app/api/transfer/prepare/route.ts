@@ -1,19 +1,20 @@
 import { PublicKey } from '@solana/web3.js';
-import { fail, json, requireUser, route } from '@/lib/server/http';
+import { fail, json, readJson, requireUser, route } from '@/lib/server/http';
 import { prepareTransfer, treasury, usdcBalance } from '@/lib/server/solana.mjs';
 import { toBaseUnits } from '@/lib/money.mjs';
 
 export const POST = route(async (req: Request) => {
   const me = await requireUser(req);
   if (me instanceof Response) return me;
-  const body = await req.json();
+  const body = await readJson(req);
+  if (!body) return fail('Invalid request');
   const amount = toBaseUnits(body.amount);
   if (!amount) return fail('Enter an amount');
   if ((await usdcBalance(me.wallet)) < amount) return fail("You don't have enough for that.");
   // Cash-outs and card payments return USDC to the treasury, standing in for a payout partner.
   let recipient: PublicKey;
   try {
-    recipient = body.toTreasury ? treasury().publicKey : new PublicKey(body.recipient);
+    recipient = body.toTreasury === true ? treasury().publicKey : new PublicKey(String(body.recipient ?? ''));
   } catch {
     return fail('Invalid recipient');
   }
