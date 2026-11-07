@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nest demo video storyboard</title>
+<!-- Storyboard for the vertical cut (9:16, 53s) in VIDEO_SCRIPT.md. Open in a browser from the repo (photos load from ../web-earth/public/photos). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400..700&display=swap" rel="stylesheet">
+<style>
+  :root{--page:#F3F0EA;--ink:#17201A;--ink6:#4A544D;--ink4:#7C857E;--line:#E3DED3;--moss:#2F5D3A;--moss9:#16301D;--sage1:#E4ECDF;--sky:#5FA8D6;--sky1:#DCEEF8;--amber:#8A5A10;--amber1:#F6EBD3}
+  *{box-sizing:border-box}
+  body{margin:0;background:#E7E2D7;font-family:Figtree,system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+  header{max-width:1400px;margin:0 auto;padding:52px 32px 8px}
+  header h1{margin:0;font-size:42px;font-weight:600;letter-spacing:-.04em}
+  header p{margin:8px 0 0;color:var(--ink6);max-width:86ch;line-height:1.55}
+  .grid{max-width:1400px;margin:0 auto;padding:28px 32px 80px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:40px 28px}
+  .shot{display:flex;flex-direction:column;gap:12px}
+  .frame{position:relative;width:100%;aspect-ratio:9/16;border-radius:22px;overflow:hidden;background:var(--page)}
+  .meta{display:flex;gap:10px;align-items:baseline}
+  .num{font-weight:600;font-size:15px}
+  .time{font-size:13px;color:var(--ink4);font-variant-numeric:tabular-nums}
+  .text{font-size:15px;font-weight:600;line-height:1.35}
+  .note{font-size:13px;color:var(--ink6);line-height:1.5}
+  .sound{font-size:12.5px;color:var(--ink4)}
+  .safe{position:absolute;inset:14% 6% 35% 6%;border:1px dashed rgba(255,255,255,.0)}
+  .cap{position:absolute;left:8%;right:8%;bottom:36%;text-align:center;font-weight:600;font-size:22px;letter-spacing:-.025em;line-height:1.15}
+  .meadow{position:absolute;inset:0;background:url('../web-earth/public/photos/meadow.jpg') 46% 70%/cover;filter:saturate(1.1) brightness(1.05)}
+  .scrim{position:absolute;inset:0;background:linear-gradient(to top,rgba(16,26,19,.55),rgba(16,26,19,0) 60%)}
+  .bird{position:absolute;color:#1C2A22}
+  .phone{position:absolute;left:50%;transform:translateX(-50%);width:50%;aspect-ratio:9/19.5;border-radius:30px;background:var(--page);box-shadow:0 0 0 6px #0F1511,0 30px 50px -20px rgba(0,0,0,.6);overflow:hidden}
+  .card{background:#fff;border-radius:16px;padding:12px}
+  .chip{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:600;white-space:nowrap}
+  .chip.green{background:var(--sage1);color:var(--moss)}.chip.amber{background:var(--amber1);color:var(--amber)}
+  .float{box-shadow:0 18px 40px -16px rgba(22,48,29,.45)}
+  .avatar{border-radius:50%;background:url('../web-earth/public/photos/selfie.jpg') 60% 46%/300%}
+  .ana{background-image:url('../web-earth/public/photos/laugh.jpg');background-size:250%;background-position:42% 22%}
+  .btn{height:40px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px}
+  .lbl{position:absolute;top:10px;left:10px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;background:rgba(255,255,255,.75);color:var(--ink);border-radius:6px;padding:3px 6px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="nest" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="5.5"><ellipse cx="23" cy="32" rx="18" ry="14" transform="rotate(90 23 32)"/><ellipse cx="36.5" cy="24.206" rx="18" ry="14" transform="rotate(210 36.5 24.206)"/><ellipse cx="36.5" cy="39.794" rx="18" ry="14" transform="rotate(330 36.5 39.794)"/></g></symbol>
+  <symbol id="bird" viewBox="0 -1 40 16"><path d="M0 7 C6 3 12 2 18 6 C19 7 21 7 22 6 C28 2 34 3 40 7 C34 5 28 6 22 10 L20 11 L18 10 C12 6 6 5 0 7 Z" fill="currentColor"/></symbol>
+  <symbol id="send" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="faceid" viewBox="0 0 72 72"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 22V12a6 6 0 0 1 6-6h10M50 6h10a6 6 0 0 1 6 6v10M66 50v10a6 6 0 0 1-6 6H50M22 66H12a6 6 0 0 1-6-6V50"/><path d="M26 27v5M46 27v5M36 29v12h-3M28 48c5 4 11 4 16 0"/></g></symbol>
+</defs></svg>
+
+<header>
+  <h1>Nest demo video: storyboard</h1>
+  <p>Vertical cut, 9:16, 53 seconds, captions only. Lines and timings from VIDEO_SCRIPT.md (Martha), shots from DEMO_VIDEO_BOARD.md. Hook uses Martha's option B, so the scam text pretends to be Mamá on Ana's phone. App pieces are the real screens from nest-app-screens.html, floated large. Anything not live on devnet gets a small "Prototype" label in the edit.</p>
+</header>
+
+<main class="grid">
+
+  <!-- 1 Hook -->
+  <section class="shot">
+    <div class="frame" style="background:radial-gradient(120% 80% at 50% 30%,#2B2A24,#0D0F0D)">
+      <div class="phone" style="top:12%;background:#101311">
+        <div style="padding:42px 12px 0;color:#fff">
+          <div style="text-align:center;font-size:11px;color:#9AA29C">+54 9 11 5555 0142</div>
+          <div style="text-align:center;font-size:10px;color:#6F7771;margin-top:2px">Today 9:38 PM</div>
+          <div style="margin-top:16px;max-width:82%;background:#2A2E2B;border-radius:16px 16px 16px 4px;padding:9px 11px;font-size:13px;line-height:1.3">Ana, it's Mamá. New number. Send it here.</div>
+        </div>
+      </div>
+      <div class="cap" style="color:#fff;bottom:9%">Ana, it's Mamá. New number. Send it here.</div>
+    </div>
+    <div class="meta"><span class="num">1 · Hook</span><span class="time">0:00–0:03</span></div>
+    <div class="note">Phone already lit, Miami at night, lamp light only. The message slides in from an unknown +54 number. Generic messages app, no brand marks.</div>
+    <div class="sound">Sound: message alert, then room tone. No music yet.</div>
+  </section>
+
+  <!-- 2 Old world -->
+  <section class="shot">
+    <div class="frame" style="background:#1A1C1B">
+      <div class="phone" style="top:12%;background:#ECEDEF">
+        <div style="padding:40px 12px 0;font-size:12px;color:#3A3D42">
+          <div style="font-weight:600;font-size:14px">Transfer</div>
+          <div style="margin-top:14px;background:#fff;border-radius:8px;padding:10px;line-height:1.7">Amount <b style="float:right">$500.00</b></div>
+          <div style="margin-top:10px;background:#fff;border-radius:8px;padding:10px;color:#6B6F75">Arrives in a few business days</div>
+          <div style="margin-top:8px;background:#fff;border-radius:8px;padding:10px;color:#6B6F75">Transfers are final.</div>
+          <div style="margin-top:16px;height:34px;border-radius:6px;background:#9BA1AA;color:#fff;display:grid;place-items:center;font-weight:600">Send</div>
+        </div>
+      </div>
+      <div class="cap" style="color:#fff;bottom:7%;font-size:17px;font-weight:500;opacity:.85">Arrives in a few business days<br>Transfers are final.</div>
+    </div>
+    <div class="meta"><span class="num">2 · The old way</span><span class="time">0:03–0:07</span></div>
+    <div class="note">A plain, unbranded bank app. Slow push-in; her thumb hovers over Send and doesn't press. No fee figure on screen: we have no sourced number for it.</div>
+    <div class="sound">Sound: low flat hum. Track hasn't started.</div>
+  </section>
+
+  <!-- 3 Brand -->
+  <section class="shot">
+    <div class="frame"><div class="meadow"></div>
+      <svg class="bird" style="top:22%;left:20%;width:30px;height:12px;opacity:.8"><use href="#bird"/></svg>
+      <svg class="bird" style="top:25%;left:31%;width:22px;height:9px;opacity:.7"><use href="#bird"/></svg>
+      <svg class="bird" style="top:19%;left:39%;width:16px;height:7px;opacity:.6"><use href="#bird"/></svg>
+      <div style="position:absolute;top:34%;left:0;right:0;display:flex;justify-content:center;align-items:center;gap:8px;color:#fff;font-weight:600;font-size:30px;letter-spacing:-.03em"><svg width="36" height="36" style="color:#fff"><use href="#nest"/></svg>Nest</div>
+    </div>
+    <div class="meta"><span class="num">3 · Nest</span><span class="time">0:07–0:10</span></div>
+    <div class="note">Hard cut to the website's meadow. Birds cross. The three-ring mark draws itself, then the wordmark.</div>
+    <div class="sound">Sound: the track opens, warm and slow.</div>
+  </section>
+
+  <!-- 4 Home -->
+  <section class="shot">
+    <div class="frame" style="background:var(--page)">
+      <div class="card float" style="position:absolute;top:18%;left:9%;right:9%;padding:18px">
+        <div style="font-size:12px;color:var(--ink4)">Balance</div>
+        <div style="font-size:38px;font-weight:600;letter-spacing:-.05em">$4,280<span style="color:#A3AAA4">.12</span></div>
+        <svg viewBox="0 0 300 64" width="100%" height="56" style="margin-top:10px;overflow:visible"><path d="M0 10 C60 9 120 11 180 9 S260 10 300 10" fill="none" stroke="#2F5D3A" stroke-width="3" stroke-linecap="round"/><path d="M0 10 C40 14 70 22 110 28 S190 44 230 50 S280 56 300 58" fill="none" stroke="#5FA8D6" stroke-width="2.4" stroke-dasharray="4 4" stroke-linecap="round"/></svg>
+      </div>
+      <span class="chip green float" style="position:absolute;top:52%;left:50%;transform:translateX(-50%) scale(1.5);">Held in US dollars</span>
+    </div>
+    <div class="meta"><span class="num">4 · Dollars</span><span class="time">0:10–0:15</span></div>
+    <div class="text">Held in US dollars</div>
+    <div class="note">Home screen. The dollars-vs-pesos line draws itself left to right; the chip lifts off and floats large.</div>
+    <div class="sound">Sound: soft tick as the line finishes.</div>
+  </section>
+
+  <!-- 5 Send to Mamá -->
+  <section class="shot">
+    <div class="frame" style="background:var(--page)">
+      <div style="position:absolute;top:10%;left:8%;right:8%;display:flex;flex-direction:column;gap:12px">
+        <div class="card float" style="display:flex;align-items:center;gap:10px"><span class="avatar" style="width:38px;height:38px"></span><div style="font-weight:600">Mamá</div><span style="margin-left:auto;font-size:26px;font-weight:600;letter-spacing:-.04em">$250</span></div>
+        <div style="display:flex;gap:6px;justify-content:center"><span class="chip green">No fee</span><span class="chip green">Arrives in a second</span></div>
+        <div class="btn float" style="background:var(--ink);color:rgba(255,255,255,.8);position:relative;height:48px">Slide to send<span style="position:absolute;left:4px;top:4px;width:40px;height:40px;border-radius:50%;background:#fff;display:grid;place-items:center;color:var(--ink)"><svg width="16" height="16"><use href="#send"/></svg></span></div>
+        <div class="card float" style="text-align:center;padding:16px">
+          <span class="avatar" style="width:52px;height:52px;display:inline-block"></span>
+          <div style="font-weight:600;font-size:18px;letter-spacing:-.03em;margin-top:6px">Mamá has your $250.</div>
+          <div style="font-size:12px;color:var(--ink4);margin-top:4px">Sunday, 9:41 PM</div>
+        </div>
+      </div>
+    </div>
+    <div class="meta"><span class="num">5 · Send home</span><span class="time">0:15–0:24</span></div>
+    <div class="text">No fee · Arrives in a second → Slide to send → Mamá has your $250. / Sunday, 9:41 PM</div>
+    <div class="note">Three quick shots: tap Mamá, amount with chips floated; drag Slide to send, Face ID; Arrived with Rosa's photo, the Sunday row floats up.</div>
+    <div class="sound">Sound: soft click on release, Face ID tick, the track lifts. Faint birds.</div>
+  </section>
+
+  <!-- 6 The scam number -->
+  <section class="shot">
+    <div class="frame" style="background:var(--page)">
+      <div class="card float" style="position:absolute;top:28%;left:8%;right:8%;display:flex;align-items:center;gap:10px;transform:scale(1.04)">
+        <span style="width:38px;height:38px;border-radius:50%;background:var(--amber1);color:var(--amber);display:grid;place-items:center;font-weight:600">+</span>
+        <div><div style="font-weight:600;font-size:14px">+54 9 11 5555 0142</div><div style="font-size:12px;color:var(--amber);font-weight:600">New · 24 hours to undo</div></div>
+      </div>
+      <div style="position:absolute;top:44%;left:8%;right:8%;opacity:.35;display:flex;flex-direction:column;gap:8px">
+        <div class="card" style="height:46px"></div><div class="card" style="height:46px"></div>
+      </div>
+    </div>
+    <div class="meta"><span class="num">6 · The new number</span><span class="time">0:24–0:27</span></div>
+    <div class="text">New · 24 hours to undo</div>
+    <div class="note">Half a second back on the message thread, then Send to. The +54 row glows amber and floats forward.</div>
+    <div class="sound">Sound: the track thins out.</div>
+  </section>
+
+  <!-- 7 Scam check -->
+  <section class="shot">
+    <div class="frame" style="background:var(--page)">
+      <div style="position:absolute;top:14%;left:8%;right:8%">
+        <div style="width:46px;height:46px;border-radius:16px;background:var(--amber1);margin-bottom:14px"></div>
+        <div style="font-size:30px;font-weight:600;letter-spacing:-.04em;line-height:1.05">This might be a scam.</div>
+        <div class="card" style="background:var(--amber1);margin-top:16px;font-size:13px;color:#4B3507;line-height:1.9">• You've never paid this number<br>• "Ana, it's Mamá. New number."<br>• They want it sent right now</div>
+      </div>
+      <div class="btn" style="position:absolute;left:8%;right:8%;bottom:9%;background:var(--ink);color:#fff">Don't send</div>
+    </div>
+    <div class="meta"><span class="num">7 · Nest steps in</span><span class="time">0:27–0:31</span></div>
+    <div class="text">This might be a scam.</div>
+    <div class="note">Headline settles first, then the three reasons fade in one by one. The safe choice is the dark button. The quote matches the hook word for word.</div>
+    <div class="sound">Sound: one low tone, held.</div>
+  </section>
+
+  <!-- 8 Hold to send anyway -->
+  <section class="shot">
+    <div class="frame" style="background:var(--page)">
+      <div class="btn float" style="position:absolute;top:40%;left:8%;right:8%;height:56px;background:#fff;color:var(--ink);overflow:hidden">
+        <span style="position:absolute;inset:0;width:62%;background:var(--amber1)"></span><span style="position:relative">Hold to send anyway</span>
+      </div>
+      <div style="position:absolute;top:53%;left:0;right:0;text-align:center;font-size:12px;color:var(--ink4)">thumb holds, the button fills</div>
+    </div>
+    <div class="meta"><span class="num">8 · She sends anyway</span><span class="time">0:31–0:34</span></div>
+    <div class="text">Hold to send anyway</div>
+    <div class="note">Her thumb skips "Don't send", presses and holds. The fill takes about 1.5 s.</div>
+    <div class="sound">Sound: the low tone rises with the hold, cuts on release.</div>
+  </section>
+
+  <!-- 9 Undo window -->
+  <section class="shot">
+    <div class="frame" style="background:var(--page)">
+      <div style="position:absolute;top:12%;left:8%;right:8%;text-align:center;font-size:26px;font-weight:600;letter-spacing:-.04em;line-height:1.1">You have 24 hours to undo this.</div>
+      <div style="position:absolute;top:34%;left:50%;transform:translateX(-50%);width:62%;aspect-ratio:1">
+        <svg viewBox="0 0 200 200" width="100%" height="100%" style="transform:rotate(-90deg)"><circle cx="100" cy="100" r="88" fill="none" stroke="#E4ECDF" stroke-width="12"/><circle cx="100" cy="100" r="88" fill="none" stroke="#2F5D3A" stroke-width="12" stroke-linecap="round" stroke-dasharray="553" stroke-dashoffset="16"/></svg>
+        <div style="position:absolute;inset:0;display:grid;place-items:center;font-size:26px;font-weight:600;letter-spacing:-.04em">23:59:12</div>
+      </div>
+    </div>
+    <div class="meta"><span class="num">9 · The undo window</span><span class="time">0:34–0:39</span></div>
+    <div class="text">You have 24 hours to undo this.</div>
+    <div class="note">Slow push-in on the turning ring. If the recording uses a shorter devnet window, label it "Prototype".</div>
+    <div class="sound">Sound: near silence, one soft pulse per second.</div>
+  </section>
+
+  <!-- 10 Money back -->
+  <section class="shot">
+    <div class="frame" style="background:var(--page)">
+      <div class="btn" style="position:absolute;top:18%;left:8%;right:8%;height:50px;background:var(--ink);color:#fff;gap:8px"><svg width="16" height="16"><use href="#undo"/></svg>Undo and get $500 back</div>
+      <div class="card float" style="position:absolute;top:42%;left:8%;right:8%;display:flex;align-items:center;gap:10px">
+        <span style="width:38px;height:38px;border-radius:50%;background:var(--amber1);color:var(--amber);display:grid;place-items:center;font-weight:600">?</span>
+        <div><div style="font-weight:600;font-size:14px">New number</div><div style="font-size:12px;color:var(--moss);font-weight:600">Undone · Money back</div></div>
+        <span style="margin-left:auto;font-weight:600;color:var(--ink4);text-decoration:line-through">$500.00</span>
+      </div>
+    </div>
+    <div class="meta"><span class="num">10 · Money back</span><span class="time">0:39–0:43</span></div>
+    <div class="text">Undone · Money back</div>
+    <div class="note">Tap Undo, cut to Home: the row lands in Activity. Hold a full second.</div>
+    <div class="sound">Sound: the release, the track returns in full.</div>
+  </section>
+
+  <!-- 11 Proof line -->
+  <section class="shot">
+    <div class="frame"><div class="meadow" style="background-position:60% 66%"></div><div class="scrim"></div>
+      <svg class="bird" style="top:18%;left:58%;width:28px;height:11px;opacity:.75"><use href="#bird"/></svg>
+      <svg class="bird" style="top:21%;left:68%;width:20px;height:8px;opacity:.6"><use href="#bird"/></svg>
+      <div class="cap" style="color:#fff;font-size:28px;bottom:40%">Every dollar you send gets there.</div>
+    </div>
+    <div class="meta"><span class="num">11 · The line</span><span class="time">0:43–0:48</span></div>
+    <div class="text">Every dollar you send gets there.</div>
+    <div class="note">Wider meadow, birds crossing. The line types in word by word, centered.</div>
+    <div class="sound">Sound: the track carries it.</div>
+  </section>
+
+  <!-- 12 End card -->
+  <section class="shot">
+    <div class="frame"><div class="meadow" style="background-position:40% 75%"></div>
+      <div style="position:absolute;top:30%;left:0;right:0;text-align:center;color:#fff">
+        <div style="display:flex;justify-content:center;align-items:center;gap:8px;font-weight:600;font-size:30px;letter-spacing:-.03em"><svg width="36" height="36" style="color:#fff"><use href="#nest"/></svg>Nest</div>
+        <div style="margin-top:10px;font-size:20px;font-weight:600;letter-spacing:-.02em">Protect what matters.</div>
+        <div style="margin-top:8px;font-size:12px;opacity:.85">[URL]</div>
+      </div>
+    </div>
+    <div class="meta"><span class="num">12 · End</span><span class="time">0:48–0:53</span></div>
+    <div class="text">Protect what matters. / [URL]</div>
+    <div class="note">Mark and wordmark on the meadow sky, tagline under it, URL small. Hold 3 seconds.</div>
+    <div class="sound">Sound: the track resolves and fades.</div>
+  </section>
+
+</main>
+</body>
+</html>
