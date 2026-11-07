@@ -5,7 +5,7 @@ For Tristan, building the app in Cursor. This is the current source of truth for
 ## What to open first
 | What | Where | How |
 |---|---|---|
-| **App screens** (14 mockups) | [`app-design/nest-app-screens.html`](./app-design/nest-app-screens.html) | Open in any browser. No build step. |
+| **App screens** (16 mockups) | [`app-design/nest-app-screens.html`](./app-design/nest-app-screens.html) | Open in any browser. No build step. |
 | **Website** | [`web-earth/`](./web-earth) | `cd web-earth && npm install && npm run dev` → http://localhost:5175 |
 | Pitch, angle and demo script | [PITCH_PLAYBOOK.md](./PITCH_PLAYBOOK.md) | |
 | Solana stack and architecture | [BLOCKCHAIN_STACK.md](./BLOCKCHAIN_STACK.md) | |
@@ -24,6 +24,7 @@ Nest is a dollar account for anyone with a phone. **Protect what matters.**
 | **Government-independent** | Your money answers to you. | Not held in one local bank or national banking system. Honest caveat: Circle (USDC issuer) can freeze tokens. | (website) |
 | **Undo** | Scammed? Undo it. | First payment to a new recipient goes into an on-chain escrow (Anchor program) for 24h; sender can cancel. | 8, 13 |
 | **Security** | Only you can move your money. | Passkey / Face ID (no passwords), scam check before risky sends, family safe word, trusted contact. | 2, 10, 12, 14 |
+| **Send without Wi-Fi** | Send money with no Wi-Fi. | The phone signs the payment offline using a Solana durable nonce (see BLOCKCHAIN_STACK.md, offline send queue). With cell signal but no data, it goes by text message to a Nest relay that submits it. With no signal at all, it is saved on the phone and sent in order on reconnect. Honest limit: it can't arrive while the phone has no connection of any kind. | 15, 16 |
 | Claim link | No app needed. | Payment link that opens an account on claim. | 3 |
 
 More features will come; don't build beyond this list for the demo.
@@ -31,7 +32,7 @@ More features will come; don't build beyond this list for the demo.
 ## The story in the mockups
 Ana lives in Miami. Her mom, Rosa ("Mamá"), lives in Buenos Aires; Tío Luis in Córdoba; Daniel in London. Argentina is the story country because it is the strongest inflation case. Peso amounts use an example rate (about 970 ARS per dollar); **Pyth has no ARS feed**, so a live value needs another source or stays "Example". The savings comparison is sourced: Argentina's 2023 inflation was 211.4% ([ECONOMIC_PROBLEMS.md](./ECONOMIC_PROBLEMS.md)), so $1,000 held in pesos for that year bought about **$321** of what it did in January. Avatars are crops of the Unsplash photos in `web-earth/public/photos/`.
 
-## The 14 screens (in `app-design/nest-app-screens.html`)
+## The 16 screens (in `app-design/nest-app-screens.html`)
 **Start**
 1. **Welcome**: meadow photo with birds, "Protect what matters.", "Dollars. 24/7. No fees.", Create account / I already have one.
 2. **Face ID**: "Your face is your password." Passkey setup.
@@ -53,6 +54,10 @@ Ana lives in Miami. Her mom, Rosa ("Mamá"), lives in Buenos Aires; Tío Luis in
 12. **Scam check**: "Wait. This looks like a scam." Three reasons; "Don't send" is the dark button.
 13. **Undo**: "Sent. Undo anytime in 24h." Countdown ring, "Held safely", Undo payment.
 14. **Security**: "Only you can move your money." Face ID, scam check, undo window, family safe word (sends over $500), trusted contact.
+
+**No Wi-Fi**
+15. **Sent by text**: "Your $250 is on its way to Mamá." / "We sent it by text message." Signed on this phone with Face ID, $0 fee; note for no signal at all.
+16. **Waiting to send**: offline banner, "$80.00 to Tío Luis · Ready to send", payments go out in order on reconnect.
 
 **Main demo flow:** 4 → 8 → 9 → 10 → 11 (normal send), then 8 (new number) → 9 → 12 → send anyway → 13 → Undo → back to 4 showing "Undone · money returned". Open with 1 if there's time; 3 is the bonus for "what if she doesn't have the app?"
 

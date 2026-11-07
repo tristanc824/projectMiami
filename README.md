@@ -18,7 +18,7 @@ The backend is in [`apps/api`](./apps/api/HANDOFF.md): a Next.js app (DAT) with 
 
 - [DESIGN.md](./DESIGN.md) — Cash App / PayPal reference research and the earlier Guard design system.
 
-**Start here if you're building the app:** [APP_HANDOFF.md](./APP_HANDOFF.md). It has the brand, features, copy rules and the 14 app screens ([`app-design/nest-app-screens.html`](./app-design/nest-app-screens.html), open in a browser).
+**Start here if you're building the app:** [APP_HANDOFF.md](./APP_HANDOFF.md). It has the brand, features, copy rules and the 16 app screens ([`app-design/nest-app-screens.html`](./app-design/nest-app-screens.html), open in a browser).
 
 - [PITCH_PLAYBOOK.md](./PITCH_PLAYBOOK.md) — the angle, selling points, 3-minute table script, 30-second opener, Q&A prep and 90-second demo video. Fill in section 0 before the first judge.
 - [`web-earth/`](./web-earth) — the website. `npm install && npm run dev` → http://localhost:5175

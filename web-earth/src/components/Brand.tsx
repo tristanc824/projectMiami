@@ -41,6 +41,7 @@ const STORIES = [
   { img: "/photos/kitchen.jpg", tag: "Undo", title: "Undo a scam payment within 24 hours.", pos: "60% 30%" },
   { img: "/photos/friends.jpg", tag: "No fees", title: "Split dinner without paying a fee.", pos: "50% 55%" },
   { img: "/photos/phone.jpg", tag: "Independent", title: "Take your account with you when you move.", pos: "45% 40%" },
+  { img: "/photos/market.jpg", tag: "No Wi-Fi", title: "Send money with no Wi-Fi.", pos: "50% 30%" },
 ];
 
 export function Stories() {

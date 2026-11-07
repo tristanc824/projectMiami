@@ -2,6 +2,8 @@
 
 Written by Martha, 2026-11-07. Follows the story spine in DEMO_VIDEO_BOARD.md section 3 and reuses the approved app and site lines in COPY_DECK.md, so the video says exactly what the product says. App strings below are copied from `app-design/nest-app-screens.html` (copy deck version).
 
+**Length limit: 90 seconds maximum** for any cut (both cuts below fit: 53 s and about 68 s). There is room for one more beat: **send without Wi-Fi** (app screens 15 and 16), about 6-8 s, placed after beat 5. Martha to write its line.
+
 **Stage:** cold (judges, Devpost viewers, social). **The one ask:** none spoken. The end card carries the tagline and the URL. **Numbers in the vertical captions:** two (24 hours, and the $250 the app already shows).
 
 ## Read before you shoot: 3 decisions for the team

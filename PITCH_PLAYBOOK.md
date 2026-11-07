@@ -61,6 +61,8 @@ One line each, said the way the founder wants it: short, felt, no mechanics. The
 | 5 | Undo | **Sent it to a scammer? Take it back.** | Undo screen: the 24h countdown, one tap, "Undone. Money returned" on Home. |
 | 6 | Security | **Your face is the password.** | Face ID confirm, then the Scam check card ("Wait. This looks like a scam."). Safe word: not on the current screens, so mention it only if asked. |
 
+| 7 | Send without Wi-Fi | **Send money with no Wi-Fi.** | Turn on airplane mode except cellular, send to Mamá, show "We sent it by text message." Honest line for Q&A: with no signal at all it waits on the phone and sends on reconnect (durable nonce). [TEAM: only demo if the SMS relay is built; otherwise show the queued screen] |
+
 Bonus moment if a judge has two minutes: the **Claim link**. "No app? She gets a link and her phone number opens it."
 
 ---
