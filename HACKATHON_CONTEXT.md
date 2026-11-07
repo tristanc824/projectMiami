@@ -470,3 +470,19 @@ A transparent transfer fee was proposed as a business-model hypothesis. No price
 - No money has been moved and no transactions have been signed as part of this work.
 - No claim of bank-grade protection, hack-proof funds, guaranteed inflation protection, global coverage, or instant universal fiat access has been established.
 - The next useful step is to resolve the open product/technical decisions and turn the selected demo into a concrete build plan.
+
+## 16. Opening presentation review and additional brainstorm
+
+The user supplied the [SharkByte opening presentation](https://www.canva.com/design/DAHaKGUpDs0/mIZxhJNVD6yT1Oj404c-mA/view) and asked for additional categories, ideas, and names beyond the discussion above.
+
+The full slide text of the 58-page deck was read through Canva. Presenter notes were not accessible. The deck confirms one project can enter multiple relevant challenges and gives a build window of Friday, November 6, 10 p.m. to Sunday, November 8, 10 a.m.
+
+Detailed findings are saved in [EVENT_BRAINSTORM.md](EVENT_BRAINSTORM.md), including:
+
+- Category requirements and fit for Swarms, Prune, EC-Council, MDC, hardware, and First Time Hacker.
+- Additional categories independently listed on Devpost, including Auth0, Gemini, Tiger Data, Vultr, domain naming, and a separately identified workflow raffle.
+- Proposed suspicious-payment-request review, bilingual transfer drafts, exact local-amount requests, a hurricane-response variant, and participating-merchant payments.
+- A distinction between Prune's AI-request controls and actual wallet/fund security; direct Swarms-to-Prune compatibility was not established.
+- A name shortlist led by **Lazo**, **Cerca**, and **Faro**. Availability has not been checked.
+
+The provisional recommendation is to preserve Overall + Solana, finish the core family-transfer flow, and choose at most one substantial AI feature. The user has not selected a name, extra category, or revised scope.
