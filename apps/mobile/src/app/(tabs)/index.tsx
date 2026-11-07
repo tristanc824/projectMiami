@@ -1,9 +1,9 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, useRouter } from 'expo-router';
-import { ActivityIndicator, Image, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, View } from 'react-native';
 import { Text } from '../../components/Text';
-import { ActivityRow, Avatar, DemoNote, Icon, Notice, Screen, type IconName } from '../../components/ui';
-import { contacts, money } from '../../domain/wallet';
+import { ActivityRow, DemoNote, Icon, Notice, Screen, type IconName } from '../../components/ui';
+import { money } from '../../domain/wallet';
 import { useExperience } from '../../state/ExperienceProvider';
 import { useIsLive, useLive } from '../../state/live';
 import { useWallet } from '../../state/WalletProvider';
@@ -98,22 +98,6 @@ export default function HomeScreen() {
       </View>
       <Image source={lockImage} accessible={false} resizeMode="contain" style={s.promoArt} />
     </Pressable>
-
-    {/* People */}
-    <View style={{ marginTop: 32 }}>
-      <SectionTitle title="Your people" action="View all" onAction={() => router.navigate('/family')} />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.peopleScroll} contentContainerStyle={s.peopleContent}>
-        {contacts.map(contact => <Pressable accessibilityRole="button" accessibilityLabel={`Send to ${contact.name}`} key={contact.id} onPress={() => router.push({ pathname: '/send', params: { contactId: contact.id } })} style={({ pressed }) => [s.person, { opacity: pressed ? .6 : 1 }]}>
-          <Avatar contact={contact} size={56} />
-          <Text numberOfLines={1} style={s.personName}>{contact.shortName}</Text>
-          <Text style={s.personMeta}>{contact.location.slice(-2)}</Text>
-        </Pressable>)}
-        <Pressable accessibilityRole="button" accessibilityLabel="Add person" onPress={() => router.navigate('/family')} style={({ pressed }) => [s.person, { opacity: pressed ? .6 : 1 }]}>
-          <View style={s.addPerson}><Icon name="add" size={22} color={colors.muted} /></View>
-          <Text numberOfLines={1} style={[s.personName, { color: colors.muted }]}>Add</Text>
-        </Pressable>
-      </ScrollView>
-    </View>
 
     {/* Family goal */}
     <Pressable accessibilityRole="button" accessibilityLabel="View family requests" onPress={() => router.push('/family')} style={({ pressed }) => [s.goal, { opacity: pressed ? .85 : 1 }]}>

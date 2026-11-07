@@ -12,7 +12,7 @@ const FAKE_SIG = '64WgSctMnVFsegVX6BsLpDSoBoLoPva6PcCyLQD6cD9kjkmPAnzxv7j7bTddFA
 // Development-only view of the screens with fake data and no login.
 export default function Preview() {
   if (process.env.NODE_ENV === 'production') notFound();
-  const [balance, setBalance] = useState(25);
+  const [balance, setBalance] = useState(0);
   const [activity, setActivity] = useState<Activity[]>([]);
   const [screen, setScreen] = useState<'home' | 'login'>('home');
   const add = (a: Omit<Activity, 'id' | 'at'>) =>
