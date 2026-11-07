@@ -1,0 +1,11 @@
+{
+  "name": "project-miami",
+  "private": true,
+  "scripts": {
+    "start": "npm --prefix apps/mobile start",
+    "web": "npm --prefix apps/mobile run web",
+    "typecheck": "npm --prefix apps/mobile run typecheck",
+    "lint": "npm --prefix apps/mobile run lint",
+    "test": "npm --prefix apps/mobile test"
+  }
+}
