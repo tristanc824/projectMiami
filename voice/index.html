@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#071c1b" />
+    <title>Project Miami — Voice review</title>
+    <meta
+      name="description"
+      content="A bilingual voice review for a proposed family transfer."
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="Project Miami home">
+          <span class="brand-mark" aria-hidden="true">PM</span>
+          <span>
+            <strong>Project Miami</strong>
+            <small>Family transfer review</small>
+          </span>
+        </a>
+        <div class="demo-pill"><span></span> Local prototype</div>
+      </header>
+
+      <main>
+        <section class="hero" aria-labelledby="hero-title">
+          <div class="eyebrow">Bilingual voice assistant</div>
+          <h1 id="hero-title">Say it. See exactly what happens.</h1>
+          <p class="hero-copy">
+            Speak naturally to prepare a transfer review. Three focused agents explain it
+            in English and your chosen language, check the person and amount, then give you
+            a plain-language decision.
+          </p>
+
+          <div class="boundary-banner" role="note">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3 4.5 6v5.5c0 4.7 3.2 8.2 7.5 9.5 4.3-1.3 7.5-4.8 7.5-9.5V6L12 3Z" />
+              <path d="m9 12 2 2 4-4" />
+            </svg>
+            <span><strong>Review only.</strong> Voice can prepare and explain. It cannot sign or send funds.</span>
+          </div>
+        </section>
+
+        <section class="workspace" aria-label="Voice transfer review">
+          <div class="voice-card panel">
+            <div class="panel-heading">
+              <div>
+                <span class="step-label">01 · Speak</span>
+                <h2>What would you like to review?</h2>
+              </div>
+              <label class="language-select">
+                <span class="select-caption">Voice &amp; summary</span>
+                <select id="speech-language">
+                  <optgroup label="South America &amp; Caribbean">
+                    <option value="es-US" selected>Español · Latin America</option>
+                    <option value="pt-BR">Português · Brasil</option>
+                    <option value="gn-PY">Guaraní · Paraguay</option>
+                    <option value="qu-PE">Quechua · Perú</option>
+                    <option value="ay-BO">Aymara · Bolivia</option>
+                    <option value="ht-HT">Kreyòl ayisyen</option>
+                    <option value="nl-SR">Nederlands · Suriname</option>
+                    <option value="fr-FR">Français</option>
+                    <option value="en-US">English</option>
+                  </optgroup>
+                  <optgroup label="Africa &amp; Middle East">
+                    <option value="ar-SA">العربية · Arabic</option>
+                    <option value="fa-IR">فارسی · Persian</option>
+                    <option value="fa-AF">دری · Dari</option>
+                    <option value="ps-AF">پښتو · Pashto</option>
+                    <option value="tr-TR">Türkçe</option>
+                    <option value="sw-KE">Kiswahili</option>
+                    <option value="am-ET">አማርኛ · Amharic</option>
+                    <option value="om-ET">Afaan Oromoo</option>
+                    <option value="ti-ET">ትግርኛ · Tigrinya</option>
+                    <option value="ha-NG">Hausa</option>
+                    <option value="yo-NG">Yorùbá</option>
+                    <option value="ig-NG">Igbo</option>
+                    <option value="so-SO">Soomaali</option>
+                    <option value="rw-RW">Kinyarwanda</option>
+                    <option value="zu-ZA">isiZulu</option>
+                    <option value="xh-ZA">isiXhosa</option>
+                  </optgroup>
+                  <optgroup label="South Asia">
+                    <option value="hi-IN">हिन्दी · Hindi</option>
+                    <option value="bn-BD">বাংলা · Bengali</option>
+                    <option value="ur-PK">اردو · Urdu</option>
+                    <option value="pa-IN">ਪੰਜਾਬੀ · Punjabi</option>
+                    <option value="gu-IN">ગુજરાતી · Gujarati</option>
+                    <option value="mr-IN">मराठी · Marathi</option>
+                    <option value="ta-IN">தமிழ் · Tamil</option>
+                    <option value="te-IN">తెలుగు · Telugu</option>
+                    <option value="kn-IN">ಕನ್ನಡ · Kannada</option>
+                    <option value="ml-IN">മലയാളം · Malayalam</option>
+                    <option value="ne-NP">नेपाली · Nepali</option>
+                    <option value="si-LK">සිංහල · Sinhala</option>
+                  </optgroup>
+                  <optgroup label="Southeast &amp; Central Asia">
+                    <option value="id-ID">Bahasa Indonesia</option>
+                    <option value="ms-MY">Bahasa Melayu</option>
+                    <option value="fil-PH">Filipino</option>
+                    <option value="vi-VN">Tiếng Việt</option>
+                    <option value="th-TH">ไทย · Thai</option>
+                    <option value="km-KH">ខ្មែរ · Khmer</option>
+                    <option value="lo-LA">ລາວ · Lao</option>
+                    <option value="my-MM">မြန်မာ · Burmese</option>
+                    <option value="uz-UZ">Oʻzbekcha · Uzbek</option>
+                    <option value="zh-CN">中文 · Mandarin</option>
+                  </optgroup>
+                </select>
+              </label>
+            </div>
+
+            <button id="mic-button" class="mic-button" type="button" aria-pressed="false">
+              <span class="mic-rings" aria-hidden="true"></span>
+              <span class="mic-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <rect x="8" y="3" width="8" height="12" rx="4" />
+                  <path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6" />
+                </svg>
+              </span>
+              <span class="mic-label">Tap to speak</span>
+            </button>
+
+            <label class="transcript-label" for="transcript">Transcript</label>
+            <textarea
+              id="transcript"
+              rows="3"
+              placeholder='Try: “Prepare an 80 dollar transfer. The relative is not verified.”'
+            ></textarea>
+
+            <div class="voice-actions">
+              <button id="review-button" class="primary-button" type="button">
+                Review this request
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+              </button>
+              <button id="clear-button" class="text-button" type="button">Clear</button>
+            </div>
+
+            <p class="privacy-note">
+              Your browser may use its speech service for transcription. The raw transcript
+              is not included in the Swarms task.
+            </p>
+          </div>
+
+          <aside class="facts-card panel" aria-labelledby="facts-title">
+            <div class="panel-heading compact">
+              <div>
+                <span class="step-label">Safe facts only</span>
+                <h2 id="facts-title">Prepared request</h2>
+              </div>
+            </div>
+            <dl class="facts-list">
+              <div>
+                <dt>This transfer</dt>
+                <dd><span id="fact-amount">80</span> digital dollars</dd>
+              </div>
+              <div>
+                <dt>Family request</dt>
+                <dd><span id="fact-requested">200</span> total</dd>
+              </div>
+              <div>
+                <dt>Other contributions</dt>
+                <dd><span id="fact-contributions">120</span></dd>
+              </div>
+              <div>
+                <dt>Relationship</dt>
+                <dd id="fact-relationship" class="warning-text">Not verified</dd>
+              </div>
+              <div>
+                <dt>Local payout</dt>
+                <dd><span class="simulation-tag">Labeled simulation</span></dd>
+              </div>
+            </dl>
+            <p class="excluded-note">No names, phone numbers, or expense notes go to the swarm.</p>
+          </aside>
+        </section>
+
+        <section id="result-section" class="result-section" aria-labelledby="result-title" hidden>
+          <div class="result-heading">
+            <div>
+              <span class="step-label">02 · Understand</span>
+              <h2 id="result-title">Your review is ready</h2>
+            </div>
+            <div class="result-meta">
+              <span id="decision-badge" class="decision-badge">Hold</span>
+              <span id="cost-label" class="cost-label"></span>
+            </div>
+          </div>
+
+          <article class="summary-card">
+            <div class="summary-icon" aria-hidden="true">“</div>
+            <div>
+              <p id="summary-en" class="summary-main"></p>
+              <span id="translation-language" class="translation-language"></span>
+              <p id="summary-es" class="summary-translation" lang="es"></p>
+              <div class="summary-actions">
+                <button id="read-button" class="secondary-button" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M11 5 6 9H3v6h3l5 4V5ZM15.5 9.5a4 4 0 0 1 0 5M18 7a7 7 0 0 1 0 10" />
+                  </svg>
+                  Read it aloud
+                </button>
+                <span id="attempt-label" class="attempt-label"></span>
+              </div>
+            </div>
+          </article>
+
+          <div class="review-grid">
+            <article class="review-card">
+              <span class="review-number">01</span>
+              <h3>PlainSpeaker</h3>
+              <p>Explains the request in everyday English and the selected language.</p>
+              <div id="plain-output" class="agent-output"></div>
+            </article>
+            <article class="review-card">
+              <span class="review-number">02</span>
+              <h3>Skeptic</h3>
+              <p>Checks only the amount, recipient, and family impersonation risk.</p>
+              <div id="skeptic-output" class="agent-output"></div>
+            </article>
+            <article class="review-card judge-card">
+              <span class="review-number">03</span>
+              <h3>Judge</h3>
+              <p>Produces the review decision. It never approves movement of funds.</p>
+              <dl class="verdict-details">
+                <div><dt>Threat</dt><dd id="threat-output"></dd></div>
+                <div><dt>Limit</dt><dd id="limit-output"></dd></div>
+              </dl>
+            </article>
+          </div>
+        </section>
+
+        <div id="status" class="status-toast" role="status" aria-live="polite"></div>
+      </main>
+
+      <footer>
+        <span>Project Miami · SharkByte prototype</span>
+        <span>Corridor, custody, recovery, and provider remain unset.</span>
+      </footer>
+    </div>
+    <script src="/app.js" defer></script>
+  </body>
+</html>

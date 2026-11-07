@@ -1,0 +1,13 @@
+[package]
+name = "family_hold"
+version = "0.1.0"
+edition = "2021"
+description = "Lock test USDC until a second family member releases it. The sender can refund alone."
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "family_hold"
+
+[dependencies]
+solana-program = "=1.18.26"
+spl-token = { version = "=4.0.3", features = ["no-entrypoint"] }
