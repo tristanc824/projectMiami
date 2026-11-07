@@ -4,6 +4,7 @@ SharkByte hackathon project. **Nest**: a dollar account for anyone with a phone,
 
 **Start here if you're building the app:** [APP_HANDOFF.md](./APP_HANDOFF.md). It has the brand, features, copy rules and the 9 app screens ([`app-design/nest-app-screens.html`](./app-design/nest-app-screens.html), open in a browser).
 
+- [PITCH_PLAYBOOK.md](./PITCH_PLAYBOOK.md) — the angle, selling points, 3-minute table script, 30-second opener, Q&A prep and 90-second demo video. Fill in section 0 before the first judge.
 - [`web-earth/`](./web-earth) — current website (earth edition). `npm install && npm run dev` → http://localhost:5175
 - [`web/`](./web) — earlier blue website. `npm install && npm run dev` → http://localhost:5174
 - [TEAM_PROMPTS.md](./TEAM_PROMPTS.md) — what to build, which questions are still open, and the prompts to paste into Cursor or Claude.
