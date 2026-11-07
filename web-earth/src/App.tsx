@@ -1,18 +1,18 @@
+import { Nav } from "./components/Nav";
 import { Hero } from "./components/Hero";
-import { Send } from "./components/Send";
-import { Closing, Faq, Footer, Navbar, Protect, Save, Statement } from "./components/Sections";
+import { Cards, Closing, Footer, Keep, Moments, Stories, Trust } from "./components/Brand";
 
 export default function App() {
   return (
     <>
-      <Navbar />
+      <Nav />
       <main>
         <Hero />
-        <Statement />
-        <Save />
-        <Send />
-        <Protect />
-        <Faq />
+        <Stories />
+        <Moments />
+        <Trust />
+        <Keep />
+        <Cards />
         <Closing />
       </main>
       <Footer />

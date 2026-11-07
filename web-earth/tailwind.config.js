@@ -5,7 +5,7 @@ export default {
     extend: {
       colors: {
         // Nest, earth edition. Flat colors only: no gradients, glows or glass.
-        page: "#F4F1EA", // warm off-white page
+        page: "#F3F0EA", // warm off-white page
         ink: { DEFAULT: "#17201A", 600: "#4A544D", 400: "#7C857E" },
         moss: { DEFAULT: "#2F5D3A", 700: "#244A2E", 900: "#16301D" },
         sage: { DEFAULT: "#A9C4A1", 100: "#E4ECDF" },
@@ -15,7 +15,7 @@ export default {
         gold: "#D9A441",
       },
       fontFamily: {
-        sans: ['"Inter"', "system-ui", "sans-serif"],
+        sans: ['"Figtree"', "system-ui", "sans-serif"],
       },
       letterSpacing: {
         tightest: "-0.045em",

@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nest app screens</title>
+<!--
+  Nest app, reference screens for the build. Open this file in any browser.
+  Every screen is 390 x 844 (iPhone 14/15). Colors, type and copy here are the source of truth;
+  see APP_HANDOFF.md in the repo root for the full spec.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400..700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --page:#F3F0EA; --white:#FFFFFF; --ink:#17201A; --ink6:#4A544D; --ink4:#7C857E; --line:#DDD7CA;
+    --moss:#2F5D3A; --moss9:#16301D; --sage:#A9C4A1; --sage1:#E4ECDF; --sky:#8CC8EA; --sky1:#DCEEF8; --sand:#E9E1D1;
+    --amber:#9A6412; --amber1:#F6EBD3; --red:#A8402A; --red1:#F5E0D8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#E6E1D6;font-family:Figtree,system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+  header.doc{max-width:1500px;margin:0 auto;padding:48px 32px 8px}
+  header.doc h1{margin:0;font-size:40px;font-weight:600;letter-spacing:-.035em}
+  header.doc p{margin:8px 0 0;color:var(--ink6);font-size:16px}
+  .grid{max-width:1500px;margin:0 auto;padding:32px;display:grid;grid-template-columns:repeat(auto-fill,minmax(390px,1fr));gap:48px 32px;justify-items:center}
+  figure{margin:0}
+  figcaption{margin-top:14px;font-size:14px;color:var(--ink6)}
+  figcaption b{color:var(--ink);font-weight:600}
+  .phone{width:390px;height:844px;border-radius:52px;background:var(--page);overflow:hidden;position:relative;box-shadow:0 30px 60px -30px rgba(22,48,29,.45),0 0 0 10px #0E1510;display:flex;flex-direction:column}
+  .status{height:50px;padding:16px 28px 0;display:flex;justify-content:space-between;font-size:15px;font-weight:600}
+  .island{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:120px;height:34px;border-radius:20px;background:#0E1510}
+  .body{flex:1;padding:12px 20px 24px;display:flex;flex-direction:column;gap:18px;overflow:hidden}
+  .row{display:flex;align-items:center}
+  .between{justify-content:space-between}
+  .gap8{gap:8px}.gap12{gap:12px}
+  .mark{width:26px;height:26px}
+  .brand{font-weight:600;font-size:18px;letter-spacing:-.02em;display:flex;gap:7px;align-items:center}
+  .avatar{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:600;font-size:14px;background:var(--sage1);color:var(--moss);flex:none}
+  .avatar.lg{width:56px;height:56px;font-size:18px}
+  .avatar.dark{background:var(--moss);color:#fff}
+  .card{background:var(--white);border-radius:28px;padding:22px}
+  .label{font-size:13px;color:var(--ink4)}
+  .h-title{font-size:30px;font-weight:600;letter-spacing:-.035em;line-height:1.05;margin:0}
+  .big{font-size:52px;font-weight:600;letter-spacing:-.05em;line-height:1}
+  .big .c{color:var(--ink4)}
+  .chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 11px;font-size:12px;font-weight:600}
+  .chip.green{background:var(--sage1);color:var(--moss)}
+  .chip.amber{background:var(--amber1);color:var(--amber)}
+  .chip.sky{background:var(--sky1);color:#245E80}
+  .btn{height:56px;border-radius:999px;border:0;font:600 16px Figtree,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;width:100%}
+  .btn.dark{background:var(--ink);color:#fff}
+  .btn.light{background:var(--white);color:var(--ink)}
+  .btn.ghost{background:transparent;color:var(--ink6);height:44px}
+  .btn.moss{background:var(--moss);color:#fff}
+  .actions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .action{height:72px;border-radius:22px;background:var(--white);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-size:13px;font-weight:600}
+  .action.dark{background:var(--ink);color:#fff}
+  .list{display:flex;flex-direction:column}
+  .item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .item:last-child{border-bottom:0}
+  .grow{flex:1;min-width:0}
+  .t1{font-size:15px;font-weight:600}
+  .t2{font-size:13px;color:var(--ink4);margin-top:2px}
+  .amt{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+  .bar{height:6px;border-radius:6px;background:var(--sand);overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:6px;background:var(--moss)}
+  .search{height:52px;border-radius:18px;background:var(--white);display:flex;align-items:center;gap:10px;padding:0 16px;color:var(--ink4);font-size:15px}
+  .keys{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:auto}
+  .keys span{height:58px;display:grid;place-items:center;font-size:26px;font-weight:500}
+  .center{text-align:center;align-items:center}
+  .sheet{position:absolute;inset:auto 0 0 0;background:var(--white);border-radius:32px 32px 0 0;padding:26px 22px 34px;display:flex;flex-direction:column;gap:16px;box-shadow:0 -20px 40px -20px rgba(0,0,0,.25)}
+  .scrim{position:absolute;inset:0;background:rgba(23,32,26,.35)}
+  .faceid{width:72px;height:72px;margin:6px auto}
+  .ring{width:168px;height:168px;margin:6px auto;position:relative}
+  .ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:28px;font-weight:600;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+  .check{width:96px;height:96px;border-radius:50%;background:var(--moss);display:grid;place-items:center;margin:40px auto 8px}
+  .kv{display:flex;justify-content:space-between;font-size:15px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .kv:last-child{border-bottom:0}
+  .kv span:first-child{color:var(--ink4)}
+  .warn{background:var(--amber1);border-radius:28px;padding:22px;display:flex;flex-direction:column;gap:12px}
+  .warn ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px;font-size:15px}
+  .warn li{display:flex;gap:10px;align-items:flex-start}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--amber);margin-top:7px;flex:none}
+  .compare{display:flex;flex-direction:column;gap:14px}
+  .compare .r{display:flex;align-items:center;gap:10px;font-size:14px}
+  .compare .r span:first-child{width:96px;color:var(--ink6)}
+  .compare .bar{flex:1;height:10px}
+  .note{font-size:12px;color:var(--ink4);line-height:1.5}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="nest" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="5.5"><ellipse cx="23" cy="32" rx="18" ry="14" transform="rotate(90 23 32)"/><ellipse cx="36.5" cy="24.206" rx="18" ry="14" transform="rotate(210 36.5 24.206)"/><ellipse cx="36.5" cy="39.794" rx="18" ry="14" transform="rotate(330 36.5 39.794)"/></g></symbol>
+    <symbol id="send" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="leaf" viewBox="0 0 24 24"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 2 2 4.2 2 8 0 5.5-4.8 10-10 10ZM2 21c0-3 1.9-5.4 5.1-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>
+
+<header class="doc">
+  <h1>Nest app screens</h1>
+  <p>Reference for the build. 390 × 844. Figtree, earth palette, as little copy as possible.</p>
+</header>
+
+<main class="grid">
+
+  <!-- 1. Home -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span>●●●</span></div>
+      <div class="body">
+        <div class="row between">
+          <span class="brand"><svg class="mark" style="color:var(--moss)"><use href="#nest"/></svg>Nest</span>
+          <span class="avatar">AM</span>
+        </div>
+        <div class="card">
+          <div class="label">Balance</div>
+          <div class="big" style="margin-top:6px">$4,280<span class="c">.12</span></div>
+          <div class="row gap8" style="margin-top:14px;flex-wrap:wrap">
+            <span class="chip green"><svg width="13" height="13"><use href="#leaf"/></svg>Held in US dollars</span>
+            <span class="chip sky">≈ 4,151,716 ARS</span>
+          </div>
+        </div>
+        <div class="actions">
+          <div class="action dark"><svg width="20" height="20"><use href="#send"/></svg>Send</div>
+          <div class="action"><svg width="20" height="20"><use href="#plus"/></svg>Add</div>
+          <div class="action"><svg width="20" height="20"><use href="#down"/></svg>Request</div>
+        </div>
+        <div class="card" style="padding:18px 22px">
+          <div class="row between"><span class="t1">Rainy day</span><span class="amt">$1,240</span></div>
+          <div class="bar" style="margin-top:10px"><i style="width:62%"></i></div>
+        </div>
+        <div>
+          <div class="label" style="margin-bottom:4px">Activity</div>
+          <div class="list">
+            <div class="item"><span class="avatar">M</span><div class="grow"><div class="t1">Mom</div><div class="t2">Arrived in 0.9s · $0 fee</div></div><span class="amt">−$250.00</span></div>
+            <div class="item"><span class="avatar" style="background:var(--amber1);color:var(--amber)">?</span><div class="grow"><div class="t1">New number</div><div class="t2">Undone · money returned</div></div><span class="amt" style="color:var(--ink4);text-decoration:line-through">$500.00</span></div>
+            <div class="item"><span class="avatar">D</span><div class="grow"><div class="t1">Daniel</div><div class="t2">Received</div></div><span class="amt" style="color:var(--moss)">+$120.00</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption><b>1 · Home.</b> Balance in dollars, local value beside it (inflation-proof). One dark action.</figcaption>
+  </figure>
+
+  <!-- 2. Send: pick a person -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span>●●●</span></div>
+      <div class="body">
+        <h2 class="h-title">Send to</h2>
+        <div class="search"><svg width="18" height="18"><use href="#search"/></svg>Name, @handle or phone</div>
+        <div>
+          <div class="label" style="margin-bottom:4px">Recent</div>
+          <div class="list">
+            <div class="item"><span class="avatar">M</span><div class="grow"><div class="t1">Mom</div><div class="t2">Manila</div></div></div>
+            <div class="item"><span class="avatar">TL</span><div class="grow"><div class="t1">Tío Luis</div><div class="t2">Mexico City</div></div></div>
+            <div class="item"><span class="avatar">D</span><div class="grow"><div class="t1">Daniel</div><div class="t2">London</div></div></div>
+          </div>
+        </div>
+        <div>
+          <div class="label" style="margin-bottom:4px">New</div>
+          <div class="item" style="border:0"><span class="avatar" style="background:var(--amber1);color:var(--amber)">+</span><div class="grow"><div class="t1">+63 917 555 0142</div><div class="t2">First payment · undo on for 24h</div></div></div>
+        </div>
+      </div>
+    </div>
+    <figcaption><b>2 · Send.</b> New recipients are marked; their first payment gets the undo window.</figcaption>
+  </figure>
+
+  <!-- 3. Amount -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span>●●●</span></div>
+      <div class="body center" style="align-items:stretch">
+        <div class="row gap12" style="justify-content:center"><span class="avatar">M</span><span class="t1">Mom · Manila</span></div>
+        <div style="text-align:center;margin-top:28px">
+          <div class="big" style="font-size:72px">$250</div>
+          <div class="label" style="margin-top:10px">≈ ₱14,180</div>
+        </div>
+        <div class="row gap8" style="justify-content:center">
+          <span class="chip green">$0 fee</span><span class="chip green">Arrives in ~1s</span>
+        </div>
+        <div class="keys">
+          <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>.</span><span>0</span><span>⌫</span>
+        </div>
+        <button class="btn dark">Review</button>
+      </div>
+    </div>
+    <figcaption><b>3 · Amount.</b> No fees and speed shown as two chips, nothing else.</figcaption>
+  </figure>
+
+  <!-- 4. Scam check -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span>●●●</span></div>
+      <div class="body">
+        <h2 class="h-title" style="margin-top:12px">Wait. This looks like a scam.</h2>
+        <div class="warn">
+          <span class="chip amber" style="align-self:flex-start">Scam check</span>
+          <ul>
+            <li><span class="dot"></span>Brand new number</li>
+            <li><span class="dot"></span>"It's me, I lost my phone"</li>
+            <li><span class="dot"></span>Pressure to send now</li>
+          </ul>
+        </div>
+        <div class="label" style="text-align:center">If you send, you can still undo it for 24 hours.</div>
+        <div style="margin-top:auto;display:flex;flex-direction:column;gap:6px">
+          <button class="btn dark">Don't send</button>
+          <button class="btn ghost">Send anyway</button>
+        </div>
+      </div>
+    </div>
+    <figcaption><b>4 · Scam check.</b> Plain reasons, the safe choice is the dark button.</figcaption>
+  </figure>
+
+  <!-- 5. Confirm with Face ID -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span>●●●</span></div>
+      <div class="body">
+        <div class="row gap12" style="justify-content:center"><span class="avatar">M</span><span class="t1">Mom · Manila</span></div>
+        <div style="text-align:center;margin-top:28px"><div class="big" style="font-size:72px">$250</div></div>
+      </div>
+      <div class="scrim"></div>
+      <div class="sheet">
+        <div class="t1" style="font-size:20px;text-align:center">Send $250.00 to Mom</div>
+        <div>
+          <div class="kv"><span>Fee</span><span>$0.00</span></div>
+          <div class="kv"><span>Arrives</span><span>~1 second</span></div>
+        </div>
+        <svg class="faceid" viewBox="0 0 72 72" fill="none" stroke="#2F5D3A" stroke-width="3" stroke-linecap="round"><path d="M6 22V12a6 6 0 0 1 6-6h10M50 6h10a6 6 0 0 1 6 6v10M66 50v10a6 6 0 0 1-6 6H50M22 66H12a6 6 0 0 1-6-6V50"/><path d="M26 27v5M46 27v5M36 29v12h-3M28 48c5 4 11 4 16 0"/></svg>
+        <div class="label" style="text-align:center">Confirm with Face ID</div>
+      </div>
+    </div>
+    <figcaption><b>5 · Confirm.</b> Only you can move your money: passkey, no password.</figcaption>
+  </figure>
+
+  <!-- 6. Undo window -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span>●●●</span></div>
+      <div class="body center">
+        <h2 class="h-title" style="margin-top:24px">Sent. Undo anytime in 24h.</h2>
+        <div class="ring">
+          <svg viewBox="0 0 168 168" width="168" height="168" style="transform:rotate(-90deg)"><circle cx="84" cy="84" r="76" fill="none" stroke="#E4ECDF" stroke-width="10"/><circle cx="84" cy="84" r="76" fill="none" stroke="#2F5D3A" stroke-width="10" stroke-linecap="round" stroke-dasharray="477.5" stroke-dashoffset="20"/></svg>
+          <b>23:59:12</b>
+        </div>
+        <div class="card" style="width:100%;padding:16px 20px">
+          <div class="kv"><span>To</span><span>+63 917 555 0142</span></div>
+          <div class="kv"><span>Amount</span><span>$500.00</span></div>
+        </div>
+        <div style="margin-top:auto;width:100%;display:flex;flex-direction:column;gap:6px">
+          <button class="btn dark"><svg width="18" height="18"><use href="#undo"/></svg>Undo payment</button>
+          <button class="btn ghost">Done</button>
+        </div>
+      </div>
+    </div>
+    <figcaption><b>6 · Undo.</b> First payment to someone new waits in escrow; one tap brings it back.</figcaption>
+  </figure>
+
+  <!-- 7. Arrived -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span>●●●</span></div>
+      <div class="body center">
+        <div class="check"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg></div>
+        <h2 class="h-title">Arrived in 0.9s.</h2>
+        <div class="label">Mom has it.</div>
+        <div class="card" style="width:100%;margin-top:12px;padding:16px 20px">
+          <div class="kv"><span>Amount</span><span>$250.00</span></div>
+          <div class="kv"><span>Fee</span><span>$0.00</span></div>
+          <div class="kv"><span>Time</span><span>Sun 9:41 PM</span></div>
+        </div>
+        <div style="margin-top:auto;width:100%;display:flex;flex-direction:column;gap:6px">
+          <button class="btn dark">Done</button>
+          <button class="btn ghost">Share receipt</button>
+        </div>
+      </div>
+    </div>
+    <figcaption><b>7 · Arrived.</b> 24/7: a Sunday-night timestamp makes the point without saying it.</figcaption>
+  </figure>
+
+  <!-- 8. Save / vaults -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span>●●●</span></div>
+      <div class="body">
+        <h2 class="h-title">Savings</h2>
+        <div class="card">
+          <div class="label">Saved</div>
+          <div class="big" style="margin-top:6px">$4,280</div>
+          <div class="compare" style="margin-top:18px">
+            <div class="r"><span>In Nest</span><div class="bar"><i style="width:100%"></i></div><b>$1,000</b></div>
+            <div class="r"><span>In pesos</span><div class="bar"><i style="width:69%;background:#C2693E"></i></div><b style="color:#A4532C">$694</b></div>
+          </div>
+          <div class="note" style="margin-top:12px">$1,000 saved a year ago.</div>
+        </div>
+        <div class="list">
+          <div class="item"><div class="grow"><div class="t1">Rainy day</div><div class="bar" style="margin-top:8px"><i style="width:62%"></i></div></div><span class="amt">$1,240</span></div>
+          <div class="item"><div class="grow"><div class="t1">School fees</div><div class="bar" style="margin-top:8px"><i style="width:43%;background:var(--sky)"></i></div></div><span class="amt">$860</span></div>
+          <div class="item"><div class="grow"><div class="t1">First home</div><div class="bar" style="margin-top:8px"><i style="width:22%;background:#D9A441"></i></div></div><span class="amt">$2,180</span></div>
+        </div>
+        <button class="btn light" style="margin-top:auto"><svg width="18" height="18"><use href="#plus"/></svg>New vault</button>
+      </div>
+    </div>
+    <figcaption><b>8 · Save.</b> Inflation-proof, shown not told: one comparison bar.</figcaption>
+  </figure>
+
+  <!-- 9. Claim link (for someone without Nest) -->
+  <figure>
+    <div class="phone" style="background:var(--moss)"><div class="island"></div>
+      <div class="status" style="color:#fff"><span>9:41</span><span>●●●</span></div>
+      <div class="body center" style="color:#fff">
+        <svg style="width:56px;height:56px;color:#fff;margin-top:48px"><use href="#nest"/></svg>
+        <h2 class="h-title" style="color:#fff;font-size:36px;margin-top:20px">Ana sent you $250.</h2>
+        <div style="color:rgba(255,255,255,.75);font-size:16px">It's yours. No fees, no bank needed.</div>
+        <div style="margin-top:auto;width:100%;display:flex;flex-direction:column;gap:8px">
+          <button class="btn light">Claim with your phone number</button>
+          <div style="font-size:12px;color:rgba(255,255,255,.6)">Opens a Nest account in seconds.</div>
+        </div>
+      </div>
+    </div>
+    <figcaption><b>9 · Claim.</b> What a person without Nest sees when they open the link.</figcaption>
+  </figure>
+
+</main>
+</body>
+</html>
