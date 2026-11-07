@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body {
+    @apply bg-page font-sans text-ink antialiased;
+    font-feature-settings: "cv11", "ss01", "ss03";
+  }
+  ::selection { background: #A9C4A1; color: #16301D; }
+  :focus-visible { outline: 2px solid #2F5D3A; outline-offset: 3px; }
+}
+
+@layer components {
+  .wrap { @apply mx-auto w-full max-w-[1200px] px-5 sm:px-8; }
+  .display { @apply font-semibold tracking-tightest text-ink; line-height: 1.02; }
+  .h2 { @apply text-[clamp(34px,4.6vw,56px)] font-semibold leading-[1.05] tracking-[-0.035em] text-ink; }
+  .lede { @apply text-[clamp(17px,1.5vw,19px)] leading-[1.55] text-ink-600; }
+  .btn { @apply inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full px-6 text-[15px] font-medium transition-colors duration-200; }
+  .btn-dark { @apply btn bg-ink text-white hover:bg-moss-900; }
+  .btn-light { @apply btn bg-white text-ink hover:bg-page; }
+  .btn-outline { @apply btn border border-current; }
+  .link { @apply inline-flex items-center gap-1 font-medium text-moss underline-offset-4 hover:underline; }
+  sup.fn { @apply ml-0.5 text-[0.55em] font-medium; }
+}
+
+/* ---------- Motion, kept to a minimum ---------- */
+
+/* A loose line of swallows crosses the hero photo, slowly. */
+@keyframes drift { from { transform: translate3d(-10vw, 0, 0); } to { transform: translate3d(110vw, 0, 0); } }
+@keyframes glide { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+.bird-drift { animation: drift linear infinite; will-change: transform; }
+.bird-glide { animation: glide 3.4s ease-in-out infinite; }
+
+/* Swallow wings rotate from the shoulder. */
+@keyframes wing-near { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(36deg) scaleY(0.72); } }
+@keyframes wing-far  { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(28deg) scaleY(0.6); } }
+.wing-near, .wing-far { transform-box: view-box; transform-origin: 66px 31px; animation: wing-near 0.5s ease-in-out infinite; }
+.wing-far { animation-name: wing-far; }
+
+/* Coin shine. */
+@keyframes coin-shine { 0%, 55% { transform: translateX(0) rotate(20deg); } 85%, 100% { transform: translateX(64px) rotate(20deg); } }
+.coin-shine { animation: coin-shine 2.6s ease-in-out infinite; transform-box: view-box; transform-origin: 20px 20px; }
+
+/* Send: one 5s loop. x and y split so the flight arcs. */
+@keyframes courier-x { 0%, 12% { transform: translateX(0); } 62%, 100% { transform: translateX(100%); } }
+@keyframes courier-y { 0%, 12% { transform: translateY(0); } 37% { transform: translateY(-56px); } 62%, 100% { transform: translateY(0); } }
+@keyframes courier-fade { 0%, 4% { opacity: 0; } 10%, 88% { opacity: 1; } 96%, 100% { opacity: 0; } }
+@keyframes arrive { 0%, 60% { opacity: 0; transform: translateY(4px); } 66%, 92% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; } }
+@keyframes depart { 0%, 8% { opacity: 1; } 14%, 100% { opacity: 0.4; } }
+@keyframes trail { 0%, 12% { stroke-dashoffset: 1; opacity: 1; } 62% { stroke-dashoffset: 0; opacity: 1; } 90%, 100% { stroke-dashoffset: 0; opacity: 0; } }
+.courier-x { animation: courier-x 5s cubic-bezier(.45,.05,.35,1) infinite; }
+.courier-y { animation: courier-y 5s cubic-bezier(.45,.05,.35,1) infinite; }
+.courier-fade { animation: courier-fade 5s linear infinite; }
+.arrive { animation: arrive 5s ease-out infinite; }
+.depart { animation: depart 5s ease-out infinite; }
+.trail { stroke-dasharray: 1; stroke-dashoffset: 1; animation: trail 5s cubic-bezier(.45,.05,.35,1) infinite; }
+
+/* Undo countdown ring. */
+@keyframes countdown { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 1; } }
+.countdown { stroke-dasharray: 1; animation: countdown 12s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bird-drift, .bird-glide, .wing-near, .wing-far, .coin-shine, .courier-x, .courier-y, .courier-fade,
+  .arrive, .depart, .trail, .countdown { animation: none !important; }
+  .arrive { opacity: 1; }
+  .trail { stroke-dashoffset: 0; }
+}
