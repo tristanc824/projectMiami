@@ -19,7 +19,7 @@ export function Hero() {
           <div className="max-w-[760px]">
             <h1 className="text-[clamp(52px,8.4vw,112px)] font-semibold leading-[1.02] tracking-[-0.045em] text-white">Protect what matters.</h1>
             <p className="mt-5 max-w-[46ch] text-[clamp(17px,1.5vw,20px)] leading-[1.5] text-white/85">
-              Save, spend and send dollars. 24/7. No fees.
+              Keep your money in dollars and send it in about a second, with no fees.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <a href="#join" className="btn-light">Open an account</a>

@@ -36,11 +36,11 @@ function Orbit({ className, rotate = -18 }: { className?: string; rotate?: numbe
 /* ---------- Stories: a row of tall cards you can swipe ---------- */
 
 const STORIES = [
-  { img: "/photos/selfie.jpg", tag: "Send home", title: "Home in a second.", pos: "50% 35%" },
-  { img: "/photos/market-pair.jpg", tag: "Inflation-proof", title: "Savings that hold.", pos: "35% 30%" },
-  { img: "/photos/kitchen.jpg", tag: "Undo", title: "Scammed? Undo it.", pos: "60% 30%" },
-  { img: "/photos/friends.jpg", tag: "No fees", title: "Split it. Free.", pos: "50% 55%" },
-  { img: "/photos/phone.jpg", tag: "Independent", title: "Your money. Your rules.", pos: "45% 40%" },
+  { img: "/photos/selfie.jpg", tag: "Send home", title: "Mom gets it in about a second.", pos: "50% 35%" },
+  { img: "/photos/market-pair.jpg", tag: "Dollar savings", title: "Your savings stay in US dollars.", pos: "35% 30%" },
+  { img: "/photos/kitchen.jpg", tag: "Undo", title: "Undo a scam payment within 24 hours.", pos: "60% 30%" },
+  { img: "/photos/friends.jpg", tag: "No fees", title: "Split dinner without paying a fee.", pos: "50% 55%" },
+  { img: "/photos/phone.jpg", tag: "Independent", title: "Take your account with you when you move.", pos: "45% 40%" },
 ];
 
 export function Stories() {
@@ -49,7 +49,7 @@ export function Stories() {
   return (
     <section id="stories" className="py-20 sm:py-28">
       <div className="wrap flex items-end justify-between gap-6">
-        <h2 className="text-[clamp(36px,4.6vw,64px)] font-medium leading-[1.02] tracking-[-0.035em] text-ink">Life, in dollars.</h2>
+        <h2 className="text-[clamp(36px,4.6vw,64px)] font-medium leading-[1.02] tracking-[-0.035em] text-ink">Everyday money, held in dollars.</h2>
         <div className="flex gap-2">
           <button onClick={() => nudge(-1)} aria-label="Previous stories" className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-ink transition-colors hover:bg-sage-100"><ArrowLeft size={18} /></button>
           <button onClick={() => nudge(1)} aria-label="More stories" className="grid h-12 w-12 place-items-center rounded-2xl bg-ink text-white transition-colors hover:bg-moss-900"><ArrowRight size={18} /></button>
@@ -74,10 +74,10 @@ export function Stories() {
 type Moment = { img: string; alt: string; tag: string; title: string; shape: keyof typeof SHAPES; pos: string; orbit?: "left" | "right" };
 
 const MOMENTS: Moment[] = [
-  { img: "/photos/hero.jpg", alt: "A couple laughing together in a sunlit field.", tag: "24/7", title: "Always open.", shape: "egg", pos: "50% 30%", orbit: "left" },
-  { img: "/photos/market.jpg", alt: "A woman at a market stall holding bananas.", tag: "No transaction fees", title: "Send it all. Keep it all.", shape: "pebble", pos: "50% 30%" },
-  { img: "/photos/laugh.jpg", alt: "A woman laughing with friends outdoors.", tag: "Government-independent", title: "Your money answers to you.", shape: "pebble", pos: "50% 25%" },
-  { img: "/photos/dinner.jpg", alt: "Friends laughing over dinner.", tag: "Undo", title: "Scammed? Undo it.", shape: "egg", pos: "55% 50%", orbit: "right" },
+  { img: "/photos/hero.jpg", alt: "A couple laughing together in a sunlit field.", tag: "24/7", title: "Send money on a Sunday night.", shape: "egg", pos: "50% 30%", orbit: "left" },
+  { img: "/photos/market.jpg", alt: "A woman at a market stall holding bananas.", tag: "No transaction fees", title: "Every dollar you send gets there.", shape: "pebble", pos: "50% 30%" },
+  { img: "/photos/laugh.jpg", alt: "A woman laughing with friends outdoors.", tag: "Independent", title: "Your savings aren't tied to one country's banks.", shape: "pebble", pos: "50% 25%" },
+  { img: "/photos/dinner.jpg", alt: "Friends laughing over dinner.", tag: "Undo", title: "Pay someone new and you have a day to undo it.", shape: "egg", pos: "55% 50%", orbit: "right" },
 ];
 
 function MomentCard({ m, className }: { m: Moment; className?: string }) {
@@ -101,7 +101,7 @@ export function Moments() {
   return (
     <section id="moments" className="wrap py-16 sm:py-24">
       <h2 className="max-w-[14ch] text-[clamp(48px,8vw,120px)] font-medium leading-[0.98] tracking-[-0.04em] text-ink">
-        Everything money should be.
+        A better place to keep your money.
       </h2>
       <div className="mt-20 grid gap-x-16 gap-y-24 md:grid-cols-2">
         <MomentCard m={MOMENTS[0]} className="md:w-[76%]" />
@@ -122,7 +122,7 @@ export function Trust() {
       <div className="wrap relative text-center">
         <NestMark className="mx-auto h-12 w-12" />
         <p className="mx-auto mt-8 max-w-[18ch] text-[clamp(38px,5.6vw,80px)] font-medium leading-[1.04] tracking-[-0.035em] text-ink">
-          Trust isn't a feature. It's a feeling.
+          Only you can move your money.
         </p>
       </div>
     </section>
@@ -138,9 +138,9 @@ export function Keep() {
         <img src="/photos/together.jpg" alt="A father and his daughter laughing among autumn leaves." loading="lazy" className="absolute inset-0 -z-10 h-full w-full object-cover object-[50%_30%]" />
         <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(14,20,16,0.6),rgba(14,20,16,0.1)_60%)]" />
         <div className="flex min-h-[min(80svh,760px)] flex-col justify-center px-7 py-24 sm:px-16">
-          <Label light>Inflation-proof</Label>
+          <Label light>Dollar savings</Label>
           <h2 className="mt-5 max-w-[12ch] text-[clamp(44px,6.4vw,96px)] font-medium leading-[1] tracking-[-0.035em] text-white">
-            Some things should never lose value.
+            Keep her college fund in dollars.
           </h2>
           <a href="#join" className="mt-10 inline-flex h-14 w-fit items-center gap-2 rounded-full bg-white px-7 text-[16px] font-medium text-ink transition-colors hover:bg-page">
             Start saving <ArrowRight size={18} />
@@ -154,17 +154,17 @@ export function Keep() {
 /* ---------- Stories from the Nest ---------- */
 
 const CARDS = [
-  { img: "/photos/market.jpg", tag: "Independent", title: "Her savings never froze", pos: "50% 30%" },
-  { img: "/photos/shop.jpg", tag: "No fees", title: "Paid in full, on day one", pos: "50% 30%" },
-  { img: "/photos/phone.jpg", tag: "Undo", title: "The scam she undid", pos: "50% 40%" },
+  { img: "/photos/market.jpg", tag: "Independent", title: "How to save outside your country's banks", pos: "50% 30%" },
+  { img: "/photos/shop.jpg", tag: "No fees", title: "How to pay your team with no fees", pos: "50% 30%" },
+  { img: "/photos/phone.jpg", tag: "Undo", title: "What to do if you paid a scammer", pos: "50% 40%" },
 ];
 
 export function Cards() {
   return (
     <section className="wrap py-24 sm:py-32">
       <div className="flex items-end justify-between gap-6">
-        <h2 className="text-[clamp(36px,4.6vw,64px)] font-medium leading-[1.02] tracking-[-0.035em] text-ink">From the Nest</h2>
-        <a href="#join" className="link hidden text-[16px] sm:inline-flex">All stories <ArrowRight size={16} /></a>
+        <h2 className="text-[clamp(36px,4.6vw,64px)] font-medium leading-[1.02] tracking-[-0.035em] text-ink">Money guides</h2>
+        <a href="#join" className="link hidden text-[16px] sm:inline-flex">All guides <ArrowRight size={16} /></a>
       </div>
       <div className="mt-12 grid gap-8 md:grid-cols-3">
         {CARDS.map((c) => (
@@ -234,10 +234,10 @@ export function Footer() {
         ))}
       </div>
       <p className="mt-8 max-w-[96ch] text-[12px] leading-[1.7] text-ink-400">
-        Balances are held as USDC, a dollar stablecoin issued by Circle. Stablecoins are not bank deposits, are not FDIC insured, and the issuer can freeze tokens in some cases. Undo applies to the first payment to a new recipient. The US dollar also has inflation, usually far lower than the currencies it protects against.
+        Balances are held as USDC, a US dollar stablecoin issued by Circle. USDC is not a bank deposit and is not FDIC insured. Circle can freeze tokens in some cases. Undo covers the first payment to a new recipient, for 24 hours. The US dollar also loses value to inflation, usually far less than many local currencies.
       </p>
       <p className="mt-4 max-w-[96ch] text-[12px] leading-[1.7] text-ink-400">
-        Nest is a financial technology company, not a bank. Cash-out to local currency is provided by licensed partners where available.
+        Nest is a financial technology company, not a bank. Licensed partners handle cash-out to local currency where available.
       </p>
       <div className="mt-8 flex flex-wrap items-center justify-between gap-4 text-[13px] text-ink-400">
         <span>© 2026 Nest</span>
