@@ -12,8 +12,8 @@ The rule for the whole kit: say less. Sell how it feels. Let the phone do the ex
 | # | Open item | Why it matters |
 |---|---|---|
 | 1 | **[TEAM] What in the demo is live on devnet, and what is a clickable mockup?** Fill in the status column in section 5. | Judges will ask. A Humane-style "it was faked" moment would sink us [PITCH_RESEARCH]. |
-| 2 | **[UNVERIFIED] "$1,000 in Nest vs $694 in pesos."** No file sources the $694 or names the peso. Pick one country and one dated inflation figure, then recompute it. Or caption it "Example". | It is the savings proof moment. An unsourced number fails Martha's honesty gate. |
-| 3 | **[TEAM] One story country.** Mockups show Mom in Manila (₱), the Home screen in ARS, and Savings in "pesos". | One country makes the story hold. Pyth has a PHP feed and no ARS feed [BLOCKCHAIN_STACK], so a live local value is only possible for some countries. |
+| 2 | **Resolved in the mockups:** the Save screen now shows **$1,000 in Nest vs $321 in pesos**, from Argentina's 2023 inflation of 211.4% [ECONOMIC_PROBLEMS]. Say "in 2023", not "this year". | It is the savings proof moment, and it is now sourced. |
+| 3 | **Proposed in the mockups: Argentina** (Ana in Miami, Mamá in Buenos Aires). [TEAM] confirm. | Strongest inflation story. Pyth has no ARS feed [BLOCKCHAIN_STACK], so peso values are an example rate unless another price source is wired in. |
 | 4 | **[TEAM] Custody model.** Still open in the docs [TEAM_PROMPTS, HACKATHON_CONTEXT]. | It is the first hard Q&A question. |
 | 5 | **[TEAM] Undo window length in the demo.** Mockup says 24h, the feature plan said 10 minutes on devnet [NEST_FEATURES]. | Say the number the program actually uses. |
 | 6 | Say "about a second" unless the screen shows a measured time. Only say "0.9 seconds" if that was this send's real number. | Same rule as PITCH_RESEARCH. |
