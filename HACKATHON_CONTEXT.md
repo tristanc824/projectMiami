@@ -463,6 +463,8 @@ A transparent transfer fee was proposed as a business-model hypothesis. No price
 
 ## 15. Current project status
 
+Planning snapshot from November 6; implementation updates are recorded in section 17 below.
+
 - Planning and source research have been completed to the extent recorded above.
 - The user reaffirmed the crypto-specific, Solana-centered direction.
 - Mexico is an assistant recommendation, not a confirmed team decision.
@@ -470,3 +472,75 @@ A transparent transfer fee was proposed as a business-model hypothesis. No price
 - No money has been moved and no transactions have been signed as part of this work.
 - No claim of bank-grade protection, hack-proof funds, guaranteed inflation protection, global coverage, or instant universal fiat access has been established.
 - The next useful step is to resolve the open product/technical decisions and turn the selected demo into a concrete build plan.
+
+## 16. Opening presentation review and additional brainstorm
+
+The user supplied the [SharkByte opening presentation](https://www.canva.com/design/DAHaKGUpDs0/mIZxhJNVD6yT1Oj404c-mA/view) and asked for additional categories, ideas, and names beyond the discussion above.
+
+The full slide text of the 58-page deck was read through Canva. Presenter notes were not accessible. The deck confirms one project can enter multiple relevant challenges and gives a build window of Friday, November 6, 10 p.m. to Sunday, November 8, 10 a.m.
+
+Detailed findings are saved in [EVENT_BRAINSTORM.md](EVENT_BRAINSTORM.md), including:
+
+- Category requirements and fit for Swarms, Prune, EC-Council, MDC, hardware, and First Time Hacker.
+- Additional categories independently listed on Devpost, including Auth0, Gemini, Tiger Data, Vultr, domain naming, and a separately identified workflow raffle.
+- Proposed suspicious-payment-request review, bilingual transfer drafts, exact local-amount requests, a hurricane-response variant, and participating-merchant payments.
+- A distinction between Prune's AI-request controls and actual wallet/fund security; direct Swarms-to-Prune compatibility was not established.
+- A name shortlist led by **Lazo**, **Cerca**, and **Faro**. Availability has not been checked.
+
+The provisional recommendation is to preserve Overall + Solana, finish the core family-transfer flow, and choose at most one substantial AI feature. The user has not selected a name, extra category, or revised scope.
+
+## 17. Web and iPhone implementation — November 7
+
+New confirmed user requirements:
+
+- Build both a web experience and an iPhone app that can be demonstrated during the hackathon.
+- The user has Apple publishing experience and existing publishing infrastructure.
+- The user explicitly selected **React Native / Expo** over SwiftUI or a web wrapper.
+- Research Cash App and PayPal as familiar layout baselines, then construct the first mobile version for phone testing tonight.
+- Investigate the **Auth0** sponsor category; OAuth is the protocol, while Auth0 is the named provider.
+
+The first implementation is in [`apps/mobile`](apps/mobile/README.md): Expo SDK 58, TypeScript, Expo Router, and a shared React Native web UI. It was initially scaffolded on SDK 57, then upgraded after the user's iPhone reported that its installed Expo Go requires SDK 58. The initial working name was Lazo. The user has now selected **Guard**, with the tagline **Protect what matters.**
+
+Implemented scope:
+
+- Balance, contact shortcuts, send/review/receipt flow, add/withdraw previews, local family-goal contributions, searchable/filterable activity, and account screen.
+- Original Guard design tokens and shield icon, informed by inspected official references. See [`DESIGN.md`](DESIGN.md).
+- Latest user design direction: white primary surfaces, black typography, blue accents, monochrome dotted globe similar to the supplied image, and Liquid Glass navigation. Implemented a globe sign-in screen on first launch, a smaller globe feature on home, and a floating glass tab bar. The new globe is generated locally from public-domain Natural Earth geography. Auth0 configuration remains pending; demo entry is explicitly separate from authentication.
+- Exact integer-cent demo arithmetic and local persistence. All balances and money movement are clearly labeled simulations.
+- Auth0 native/web sign-in integration code, with native credential-manager storage and web memory caching. Actual tenant domain/client ID are still needed; live sign-in has not been verified.
+- EAS development, simulator, and TestFlight/store profiles plus phone-install instructions.
+
+The UI can run through Expo Go. Native Auth0 requires a development or TestFlight build. Internal TestFlight avoids external beta review but still requires build processing and compliance steps. No signed build has been uploaded.
+
+**This does not implement a real Solana wallet or fiat provider.** Custody, recovery, actual corridor, wallet SDK, and provider remain unresolved. The local ledger is not a production balance or authorization system. No Swarms integration has been implemented.
+
+Dependency advisory history is recorded in the mobile README; functional verification should not be presented as security certification.
+
+## 18. Confirmed branding and Cash App styling update
+
+- User-selected name: **Guard**. Tagline, correcting the user’s typo: **Protect what matters.**
+- Preserve the existing white/black/blue palette, dotted globe, and glass navigation.
+- Adapt the supplied Cash App screenshot’s typography and box styling: bold amounts and keypad, circular utility controls, flat rounded panels, and pill-shaped actions.
+- Implemented across the shared iPhone/web UI. Payment entry now leads with amount and keypad, then compact recipient pills, note, and review.
+- Display name, web title, Expo slug, share text, and icon use Guard. Existing internal bundle identifier, URL scheme, and local storage keys are preserved for continuity.
+- User also requested a spinning globe on login. Implemented a slow 45-second 3D rotation with Expo GL, using the same local dotted geography. It pauses off screen/background and respects Reduce Motion. The home globe stays static.
+
+- Latest login layout request: make the screen all black, show the entire rotating globe, and put Demo and Sign in buttons at the bottom. Implemented with safe-area spacing and globe sizing that fits a 320 × 568 phone.
+
+## 19. Phantom / Solana devnet integration — historical, removed
+
+**Current status: removed at the user’s explicit request. The paragraphs below record the earlier implementation, not active app functionality.**
+
+The teammate's working devnet code was unavailable. The user requested a fresh implementation here and explicitly selected **Phantom** for iPhone approvals.
+
+Implemented a devnet wallet area, live associated-USDC/SOL balances, USDC transfer simulation/review, Phantom signatures, verified-message broadcast, confirmation polling, Explorer links, and persisted public receipts. Home switches to live test-token balances after connection. Existing local demos remain available. No keys or recovery phrases are requested. Native Phantom sessions are memory-only; reconnect after a cold start.
+
+Fixed Circle devnet mint: `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`, six decimals. The RPC's devnet genesis hash is checked before on-chain operations. Mobile signing uses an encrypted Phantom deep link with an Expo Linking callback; web uses Wallet Standard. Version 0 transactions are used for Phantom mobile compatibility.
+
+Verification: 15 domain/service tests, 10 browser tests including mocked wallet signing and cancellation, TypeScript, lint, 20 Expo Doctor checks, and iOS JS bundling. Live read-only RPC checks verified the network and mint. **No live user-approved wallet transfer or physical iPhone handoff has been verified yet.** The user needs Phantom in Solana Devnet mode, devnet SOL/USDC from faucets, and a second wallet address for the device test.
+
+The devnet setup document was removed along with the integration. Earlier sections describing every transfer as simulated refer to the initial implementation, before this integration. Fiat providers, real-dollar transfers, and Swarms remain unimplemented.
+
+## 20. User requested removal of the Phantom wallet feature
+
+Removed Phantom connection/signing, wallet callbacks, devnet mode/provider, live balances and transfer/receipt routes, related dependencies/tests/configuration, and setup instructions. Home, account, family, activity, sending, requesting, and money screens now use the existing local demo flows. Guard’s current design, themes, Auth0 scaffold, and spinning globe remain in place. No wallet or on-chain transaction integration is currently active.
