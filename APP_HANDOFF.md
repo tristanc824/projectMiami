@@ -101,5 +101,5 @@ Ana lives in Miami. Her mom, Rosa ("Mamá"), lives in Buenos Aires; Tío Luis in
 - Undo covers the first payment to a new recipient only.
 
 ## Website notes
-- `web-earth/` is a Vite + React + Tailwind site. Sections: floating pill nav (hides on scroll down, returns on scroll up) → meadow hero with birds → "Life, in dollars." swipe cards → "Everything money should be." feature moments → trust line → inflation photo → stories → closing → footer.
+- `web-earth/` is a Vite + React + Tailwind site. Sections: floating pill nav (hides on scroll down, returns on scroll up) → meadow hero with birds → "Everyday money, held in dollars." swipe cards → "A better place to keep your money." feature moments → "Only you can move your money." → dollar savings photo → money guides → closing → footer.
 - Photos are from Unsplash (free license), stored in `web-earth/public/photos/`.
