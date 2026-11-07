@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { applyDemoCommand, createInitialWallet, decodeWallet, type DemoCommand, type WalletState } from '../domain/wallet';
+import { useLive } from './live';
 
 type WalletContext = { wallet: WalletState; ready: boolean; storageWarning: boolean; execute: (command: DemoCommand) => string; reset: () => void };
 const Context = createContext<WalletContext | null>(null);
@@ -33,7 +34,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     return command.id;
   }, [commit]);
   const reset = useCallback(() => commit(createInitialWallet()), [commit]);
-  return <Context.Provider value={{ wallet, ready, storageWarning, execute, reset }}>{children}</Context.Provider>;
+  // When a live user is signed in, every screen reads the real devnet balance and activity.
+  // Family goals stay sample data, and live money moves through useLive(), never execute().
+  const live = useLive();
+  const value = useMemo<WalletContext>(() => live.status !== 'ready' ? { wallet, ready, storageWarning, execute, reset } : {
+    wallet: { ...wallet, balanceCents: live.balanceCents ?? 0, activity: live.activity },
+    ready: live.balanceCents !== null, storageWarning: false, reset,
+    execute: () => { throw new Error('Signed in: use the live wallet.'); },
+  }, [live.status, live.balanceCents, live.activity, wallet, ready, storageWarning, execute, reset]);
+  return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 
 export function useWallet() {

@@ -5,6 +5,7 @@ import { Text } from '../../components/Text';
 import { ActivityRow, Avatar, DemoNote, Icon, Notice, Screen, type IconName } from '../../components/ui';
 import { contacts, money } from '../../domain/wallet';
 import { useExperience } from '../../state/ExperienceProvider';
+import { useIsLive, useLive } from '../../state/live';
 import { useWallet } from '../../state/WalletProvider';
 import { themedStyles, useColors } from '../../theme';
 
@@ -43,6 +44,8 @@ export default function HomeScreen() {
   const router = useRouter();
   const { wallet, ready, storageWarning } = useWallet();
   const experience = useExperience();
+  const live = useIsLive();
+  const { problem } = useLive();
   const goal = wallet.goals[0];
   if (!experience.ready) return <View style={s.loading}><ActivityIndicator color={colors.accent} /></View>;
   if (!experience.hasEntered) return <Redirect href="/sign-in" />;
@@ -54,7 +57,7 @@ export default function HomeScreen() {
       <View style={[s.row, { gap: 8 }]}>
         <Icon name="shield-checkmark" size={22} color={colors.accent} />
         <Text accessibilityRole="header" style={s.logo}>Guard</Text>
-        <View style={s.badge}><View style={s.badgeDot} /><Text style={s.badgeLabel}>Demo</Text></View>
+        <View style={s.badge}><View style={s.badgeDot} /><Text style={s.badgeLabel}>{live ? 'Devnet' : 'Demo'}</Text></View>
       </View>
       <Pressable accessibilityRole="button" accessibilityLabel="Settings" onPress={() => router.push('/account')} hitSlop={4} style={({ pressed }) => [s.iconButton, { opacity: pressed ? .6 : 1 }]}><Icon name="settings-outline" size={20} color={colors.ink} /></Pressable>
     </View>
@@ -128,6 +131,7 @@ export default function HomeScreen() {
       <SectionTitle title="Recent activity" action="See all" onAction={() => router.push('/activity')} />
       {wallet.activity.slice(0, 3).map(item => <ActivityRow key={item.id} item={item} />)}
     </View>
+    {problem ? <View style={{ marginTop: 16 }}><Notice error>{problem}</Notice></View> : null}
     {storageWarning ? <View style={{ marginTop: 16 }}><Notice>Changes are available for this session, but could not be saved on this device.</Notice></View> : null}
     <DemoNote />
   </Screen>;

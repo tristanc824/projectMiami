@@ -51,9 +51,34 @@ The authoritative Expo configuration is `app.config.ts`; generated native folder
 - Share/copy sample requests and receipts.
 - Auth0 native and web sign-in code, activated with your configuration.
 
+## Live mode: real devnet wallets
+
+A **development or TestFlight build** can run Guard against the DAT backend in [`apps/api`](../api/HANDOFF.md). Expo Go and web always stay in demo mode, because Privy's Expo SDK needs native modules and doesn't support the web.
+
+| Step | In live mode |
+| --- | --- |
+| Sign in | SMS code through Privy, which creates a self-custody Solana wallet |
+| Balance | Real devnet USDC, refreshed every 4 seconds; incoming payments appear as "Money received" |
+| Send | To any phone number. A number not on Guard yet gets a wallet waiting for its owner |
+| Add | Stripe **test** card (whole dollars, up to $20), then real devnet USDC from the treasury |
+| Withdraw | Real USDC back to the treasury; the bank payout is **simulated** |
+| Receipt | Transaction signature and a Solana Explorer link |
+
+Family goals stay sample data. Network fees are paid by the backend's fee payer, so users hold no SOL.
+
+Setup:
+
+1. Deploy `apps/api` (for example to Vercel with the root directory set to `apps/api`) with the values from its `.env.example`. Get them privately from the project owner.
+2. In the Privy dashboard (the same app as `apps/api`), add an app client under **Configuration > App settings > Clients**. Add the bundle identifier `com.projectmiami.lazo` as an allowed app identifier and `lazo` as an allowed URL scheme.
+3. Fill in `EXPO_PUBLIC_PRIVY_APP_ID`, `EXPO_PUBLIC_PRIVY_CLIENT_ID` and `EXPO_PUBLIC_DAT_API_URL` in `.env` (see `.env.example`), then make a development build as below. Live mode turns on only when all three are set.
+
+In live builds, **Sign in** uses Privy's SMS login instead of Auth0. **Demo** still opens the sample wallet.
+
+Not yet verified on a device: the format of Privy's Expo signature (the app accepts base64 or base58), and whether a person who was sent money before signing up can use that wallet after SMS login.
+
 ## What is still simulated
 
-**All money movement is simulated.** Balances, transfers, family goals, and MXN rates are local sample data. No real wallet, on-chain transfer, bank account, card charge, or fiat partner is connected. Shareable demo request text is not a real payment link.
+**In demo mode, all money movement is simulated.** Balances, transfers, family goals, and MXN rates are local sample data. No real wallet, on-chain transfer, bank account, card charge, or fiat partner is connected. Shareable demo request text is not a real payment link. Live mode is described above.
 
 Wallet custody and the actual corridor/provider remain team decisions. This first version intentionally does not decide those through hidden implementation assumptions.
 

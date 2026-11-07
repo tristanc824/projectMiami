@@ -6,6 +6,7 @@ import { Text } from './Text';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { themedStyles, useColors } from '../theme';
 import { contacts, money, type Activity, type Contact } from '../domain/wallet';
+import { useIsLive } from '../state/live';
 
 export type IconName = ComponentProps<typeof Ionicons>['name'];
 export function Icon({ name, size = 22, color }: { name: IconName; size?: number; color?: ColorValue }) {
@@ -42,7 +43,8 @@ export function Pill({ children, dark = false }: { children: ReactNode; dark?: b
 }
 export function DemoNote({ compact = false }: { compact?: boolean }) {
   const { colors, styles: t } = useColors();
-  return <View style={[t.row, { gap: 7, justifyContent: 'center', paddingVertical: compact ? 3 : 14 }]}><View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: colors.amber }} /><Text style={[t.muted, { fontSize: 11 }]}>Demo mode · No real funds</Text></View>;
+  const live = useIsLive();
+  return <View style={[t.row, { gap: 7, justifyContent: 'center', paddingVertical: compact ? 3 : 14 }]}><View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: live ? colors.accent : colors.amber }} /><Text style={[t.muted, { fontSize: 11 }]}>{live ? 'Solana devnet · Test USDC, no real money' : 'Demo mode · No real funds'}</Text></View>;
 }
 /** Height of the floating tab dock; scroll content must clear it plus the home indicator. */
 export const DOCK_HEIGHT = 76;
@@ -69,7 +71,7 @@ export function ActivityRow({ item }: { item: Activity }) {
   return <Pressable onPress={() => router.push({ pathname: '/receipt', params: { id: item.id } })} accessibilityRole="button" accessibilityLabel={`${item.name}, ${incoming ? 'received' : 'sent'} ${money(item.amountCents)}, view receipt`} style={({ pressed }) => [s.activityRow, { opacity: pressed ? 0.65 : 1 }]}>
     {contact ? <Avatar contact={contact} size={44} /> : <View style={[s.activityIcon, { backgroundColor: incoming ? colors.mintLight : colors.blue }]}><Icon name={incoming ? 'add' : 'arrow-up-right-box-outline'} size={20} color={colors.green} /></View>}
     <View style={{ flex: 1, gap: 4 }}><Text style={{ color: colors.ink, fontWeight: '600', fontSize: 14 }}>{item.name}</Text><Text numberOfLines={1} style={{ color: colors.muted, fontSize: 12 }}>{item.note}</Text></View>
-    <View style={{ alignItems: 'flex-end', gap: 5 }}><Text style={{ color: incoming ? colors.green : colors.ink, fontWeight: '700', fontSize: 14 }}>{incoming ? '+' : '−'}{money(item.amountCents)}</Text><Text style={{ color: colors.muted, fontSize: 10 }}>Demo · {new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text></View>
+    <View style={{ alignItems: 'flex-end', gap: 5 }}><Text style={{ color: incoming ? colors.green : colors.ink, fontWeight: '700', fontSize: 14 }}>{incoming ? '+' : '−'}{money(item.amountCents)}</Text><Text style={{ color: colors.muted, fontSize: 10 }}>{item.live ? 'Devnet' : 'Demo'} · {new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text></View>
   </Pressable>;
 }
 export function Notice({ children, error = false }: { children: ReactNode; error?: boolean }) {

@@ -3,6 +3,8 @@ export type Contact = { id: string; name: string; shortName: string; fullName: s
 export type Activity = {
   id: string; kind: 'send' | 'add' | 'withdraw' | 'receive'; name: string;
   amountCents: number; feeCents: number; note: string; createdAt: string; contactId?: string;
+  /** Live mode only: a real devnet transaction. Demo activity never has these. */
+  live?: boolean; signature?: string;
 };
 export type FamilyGoal = { id: string; name: string; description: string; targetCents: number; fundedCents: number; contactId: string };
 export type WalletState = { version: 1; balanceCents: number; activity: Activity[]; goals: FamilyGoal[] };

@@ -5,10 +5,51 @@ import { Text } from '../components/Text';
 import { AmountInput } from '../components/AmountInput';
 import { Button, DemoNote, Detail, Icon, Notice, Pill, Screen } from '../components/ui';
 import { DEMO_MXN_RATE, money, parseAmount } from '../domain/wallet';
+import { MAX_DEPOSIT_DOLLARS } from '../services/dat';
+import { useIsLive, useLive } from '../state/live';
 import { useWallet } from '../state/WalletProvider';
 import { useColors } from '../theme';
 
 export default function MoneyScreen() {
+  return useIsLive() ? <LiveMoney /> : <DemoMoney />;
+}
+
+/** Add: Stripe test card, then the treasury sends devnet USDC. Withdraw: real USDC back to the treasury; the bank payout is simulated. */
+function LiveMoney() {
+  const { colors, styles: t } = useColors();
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const adding = mode !== 'withdraw';
+  const live = useLive();
+  const { wallet, ready } = useWallet();
+  const [amount, setAmount] = useState('0');
+  const [review, setReview] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const submitting = useRef(false);
+  const cents = parseAmount(amount);
+  const wholeDollars = cents !== null && cents % 100 === 0 && cents / 100 <= MAX_DEPOSIT_DOLLARS;
+  const valid = ready && cents !== null && (adding ? wholeDollars : cents <= wallet.balanceCents);
+  const complete = async () => {
+    if (!valid || !cents || submitting.current) return;
+    submitting.current = true; setBusy(true); setError('');
+    try {
+      const id = adding ? await live.deposit(cents / 100) : await live.cashOut(cents);
+      router.replace({ pathname: '/receipt', params: { id } });
+    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Please try again.'); submitting.current = false; setBusy(false); }
+  };
+  return <Screen key={review ? 'review' : 'edit'} back title={adding ? 'A little more possibility.' : 'Ready for real life.'} subtitle={adding ? 'Add digital dollars to your wallet.' : 'Move money from your wallet to a bank.'}>
+    <View style={[t.card, t.row, { gap: 12 }]}><View style={{ width: 42, height: 42, borderRadius: 15, backgroundColor: colors.mintLight, alignItems: 'center', justifyContent: 'center' }}><Icon name={adding ? 'card-outline' : 'business-outline'} color={colors.green} /></View><View style={{ flex: 1 }}><Text style={{ color: colors.ink, fontSize: 14, fontWeight: '600' }}>{adding ? 'Stripe test card' : 'Bank payout'}</Text><Text style={t.muted}>{adding ? 'Test mode · no real charge' : 'Simulated · no bank connected'}</Text></View><Pill>{adding ? 'Test' : 'Simulated'}</Pill></View>
+    {review && cents ? <View style={[t.card, { marginVertical: 25 }]}><Detail label={adding ? 'Add to your wallet' : 'Cash out'} value={`${money(cents)} USDC`} /><Detail label="Network fee" value="Paid by Guard" /><View style={t.divider} /><Detail strong label="Balance after" value={money(adding ? wallet.balanceCents + cents : wallet.balanceCents - cents)} /></View> : <AmountInput value={amount} onChange={setAmount} />}
+    <Notice>{adding ? `Charges Stripe's test card, never a real one. Then real test USDC arrives on Solana devnet. Whole dollars, up to $${MAX_DEPOSIT_DOLLARS}.` : 'Your USDC really leaves your wallet on Solana devnet. The bank payout is simulated, so no money reaches a bank.'}</Notice>
+    {adding && cents !== null && !wholeDollars ? <View style={{ marginTop: 12 }}><Notice error>Choose a whole-dollar amount from $1 to ${MAX_DEPOSIT_DOLLARS}.</Notice></View> : null}
+    {!adding && cents !== null && cents > wallet.balanceCents ? <View style={{ marginTop: 12 }}><Notice error>This is more than your available balance.</Notice></View> : null}
+    {error ? <View style={{ marginTop: 12 }}><Notice error>{error}</Notice></View> : null}
+    <Button style={{ marginTop: 22 }} title={review ? adding ? 'Add money' : 'Cash out' : 'Review details'} loading={busy} disabled={!valid} onPress={() => { if (review) void complete(); else setReview(true); }} />
+    {review ? <Button style={{ marginTop: 10 }} title="Edit amount" variant="secondary" disabled={busy} onPress={() => setReview(false)} /> : null}<DemoNote />
+  </Screen>;
+}
+
+function DemoMoney() {
   const { colors, styles: t } = useColors();
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const adding = mode !== 'withdraw';

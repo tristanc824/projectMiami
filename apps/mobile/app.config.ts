@@ -17,7 +17,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ios: { supportsTablet: true, bundleIdentifier },
     android: { package: bundleIdentifier, adaptiveIcon: { foregroundImage: './assets/icon.png', backgroundColor: '#FFFFFF' } },
     web: { bundler: 'metro', output: 'single', favicon: './assets/favicon.png', name: 'Guard — Protect what matters.' },
-    plugins: ['expo-router', 'expo-font', ...(domain ? [['react-native-auth0', { domain, customScheme: 'lazo' }] as [string, Record<string, string>]] : [])],
+    // expo-secure-store, expo-web-browser and react-native-quick-crypto back Privy's live wallet in dev/TestFlight builds.
+    plugins: ['expo-router', 'expo-font', 'expo-secure-store', 'expo-web-browser', 'react-native-quick-crypto', ...(domain ? [['react-native-auth0', { domain, customScheme: 'lazo' }] as [string, Record<string, string>]] : [])],
     experiments: { typedRoutes: true },
     extra: { ...(projectId ? { eas: { projectId } } : {}), demoMode: true },
   };

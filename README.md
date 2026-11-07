@@ -12,7 +12,9 @@ npm install
 npm start
 ```
 
-Use `npm run web` in the same directory for the shared web app. See the mobile README for Auth0, signing, EAS, and TestFlight instructions.
+Use `npm run web` in the same directory for the shared web app.
+
+The backend is in [`apps/api`](./apps/api/HANDOFF.md): a Next.js app (DAT) with Privy SMS login, self-custody Solana wallets, sponsored devnet USDC transfers, and Stripe test-mode deposits. A Guard development build can use it for real devnet money; see "Live mode" in the mobile README. Secrets go in `apps/api/.env.local` and are never committed. See the mobile README for Auth0, signing, EAS, and TestFlight instructions.
 
 - [DESIGN.md](./DESIGN.md) — Cash App / PayPal reference research and the Guard design system.
 
