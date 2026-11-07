@@ -4,6 +4,8 @@ Last consolidated: November 6, 2026. Time zone: America/New_York.
 
 This document captures the discussion so far: the team's original vision, user clarifications, research findings, proposed product directions, and unresolved decisions. Recommendations are not final team decisions unless explicitly identified as confirmed. This is a consolidated brief rather than a verbatim transcript.
 
+Teammates should start with [TEAM_PROMPTS.md](./TEAM_PROMPTS.md) for the work split and the prompts to paste into Cursor or Claude. This file is the research record those prompts rely on.
+
 ## 1. Confirmed team goals and constraints
 
 - Participate in the SharkByte hackathon in Miami.
