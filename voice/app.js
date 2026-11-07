@@ -23,6 +23,11 @@ let currentVerdict = null;
 let recognition = null;
 let listening = false;
 let statusTimer = null;
+// Each review gets a generation number. Clearing, editing, changing language or
+// starting another review bumps it, so a late response can never overwrite newer state.
+let reviewGeneration = 0;
+let reviewController = null;
+let recognitionSubmitted = false;
 
 function showStatus(message, error = false) {
   window.clearTimeout(statusTimer);
@@ -63,6 +68,21 @@ function isLocalCommand(text) {
   return false;
 }
 
+function restoreReviewButton() {
+  reviewButton.disabled = false;
+  reviewButton.innerHTML = 'Review this request <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>';
+}
+
+function invalidateReview() {
+  reviewGeneration += 1;
+  reviewController?.abort();
+  reviewController = null;
+  currentVerdict = null;
+  resultSection.hidden = true;
+  restoreReviewButton();
+  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+}
+
 async function runReview() {
   const spokenText = transcript.value.trim();
   if (!spokenText) {
@@ -72,6 +92,10 @@ async function runReview() {
   }
   if (isLocalCommand(spokenText)) return;
 
+  invalidateReview();
+  const generation = reviewGeneration;
+  const controller = new AbortController();
+  reviewController = controller;
   currentCase.output_locale = language.value;
 
   reviewButton.disabled = true;
@@ -82,13 +106,16 @@ async function runReview() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ transcript: spokenText, case: currentCase }),
+      signal: controller.signal,
     });
     const data = await response.json().catch(() => ({ error: "bad-response" }));
+    if (generation !== reviewGeneration) return;
     if (!response.ok) throw new Error(data.error || "review-failed");
     renderFacts(data.case);
     renderResult(data);
     showStatus("Review ready. Nothing was signed or sent.");
   } catch (error) {
+    if (generation !== reviewGeneration || error.name === "AbortError") return;
     const messages = {
       "missing-key": "Set SWARMS_API_KEY in the terminal that started the app.",
       budget: "The Swarms balance cannot cover this review.",
@@ -97,8 +124,11 @@ async function runReview() {
     };
     showStatus(messages[error.message] || "The review could not be completed.", true);
   } finally {
-    reviewButton.disabled = false;
-    reviewButton.innerHTML = 'Review this request <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>';
+    // An older request must not re-enable the button while a newer one runs.
+    if (generation === reviewGeneration) {
+      reviewController = null;
+      restoreReviewButton();
+    }
   }
 }
 
@@ -161,6 +191,7 @@ function speakSummary() {
 }
 
 function resetReview() {
+  invalidateReview();
   transcript.value = "";
   currentCase = {
     ...defaultCase,
@@ -186,21 +217,29 @@ function setupSpeechRecognition() {
   recognition.continuous = false;
   recognition.interimResults = true;
   recognition.maxAlternatives = 1;
-  recognition.onstart = () => setListening(true);
+  recognition.onstart = () => {
+    recognitionSubmitted = false;
+    setListening(true);
+  };
   recognition.onend = () => setListening(false);
   recognition.onerror = (event) => {
     setListening(false);
     if (event.error !== "aborted") showStatus(`Microphone error: ${event.error}.`, true);
   };
   recognition.onresult = (event) => {
-    let words = "";
-    let final = false;
-    for (let index = event.resultIndex; index < event.results.length; index += 1) {
-      words += event.results[index][0].transcript;
-      final ||= event.results[index].isFinal;
+    // Rebuild from every result so earlier final segments are kept, and submit
+    // only once all of them are final.
+    const parts = [];
+    let allFinal = event.results.length > 0;
+    for (let index = 0; index < event.results.length; index += 1) {
+      parts.push(event.results[index][0].transcript.trim());
+      allFinal &&= event.results[index].isFinal;
     }
-    transcript.value = words.trim();
-    if (final) runReview();
+    transcript.value = parts.filter(Boolean).join(" ");
+    if (allFinal && !recognitionSubmitted) {
+      recognitionSubmitted = true;
+      runReview();
+    }
   };
 }
 
@@ -223,6 +262,10 @@ reviewButton.addEventListener("click", runReview);
 clearButton.addEventListener("click", resetReview);
 readButton.addEventListener("click", speakSummary);
 language.addEventListener("change", () => {
+  // A session already listening keeps its old language, so stop it, and drop a
+  // result that was produced for the previous language.
+  if (listening) recognition?.abort();
+  invalidateReview();
   currentCase.output_locale = language.value;
   currentCase.output_language = language.selectedOptions[0].textContent.trim();
   if (recognition) recognition.lang = language.value;

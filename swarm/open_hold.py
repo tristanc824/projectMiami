@@ -1,8 +1,9 @@
 """Run Prune, then the swarm, and stop before any signature unless both pass.
 
 Deposit happens only when the Judge says confirm and Prune returns a receipt
-signature. The Solana hold itself is node hold/hold.mjs. The sender can refund
-that hold alone. Only the other family member can release it.
+signature, and it locks exactly the reviewed amount. The Solana hold itself is
+node hold/hold.mjs. The sender can refund that hold alone. Only the approver,
+the other family member, can release it, with their signature and the PIN.
 """
 
 from __future__ import annotations
@@ -20,8 +21,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _number(amount: str) -> str:
-    match = re.fullmatch(r"\s*(\d+(?:\.\d+)?)\s*(?:USDC|usdc|dollars?)?\s*", amount)
-    if not match:
+    match = re.fullmatch(
+        r"\s*\$?\s*(\d+(?:\.\d{1,6})?)\s*(?:usdc|usd|dollars?)?\s*", amount, re.IGNORECASE
+    )
+    if not match or float(match.group(1)) <= 0:
         raise SystemExit("blocked-in")
     return match.group(1)
 
@@ -29,7 +32,9 @@ def _number(amount: str) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Clean a note, review it, then optionally lock test USDC.")
     parser.add_argument("--note", required=True, help="The raw family note. Prune is the only step that reads it.")
-    parser.add_argument("--deposit", action="store_true", help="After confirm, run the devnet test-token demo lock.")
+    parser.add_argument(
+        "--deposit", action="store_true", help="After confirm, lock the reviewed amount of devnet test USDC."
+    )
     args = parser.parse_args()
 
     try:
@@ -46,7 +51,9 @@ def main() -> int:
         "relationship_verified": False,
         "relationship": fields["relationship"],
         "purpose": fields["purpose"],
-        "fiat_leg": fields["fiat_leg"],
+        # No payout provider is wired up, so the payout stays a labeled simulation
+        # whatever the note claims.
+        "fiat_leg": "simulated",
         "corridor": "unset",
         "custody": "unset",
         "provider": "unset",
@@ -75,13 +82,17 @@ def main() -> int:
     print(sealed["sentence"])
     print(sealed["receipt"]["receipt_signature"])
     print("ready-to-sign")
-    print("The local payout is simulated. The sender can cancel without the PIN. Release needs the 6-digit PIN.")
+    print(
+        "The local payout is simulated. The sender can cancel without the PIN. "
+        "Release needs the approver's signature and the 6-digit PIN."
+    )
     if not args.deposit:
-        print("Run node hold/hold.mjs demo to lock test USDC. Pass --deposit to do that after this confirm.")
+        print(f"Pass --deposit to lock {amount} test USDC after this confirm.")
         return 0
 
+    # Lock exactly the amount the swarm reviewed, not a demo amount.
     completed = subprocess.run(
-        ["node", str(ROOT / "hold" / "hold.mjs"), "demo"],
+        ["node", str(ROOT / "hold" / "hold.mjs"), "lock", amount],
         cwd=ROOT,
         check=False,
     )

@@ -85,28 +85,40 @@ SAFE_CASE_DEFAULTS: dict[str, Any] = {
     "output_language": LANGUAGES[DEFAULT_LOCALE],
 }
 
+LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "[::1]", "::1"}
+
 PHONE_LIKE = re.compile(r"(?<!\d)\+?\d(?:[\s\-.()]*\d){6,}(?!\d)")
+
+# A whole number token: "1,000" or "80.50". The lookahead refuses a prefix, so
+# "80.999" or "80.5.2" is not read as a smaller amount.
+MONEY = r"(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)(?![\d.,]*\d)"
 
 AMOUNT_PATTERNS = {
     "requested_usdc": re.compile(
-        r"\b(?:request(?:ed)? total|total request)\s+(?:is\s+|to\s+)?\$?(\d+(?:\.\d{1,2})?)\b",
+        rf"\b(?:request(?:ed)? total|total request)\s+(?:is\s+|to\s+)?\$?{MONEY}",
         re.IGNORECASE,
     ),
     "other_contributions_usdc": re.compile(
-        r"\b(?:other contributions?|already contributed)\s+(?:are\s+|is\s+)?\$?(\d+(?:\.\d{1,2})?)\b",
+        rf"\b(?:other contributions?|already contributed)\s+(?:are\s+|is\s+)?\$?{MONEY}",
         re.IGNORECASE,
     ),
     "amount_usdc": re.compile(
-        r"\b(?:(?:send|transfer|contribute|pay|amount(?:\s+is|\s+to)?|sending|enviar|envía|transferir|transfiere|pagar|paga)\s+\$?(\d+(?:\.\d{1,2})?)|(?:prepare|make|prepara|preparar)\s+(?:an?\s+|una?\s+)?(?:transfer(?:encia)?\s+(?:of|de)\s+)?\$?(\d+(?:\.\d{1,2})?))\b",
+        rf"\b(?:(?:send|transfer|contribute|pay|amount(?:\s+is|\s+to)?|sending|enviar|envía|transferir|transfiere|pagar|paga)\s+\$?{MONEY}|(?:prepare|make|prepara|preparar)\s+(?:an?\s+|una?\s+)?(?:transfer(?:encia)?\s+(?:of|de)\s+)?\$?{MONEY})",
         re.IGNORECASE,
     ),
 }
+
+RELATIONSHIP_WORDS = r"relationship|relative|recipient|person|relación|familiar|destinatario|persona"
+NEGATION = re.compile(
+    r"\b(?:not|never|no|isn'?t|unverified|unknown|unconfirmed|nunca|sin|todavía no|aún no)\b",
+    re.IGNORECASE,
+)
 
 
 def _safe_amount(value: Any) -> str | None:
     if isinstance(value, bool):
         return None
-    text = str(value).strip()
+    text = str(value).strip().replace(",", "")
     if not re.fullmatch(r"\d+(?:\.\d{1,2})?", text):
         return None
     amount = float(text)
@@ -140,9 +152,11 @@ def apply_voice_facts(case: dict[str, Any], transcript: str) -> dict[str, Any]:
     """Apply a narrow set of voice commands without retaining personal details."""
     updated = safe_case(case)
     text = transcript.strip()
+    # Remove phone-like digit runs first so "send 305-555-0142" is never an amount.
+    number_text = PHONE_LIKE.sub(" ", text)
     matched_fields: set[str] = set()
     for field, pattern in AMOUNT_PATTERNS.items():
-        match = pattern.search(text)
+        match = pattern.search(number_text)
         if match:
             captured = next((group for group in match.groups() if group is not None), None)
             amount = _safe_amount(captured)
@@ -154,26 +168,26 @@ def apply_voice_facts(case: dict[str, Any], transcript: str) -> dict[str, Any]:
     # amount after removing phone-like digit runs. Ambiguous multi-number speech
     # is left unchanged for the person to edit rather than guessed.
     if not matched_fields:
-        number_text = PHONE_LIKE.sub(" ", text)
-        candidates = re.findall(r"(?<![\d.])\d{1,6}(?:\.\d{1,2})?(?![\d.])", number_text)
+        candidates = re.findall(r"(?<![\d.,])\d{1,6}(?:\.\d{1,2})?(?![\d.,]*\d)", number_text)
         if len(candidates) == 1:
             amount = _safe_amount(candidates[0])
             if amount is not None:
                 updated["amount_usdc"] = amount
 
-    relationship_words = r"relationship|relative|recipient|person|relación|familiar|destinatario|persona"
-    if re.search(
-        rf"\b(?:{relationship_words})\b.{{0,24}}\b(?:not verified|unverified|unknown|no (?:está )?verificad[oa]|sin verificar)\b",
-        text,
-        re.IGNORECASE,
-    ):
-        updated["relationship_verified"] = False
-    elif re.search(
-        rf"\b(?:{relationship_words})\b.{{0,24}}\b(?:verified|verificad[oa])\b",
-        text,
-        re.IGNORECASE,
-    ):
-        updated["relationship_verified"] = True
+    # Fail closed: a sentence that mentions verification with any negation
+    # ("not yet verified", "never been verified") marks it unverified. Only a
+    # plain statement with no negation marks it verified.
+    for sentence in re.split(r"[.!?;\n]+", text):
+        mention = re.search(
+            rf"\b(?:{RELATIONSHIP_WORDS})\b.{{0,40}}?(?:\bunverified\b|\bverified\b|\bverificad[oa]\b|\bverificar\b)",
+            sentence,
+            re.IGNORECASE,
+        )
+        if not mention:
+            continue
+        updated["relationship_verified"] = not NEGATION.search(sentence)
+        if not updated["relationship_verified"]:
+            break
 
     updated["fiat_leg"] = "simulated"
     return updated
@@ -210,12 +224,20 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
         if urlparse(self.path).path != "/api/review":
             self.send_error(HTTPStatus.NOT_FOUND)
             return
+        if not self._trusted_request():
+            # Another website open in the same browser could otherwise POST here
+            # and spend the Swarms credits behind SWARMS_API_KEY.
+            self._json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
+            return
         try:
             length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
             self._json(HTTPStatus.BAD_REQUEST, {"error": "bad-request"})
             return
-        if length <= 0 or length > MAX_BODY_BYTES:
+        if length <= 0:
+            self._json(HTTPStatus.BAD_REQUEST, {"error": "bad-request"})
+            return
+        if length > MAX_BODY_BYTES:
             self._json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"error": "bad-request"})
             return
         try:
@@ -223,8 +245,11 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
         except (UnicodeDecodeError, json.JSONDecodeError):
             self._json(HTTPStatus.BAD_REQUEST, {"error": "bad-request"})
             return
-        transcript = payload.get("transcript", "") if isinstance(payload, dict) else ""
-        if not isinstance(transcript, str) or len(transcript) > MAX_TRANSCRIPT_CHARS:
+        if not isinstance(payload, dict):
+            self._json(HTTPStatus.BAD_REQUEST, {"error": "bad-request"})
+            return
+        transcript = payload.get("transcript", "")
+        if not isinstance(transcript, str) or not transcript.strip() or len(transcript) > MAX_TRANSCRIPT_CHARS:
             self._json(HTTPStatus.BAD_REQUEST, {"error": "bad-transcript"})
             return
 
@@ -244,6 +269,9 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
             safe_reason = reason if reason in {"budget", "bad-verdict"} else "swarms-api"
             self._json(status, {"error": safe_reason, "case": case})
             return
+        except Exception:  # noqa: BLE001 - an unexpected API shape must not drop the connection
+            self._json(HTTPStatus.BAD_GATEWAY, {"error": "swarms-api", "case": case})
+            return
 
         self._json(
             HTTPStatus.OK,
@@ -256,6 +284,18 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
                 "boundary": "Prepared for review only. No funds were signed or sent.",
             },
         )
+
+    def _trusted_request(self) -> bool:
+        """Accept only same-origin JSON posts, and only loopback Host names on a loopback bind."""
+        host = self.headers.get("Host", "")
+        host_name = host.rsplit(":", 1)[0] if not host.endswith("]") else host
+        if self.server.server_address[0] in LOOPBACK_HOSTS and host_name not in LOOPBACK_HOSTS:
+            return False  # DNS rebinding: a foreign name that resolves to this machine
+        origin = self.headers.get("Origin")
+        if origin is not None and origin != f"http://{host}":
+            return False
+        content_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+        return content_type == "application/json"
 
     def _json(self, status: HTTPStatus, payload: dict[str, Any]) -> None:
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")

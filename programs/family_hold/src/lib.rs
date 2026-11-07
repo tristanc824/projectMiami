@@ -2,8 +2,12 @@
 //!
 //! Deposit moves USDC into a vault and stores a hash of a 6-digit PIN.
 //! Refund sends it back and only the sender may call it. The sender does not
-//! need the PIN. Release sends it to the recipient and requires that PIN.
-//! The raw PIN is not stored on the account.
+//! need the PIN. Release sends it to the recipient and requires both the
+//! approver's signature and that PIN.
+//!
+//! The PIN is not a secret on its own: its hash sits in public account data
+//! and a 6-digit space is searched in well under a second. The approver's
+//! signature is what stops a stranger, or the recipient alone, from releasing.
 
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -11,6 +15,7 @@ use solana_program::{
     entrypoint::ProgramResult,
     program::{invoke, invoke_signed},
     program_error::ProgramError,
+    program_pack::Pack,
     hash::hash,
     pubkey::Pubkey,
     rent::Rent,
@@ -46,6 +51,8 @@ const WRONG_SENDER: u32 = 2;
 const WRONG_PIN: u32 = 3;
 const WRONG_DESTINATION: u32 = 4;
 const WRONG_MINT: u32 = 5;
+const WRONG_APPROVER: u32 = 6;
+const WRONG_OWNER: u32 = 7;
 
 fn process_instruction(
     program_id: &Pubkey,
@@ -98,7 +105,10 @@ fn deposit(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Progra
     }
 
     let sender_account = TokenAccount::unpack(&sender_token.data.borrow())?;
-    if sender_account.owner != *sender.key || sender_account.mint != *mint.key {
+    if sender_account.owner != *sender.key {
+        return Err(ProgramError::Custom(WRONG_OWNER));
+    }
+    if sender_account.mint != *mint.key {
         return Err(ProgramError::Custom(WRONG_MINT));
     }
     let decimals = Mint::unpack(&mint.data.borrow())?.decimals;
@@ -120,9 +130,9 @@ fn deposit(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Progra
     if vault.key != &vault_key {
         return Err(ProgramError::InvalidSeeds);
     }
-    if state.lamports() > 0 || vault.lamports() > 0 {
-        return Err(ProgramError::AccountAlreadyInitialized);
-    }
+    // create_pda refuses an account that is already in use. A bare lamport
+    // balance is not "in use": anyone can send lamports to an address, and
+    // refusing on that would let a stranger block this hold forever.
 
     let state_bump_bytes = [state_bump];
     create_pda(
@@ -219,6 +229,7 @@ fn release(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Progra
     let account_info_iter = &mut accounts.iter();
     let fee_payer = next_account_info(account_info_iter)?;
     let sender = next_account_info(account_info_iter)?;
+    let approver = next_account_info(account_info_iter)?;
     let state = next_account_info(account_info_iter)?;
     let vault = next_account_info(account_info_iter)?;
     let recipient_token = next_account_info(account_info_iter)?;
@@ -226,7 +237,11 @@ fn release(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Progra
     let token_program = next_account_info(account_info_iter)?;
 
     require_signer(fee_payer)?;
+    require_signer(approver)?;
     let hold = load_state(program_id, state, vault, token_program)?;
+    if hold.approver != *approver.key {
+        return Err(ProgramError::Custom(WRONG_APPROVER));
+    }
     if hash(data).to_bytes() != hold.pin_hash {
         return Err(ProgramError::Custom(WRONG_PIN));
     }
@@ -316,6 +331,16 @@ fn move_and_close<'a>(
     token_program: &AccountInfo<'a>,
 ) -> ProgramResult {
     let decimals = Mint::unpack(&mint.data.borrow())?.decimals;
+    // Anyone can send tokens to the vault. Moving only hold.amount would leave
+    // that dust behind, close_account would refuse a non-zero balance, and the
+    // hold could never be refunded or released. Move the whole balance.
+    let vault_account = TokenAccount::unpack(&vault.data.borrow())?;
+    if vault_account.mint != hold.mint || vault_account.owner != *vault.key {
+        return Err(ProgramError::InvalidAccountData);
+    }
+    if vault_account.amount < hold.amount {
+        return Err(ProgramError::InsufficientFunds);
+    }
     let bump = [hold.vault_bump];
     let seeds: &[&[u8]] = &[b"vault", state.key.as_ref(), &bump];
     invoke_signed(
@@ -326,7 +351,7 @@ fn move_and_close<'a>(
             destination.key,
             vault.key,
             &[],
-            hold.amount,
+            vault_account.amount,
             decimals,
         )?,
         &[
@@ -365,10 +390,35 @@ fn create_pda<'a>(
     seeds: &[&[u8]],
     system_program: &AccountInfo<'a>,
 ) -> ProgramResult {
-    let lamports = Rent::get()?.minimum_balance(space);
+    let required = Rent::get()?.minimum_balance(space);
+    let current = account.lamports();
+    if current == 0 {
+        return invoke_signed(
+            &system_instruction::create_account(payer.key, account.key, required, space as u64, owner),
+            &[payer.clone(), account.clone(), system_program.clone()],
+            &[seeds],
+        );
+    }
+    // Someone sent lamports to this address first. create_account would fail,
+    // so top it up to rent-exempt, then allocate and assign it ourselves.
+    if account.owner != &solana_program::system_program::id() || !account.data_is_empty() {
+        return Err(ProgramError::AccountAlreadyInitialized);
+    }
+    let top_up = required.saturating_sub(current);
+    if top_up > 0 {
+        invoke(
+            &system_instruction::transfer(payer.key, account.key, top_up),
+            &[payer.clone(), account.clone(), system_program.clone()],
+        )?;
+    }
     invoke_signed(
-        &system_instruction::create_account(payer.key, account.key, lamports, space as u64, owner),
-        &[payer.clone(), account.clone(), system_program.clone()],
+        &system_instruction::allocate(account.key, space as u64),
+        &[account.clone(), system_program.clone()],
+        &[seeds],
+    )?;
+    invoke_signed(
+        &system_instruction::assign(account.key, owner),
+        &[account.clone(), system_program.clone()],
         &[seeds],
     )
 }

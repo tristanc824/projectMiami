@@ -49,7 +49,7 @@ CLEAN_PROMPT = """You turn one family money request into JSON. Return one JSON o
 amount: the amount and currency exactly as written in the note, or "unknown"
 relationship: how the requester is related to the sender, as a role such as "niece" or "aunt", never a name, or "unknown"
 purpose: a short general category such as "school expenses" or "medicine", with no names, places, or account details, or "unknown"
-fiat_leg: "live" only if the note says the local payout is live, otherwise "simulated"
+fiat_leg: always "simulated"
 Do not include names, phone numbers, account numbers, addresses, or IDs.
 Do not add fees, exchange rates, delivery dates, a country, a provider, or a custody choice."""
 
@@ -129,7 +129,7 @@ def clean_request(raw_note: str) -> dict:
     except (urllib.error.URLError, OSError, ValueError) as error:
         raise GateStop("blocked-in", _http_detail(error)) from None
 
-    if not isinstance(result.get("prune_metadata"), dict):
+    if not isinstance(result, dict) or not isinstance(result.get("prune_metadata"), dict):
         raise GateStop("blocked-in", "response has no prune_metadata")
 
     try:
@@ -150,9 +150,10 @@ def clean_request(raw_note: str) -> dict:
         raise GateStop("blocked-in", "cleaned JSON is missing a field")
 
     fields = {key: parsed[key].strip() for key in FIELDS}
-    note_says_live = re.search(r"\blive\b", raw_note, re.IGNORECASE)
-    if not (fields["fiat_leg"].lower() == "live" and note_says_live):
-        fields["fiat_leg"] = "simulated"
+    # The requester's note cannot switch on a real payout ("the payout is not
+    # live" contains the word live too). No provider is wired up, so the
+    # payout is always the labeled simulation.
+    fields["fiat_leg"] = "simulated"
     return fields
 
 
@@ -163,7 +164,7 @@ def seal_sentence(sentence: str) -> dict:
     except (urllib.error.URLError, OSError, ValueError) as error:
         raise GateStop("no-receipt", _http_detail(error)) from None
 
-    receipt = result.get("prune_metadata")
+    receipt = result.get("prune_metadata") if isinstance(result, dict) else None
     if not isinstance(receipt, dict) or not receipt.get("receipt_signature"):
         raise GateStop("no-receipt", "prune_metadata.receipt_signature is missing")
     return {"sentence": sentence, "receipt": receipt}
