@@ -1,0 +1,282 @@
+<title>Guard Brand Kits</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=DM+Serif+Display&family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Instrument+Serif&family=Manrope:wght@400;500;600;700;800&family=Outfit:wght@500;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@500;700;800&family=Syne:wght@600;700;800&family=Unbounded:wght@500;700&family=Young+Serif&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a contact sheet of brand kits. Each card is a self-contained mini brand world (its own colors), framed by a quiet neutral page. */
+:root {
+  --bg: #f3f4f1;
+  --panel: #ffffff;
+  --fg: #16191c;
+  --muted: #5f666d;
+  --line: #dfe2dc;
+  --chip: #e9ebe6;
+  --focus: #2f5bea;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "Manrope", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111315; --panel: #1a1d20; --fg: #eef0ee; --muted: #9aa1a8; --line: #2b3034; --chip: #24282c; --focus: #8fb0ff; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111315; --panel: #1a1d20; --fg: #eef0ee; --muted: #9aa1a8; --line: #2b3034; --chip: #24282c; --focus: #8fb0ff; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1320px; margin: 0 auto; padding-block: 40px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header.top { display: grid; gap: 14px; margin-bottom: 28px; }
+.eyebrow { font: 600 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font: 800 clamp(34px, 5vw, 56px)/1.02 var(--display); letter-spacing: -.02em; margin: 0; text-wrap: balance; }
+.lede { max-width: 62ch; color: var(--muted); margin: 0; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 22px 0 26px; }
+.bar button { font: 600 13px var(--body); border: 1px solid var(--line); background: var(--panel); color: var(--fg); padding: 8px 14px; border-radius: 999px; cursor: pointer; }
+.bar button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.bar .count { margin-left: auto; font: 500 13px var(--mono); color: var(--muted); }
+button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 20px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+.card.fav { border-color: var(--fg); box-shadow: 0 0 0 1px var(--fg); }
+
+/* --- the kit's own world --- */
+.stage { background: var(--k-bg); color: var(--k-ink); padding: 20px; display: grid; gap: 16px; }
+.lockup { display: flex; align-items: center; gap: 10px; }
+.lockup svg { width: 34px; height: 34px; flex: none; }
+.word { font-family: var(--k-display); font-size: 30px; line-height: 1; letter-spacing: var(--k-track, -.01em); font-weight: var(--k-weight, 700); }
+.tag { font-family: var(--k-body); font-size: 13px; opacity: .78; margin-left: auto; text-align: right; max-width: 14ch; line-height: 1.25; }
+.screen { background: var(--k-surface); border-radius: 16px; padding: 16px; display: grid; gap: 12px; font-family: var(--k-body); box-shadow: 0 1px 0 var(--k-line); border: 1px solid var(--k-line); }
+.hello { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+.hello .net { font: 600 10px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; padding: 5px 7px; border-radius: 6px; background: var(--k-soft); color: var(--k-ink); }
+.bal small { display: block; font-size: 11px; opacity: .7; text-transform: uppercase; letter-spacing: .06em; }
+.bal strong { font-family: var(--k-display); font-size: 30px; line-height: 1.1; font-weight: var(--k-weight, 700); font-variant-numeric: tabular-nums; }
+.bal strong span { font-size: 14px; opacity: .7; font-family: var(--k-body); font-weight: 600; margin-left: 4px; }
+.bal .fx { font-size: 12px; opacity: .72; font-variant-numeric: tabular-nums; }
+.acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.acts div { border-radius: 10px; padding: 10px; text-align: center; font-weight: 700; font-size: 13px; }
+.acts .p { background: var(--k-primary); color: var(--k-on); }
+.acts .s { background: var(--k-soft); color: var(--k-ink); }
+.req { border-radius: 12px; padding: 12px; background: var(--k-soft); display: grid; gap: 8px; font-size: 12px; }
+.req .row { display: flex; justify-content: space-between; gap: 8px; }
+.req b { font-size: 13px; }
+.track { height: 7px; border-radius: 9px; background: var(--k-line); overflow: hidden; }
+.track i { display: block; height: 100%; width: 80%; background: var(--k-accent); border-radius: 9px; }
+.tx { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.tx .av { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 11px; background: var(--k-accent); color: var(--k-on-accent); flex: none; }
+.tx .meta { flex: 1; min-width: 0; }
+.tx .amt { font-weight: 700; font-variant-numeric: tabular-nums; }
+.pill { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 99px; background: var(--k-primary); color: var(--k-on); margin-top: 2px; }
+
+/* --- the neutral spec strip --- */
+.spec { padding: 14px 16px 16px; display: grid; gap: 10px; border-top: 1px solid var(--line); }
+.spec-head { display: flex; align-items: baseline; gap: 10px; }
+.num { font: 600 12px var(--mono); color: var(--muted); }
+.name { font: 700 17px var(--display); }
+.mode { margin-left: auto; font: 600 11px var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.mood { margin: 0; color: var(--muted); font-size: 13.5px; }
+.sw { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.sw button { all: unset; cursor: pointer; display: grid; gap: 4px; min-width: 0; }
+.sw button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+.sw .chipc { height: 30px; border-radius: 7px; border: 1px solid var(--line); }
+.sw .hex { font: 500 10.5px var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sw .role { font: 600 9.5px var(--mono); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); opacity: .8; }
+.foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.type { font-size: 12px; color: var(--muted); flex: 1; min-width: 0; }
+.type b { color: var(--fg); font-weight: 600; }
+.favbtn { font: 600 12px var(--body); border: 1px solid var(--line); background: transparent; color: var(--fg); padding: 6px 11px; border-radius: 999px; cursor: pointer; }
+.favbtn[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); font: 600 13px var(--body); padding: 9px 14px; border-radius: 999px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.on { opacity: 1; }
+.empty { color: var(--muted); padding: 40px 0; text-align: center; grid-column: 1 / -1; }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">projectMiami · SharkByte 2026 · brand exploration</div>
+    <h1>Guard: 24 brand kits to pick from</h1>
+    <p class="lede">Each card shows one color direction with a typeface, the logo lockup, and the app's home screen: a USDC balance, a shared family request, and a payment confirmed on Solana. Tap a swatch to copy its hex. Star the ones you like, then filter to your shortlist.</p>
+  </header>
+
+  <div class="bar" role="toolbar" aria-label="Filter kits">
+    <button id="f-all" data-f="all" aria-pressed="true">All</button>
+    <button id="f-light" data-f="light" aria-pressed="false">Light</button>
+    <button id="f-dark" data-f="dark" aria-pressed="false">Dark</button>
+    <button id="f-fav" data-f="fav" aria-pressed="false">My shortlist</button>
+    <span class="count" id="count"></span>
+  </div>
+
+  <main class="grid" id="grid"></main>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const KITS = [
+  { name: "Vault Navy", mood: "Old-money trust. Navy and brass, like a private bank that speaks Spanish.", mode: "dark",
+    c: { bg: "#0B1630", surface: "#13224A", ink: "#F3EFE4", primary: "#D9B45A", accent: "#5FA8D3" }, display: "Fraunces", dw: 800, body: "Manrope" },
+  { name: "Biscayne Teal", mood: "Bright, clean, Miami daylight. Teal with a coral pop.", mode: "light",
+    c: { bg: "#EAF7F5", surface: "#FFFFFF", ink: "#0C2B2E", primary: "#0E8C84", accent: "#FF7A59" }, display: "Sora", dw: 800, body: "Plus Jakarta Sans" },
+  { name: "Solana Native", mood: "Wears the chain on its sleeve. Solana's green and violet on deep ink.", mode: "dark",
+    c: { bg: "#120E24", surface: "#1D1838", ink: "#EDEAFF", primary: "#14F195", accent: "#9945FF" }, display: "Unbounded", dw: 700, body: "Manrope", track: "-.03em" },
+  { name: "Shield Forest", mood: "Calm and protective. Deep green with a warm gold.", mode: "light",
+    c: { bg: "#F1F4EC", surface: "#FFFFFF", ink: "#16261C", primary: "#1F5A3D", accent: "#E3B23C" }, display: "Young Serif", dw: 400, body: "Manrope" },
+  { name: "Coral Reef", mood: "Warm and familial. Feels like a text from your tía.", mode: "light",
+    c: { bg: "#FFF3EE", surface: "#FFFFFF", ink: "#2A1A1F", primary: "#E8505B", accent: "#14A3A8" }, display: "Outfit", dw: 800, body: "Plus Jakarta Sans" },
+  { name: "Midnight Mint", mood: "Night mode fintech. Mint for money, amber for attention.", mode: "dark",
+    c: { bg: "#0D1B1E", surface: "#14292D", ink: "#E6F4EF", primary: "#5EE6B8", accent: "#F2C14E" }, display: "Sora", dw: 700, body: "Manrope" },
+  { name: "Mercado", mood: "Market-stall energy. Orange and cobalt, loud and friendly.", mode: "light",
+    c: { bg: "#FDF3E1", surface: "#FFFFFF", ink: "#2B1B0E", primary: "#D9480F", accent: "#1864AB" }, display: "Bricolage Grotesque", dw: 800, body: "Manrope" },
+  { name: "Ocean Trust", mood: "Classic fintech blue. Safe, familiar, Zelle-adjacent.", mode: "light",
+    c: { bg: "#F2F6FF", surface: "#FFFFFF", ink: "#0A1A3A", primary: "#2F5BEA", accent: "#00B89C" }, display: "Plus Jakarta Sans", dw: 800, body: "Plus Jakarta Sans" },
+  { name: "Ocean Drive Deco", mood: "Art Deco Miami Beach. Flamingo pink and turquoise on navy ink.", mode: "light",
+    c: { bg: "#FDEEF1", surface: "#FFFFFF", ink: "#1E2A44", primary: "#E85A7E", accent: "#1FB5A8" }, display: "DM Serif Display", dw: 400, body: "Outfit" },
+  { name: "Graphite Lime", mood: "Developer-cool and sharp. Black, bone, electric lime.", mode: "light",
+    c: { bg: "#EEEFEA", surface: "#FFFFFF", ink: "#17181A", primary: "#17181A", accent: "#B8E62A" }, display: "Syne", dw: 800, body: "Manrope" },
+  { name: "Royal Plum", mood: "Premium and soft. Plum, rose, and champagne.", mode: "dark",
+    c: { bg: "#1A0F1F", surface: "#2A1830", ink: "#F7ECF4", primary: "#E9A6D3", accent: "#F5C26B" }, display: "Instrument Serif", dw: 400, body: "Manrope" },
+  { name: "Sandstone & Sea", mood: "Grounded and coastal. Harbor blue over warm sand.", mode: "light",
+    c: { bg: "#F4EEE4", surface: "#FFFDF9", ink: "#1F2D3A", primary: "#1F4E79", accent: "#C98F45" }, display: "Fraunces", dw: 600, body: "Plus Jakarta Sans" },
+  { name: "Electric Indigo", mood: "Crypto-forward and confident. Indigo with a hot amber.", mode: "dark",
+    c: { bg: "#0A0A1A", surface: "#15153A", ink: "#EEF0FF", primary: "#7A72FF", accent: "#FFB547" }, display: "Outfit", dw: 800, body: "Manrope" },
+  { name: "Citrus Grove", mood: "Sunny and optimistic. Mango and lime-leaf green.", mode: "light",
+    c: { bg: "#FFF9E3", surface: "#FFFFFF", ink: "#1C2310", primary: "#2B8A3E", accent: "#F59F00" }, display: "Bricolage Grotesque", dw: 700, body: "Outfit" },
+  { name: "Steel Guard", mood: "Industrial security. Slate steel with a safety-orange signal.", mode: "light",
+    c: { bg: "#E7EBEF", surface: "#FFFFFF", ink: "#14202B", primary: "#2B3A4A", accent: "#F25C2B" }, display: "Sora", dw: 800, body: "Manrope" },
+  { name: "Lagoon", mood: "Clear water and sunshine. Cheerful, kid-safe, family-first.", mode: "light",
+    c: { bg: "#E6F6FA", surface: "#FFFFFF", ink: "#08303A", primary: "#0087B8", accent: "#FFB703" }, display: "Outfit", dw: 800, body: "Plus Jakarta Sans" },
+  { name: "Cherry Ink", mood: "Editorial and bold. Pure red, pure black, lots of white.", mode: "light",
+    c: { bg: "#FFFFFF", surface: "#F6F5F3", ink: "#111111", primary: "#C8102E", accent: "#111111" }, display: "DM Serif Display", dw: 400, body: "Manrope" },
+  { name: "Sage & Clay", mood: "Gentle and human. Sage green with fired clay.", mode: "light",
+    c: { bg: "#ECEFE7", surface: "#FAFBF7", ink: "#2C3328", primary: "#4F7356", accent: "#C9784B" }, display: "Young Serif", dw: 400, body: "Outfit" },
+  { name: "Emerald Vault", mood: "Money green, done rich. Emerald with parchment.", mode: "dark",
+    c: { bg: "#062A23", surface: "#0B3B31", ink: "#EAF6EF", primary: "#2FD180", accent: "#E8D7A8" }, display: "Fraunces", dw: 800, body: "Manrope" },
+  { name: "Sky Peach", mood: "Soft and approachable. Periwinkle sky, peach warmth.", mode: "light",
+    c: { bg: "#EFF4FF", surface: "#FFFFFF", ink: "#1B2445", primary: "#4A7DEB", accent: "#FF9F80" }, display: "Plus Jakarta Sans", dw: 800, body: "Plus Jakarta Sans" },
+  { name: "Obsidian Gold", mood: "Luxury safe-deposit box. Black, gold, quiet confidence.", mode: "dark",
+    c: { bg: "#0E0E0E", surface: "#1A1A1A", ink: "#F5F0E6", primary: "#E6B450", accent: "#A9A39A" }, display: "Instrument Serif", dw: 400, body: "Manrope" },
+  { name: "Tropic Night", mood: "Miami after dark. Neon pink and palm green on midnight blue.", mode: "dark",
+    c: { bg: "#0F1D2B", surface: "#172B3F", ink: "#EAF2FA", primary: "#FF5DA2", accent: "#3DDC97" }, display: "Syne", dw: 800, body: "Outfit" },
+  { name: "Lavender Calm", mood: "Reassuring and modern. Violet with a fresh jade.", mode: "light",
+    c: { bg: "#F3F0FF", surface: "#FFFFFF", ink: "#231B42", primary: "#6F4FF2", accent: "#22B38F" }, display: "Sora", dw: 700, body: "Manrope" },
+  { name: "Havana Pastel", mood: "Painted-facade colors. Teal, saffron, and brick on cream.", mode: "light",
+    c: { bg: "#FBF4E8", surface: "#FFFFFF", ink: "#1E3A5F", primary: "#2A9D8F", accent: "#E76F51" }, display: "DM Serif Display", dw: 400, body: "Plus Jakarta Sans" },
+];
+
+const ROLES = [["bg","Background"],["surface","Surface"],["ink","Text"],["primary","Primary"],["accent","Accent"]];
+
+function lum(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = [n >> 16 & 255, n >> 8 & 255, n & 255].map(v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); });
+  return .2126 * ch[0] + .7152 * ch[1] + .0722 * ch[2];
+}
+function contrast(a, b) { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); }
+function onColor(hex, k) {
+  // pick whichever of the kit's ink/bg reads best on this fill
+  const opts = [k.c.ink, k.c.bg, "#FFFFFF", "#0B0B0B"];
+  return opts.reduce((best, o) => contrast(hex, o) > contrast(hex, best) ? o : best, opts[0]);
+}
+
+let favs = new Set();
+try { favs = new Set(JSON.parse(localStorage.getItem("guard-favs") || "[]")); } catch (e) {}
+function saveFavs() { try { localStorage.setItem("guard-favs", JSON.stringify([...favs])); } catch (e) {} }
+
+function shield(k) {
+  const on = onColor(k.c.primary, k);
+  return `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M12 1.8 3.6 4.9v6.2c0 5.3 3.6 9.7 8.4 11.1 4.8-1.4 8.4-5.8 8.4-11.1V4.9z" fill="${k.c.primary}"/>
+    <path d="M12 16.4s-4.3-2.6-4.3-5.6a2.3 2.3 0 0 1 4.3-1.2 2.3 2.3 0 0 1 4.3 1.2c0 3-4.3 5.6-4.3 5.6z" fill="${on}"/>
+  </svg>`;
+}
+
+function card(k, i) {
+  const id = String(i + 1).padStart(2, "0");
+  const style = [
+    `--k-bg:${k.c.bg}`, `--k-surface:${k.c.surface}`, `--k-ink:${k.c.ink}`,
+    `--k-primary:${k.c.primary}`, `--k-accent:${k.c.accent}`,
+    `--k-on:${onColor(k.c.primary, k)}`, `--k-on-accent:${onColor(k.c.accent, k)}`,
+    `--k-soft:color-mix(in srgb, ${k.c.primary} 12%, ${k.c.surface})`,
+    `--k-line:color-mix(in srgb, ${k.c.ink} 12%, ${k.c.surface})`,
+    `--k-display:"${k.display}", Georgia, serif`, `--k-body:"${k.body}", system-ui, sans-serif`,
+    `--k-weight:${k.dw}`, k.track ? `--k-track:${k.track}` : ""
+  ].join(";");
+  const fav = favs.has(id);
+  return `<article class="card${fav ? " fav" : ""}" data-id="${id}" data-mode="${k.mode}" style='${style}'>
+    <div class="stage">
+      <div class="lockup">${shield(k)}<span class="word">Guard</span><span class="tag">Protect what matters.</span></div>
+      <div class="screen">
+        <div class="hello"><span>Hola, Ana</span><span class="net">Devnet</span></div>
+        <div class="bal"><small>Digital dollars</small><strong>$1,240.50<span>USDC</span></strong><div class="fx">≈ 21,340 MXN today</div></div>
+        <div class="acts"><div class="p">Send</div><div class="s">Request</div></div>
+        <div class="req">
+          <div class="row"><b>School supplies for Sofía</b><span>$160 / $200</span></div>
+          <div class="track"><i></i></div>
+          <div class="row"><span>Tío Luis and Mamá chipped in</span><span>80%</span></div>
+        </div>
+        <div class="tx"><span class="av">TL</span><div class="meta">Tío Luis sent $80<br><span class="pill">Confirmed on Solana</span></div><span class="amt">+$80.00</span></div>
+      </div>
+    </div>
+    <div class="spec">
+      <div class="spec-head"><span class="num">Kit ${id}</span><span class="name">${k.name}</span><span class="mode">${k.mode}</span></div>
+      <p class="mood">${k.mood}</p>
+      <div class="sw">${ROLES.map(([r, label]) => `<button type="button" data-hex="${k.c[r]}" aria-label="Copy ${label} ${k.c[r]}"><span class="chipc" style="background:${k.c[r]}"></span><span class="role">${label}</span><span class="hex">${k.c[r]}</span></button>`).join("")}</div>
+      <div class="foot"><span class="type">Type: <b>${k.display}</b> + <b>${k.body}</b></span><button type="button" class="favbtn" id="fav-${id}" aria-pressed="${fav}">${fav ? "★ Shortlisted" : "☆ Shortlist"}</button></div>
+    </div>
+  </article>`;
+}
+
+const grid = document.getElementById("grid");
+grid.innerHTML = KITS.map(card).join("");
+
+let filter = "all";
+try { filter = localStorage.getItem("guard-filter") || "all"; } catch (e) {}
+function apply() {
+  let shown = 0;
+  grid.querySelectorAll(".card").forEach(c => {
+    const ok = filter === "all" || (filter === "fav" ? favs.has(c.dataset.id) : c.dataset.mode === filter);
+    c.hidden = !ok; if (ok) shown++;
+  });
+  document.querySelectorAll(".bar [data-f]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.f === filter)));
+  let empty = grid.querySelector(".empty");
+  if (!shown) {
+    if (!empty) { empty = document.createElement("p"); empty.className = "empty"; grid.appendChild(empty); }
+    empty.textContent = filter === "fav" ? "No kits shortlisted yet. Press ☆ Shortlist on any card to add it here." : "No kits match this filter.";
+    empty.hidden = false;
+  } else if (empty) empty.hidden = true;
+  document.getElementById("count").textContent = `${shown} of ${KITS.length} kits · ${favs.size} shortlisted`;
+}
+document.querySelector(".bar").addEventListener("click", e => {
+  const b = e.target.closest("[data-f]"); if (!b) return;
+  filter = b.dataset.f; try { localStorage.setItem("guard-filter", filter); } catch (err) {}
+  apply();
+});
+
+const toast = document.getElementById("toast"); let tt;
+function say(msg) { toast.textContent = msg; toast.classList.add("on"); clearTimeout(tt); tt = setTimeout(() => toast.classList.remove("on"), 1600); }
+
+grid.addEventListener("click", e => {
+  const sw = e.target.closest("[data-hex]");
+  if (sw) {
+    const hex = sw.dataset.hex;
+    const p = navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(hex) : Promise.reject();
+    p.then(() => say(`Copied ${hex}`)).catch(() => {
+      const r = document.createRange(); r.selectNodeContents(sw.querySelector(".hex"));
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r); say(`Selected ${hex}. Press Ctrl+C to copy`);
+    });
+    return;
+  }
+  const fb = e.target.closest(".favbtn");
+  if (fb) {
+    const c = fb.closest(".card"), id = c.dataset.id;
+    favs.has(id) ? favs.delete(id) : favs.add(id);
+    saveFavs();
+    const on = favs.has(id);
+    fb.setAttribute("aria-pressed", String(on)); fb.textContent = on ? "★ Shortlisted" : "☆ Shortlist";
+    c.classList.toggle("fav", on);
+    apply();
+  }
+});
+apply();
+</script>
