@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nest app screens</title>
+<!--
+  Nest app: reference screens for the build. Open in any browser (photos load from ../web-earth/public/photos).
+  Every screen is 390 x 844 (iPhone 15). Colors, type and copy here are the source of truth; see APP_HANDOFF.md.
+  Story: Ana lives in Miami. Her mom, Rosa, lives in Buenos Aires. Peso amounts use an example rate.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400..700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --page:#F3F0EA; --white:#FFFFFF; --ink:#17201A; --ink6:#4A544D; --ink4:#646C66; --line:#E3DED3;
+    --moss:#2F5D3A; --moss9:#16301D; --sage:#A9C4A1; --sage1:#E4ECDF; --sky:#8CC8EA; --sky1:#DCEEF8; --sand:#E9E1D1;
+    --amber:#8A5A10; --amber1:#F6EBD3; --clay:#B4562E; --clay1:#F6E4DA;
+    --photos:url("../web-earth/public/photos/");
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#E7E2D7;font-family:Figtree,system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+  header.doc{max-width:1560px;margin:0 auto;padding:56px 32px 0}
+  header.doc h1{margin:0;font-size:44px;font-weight:600;letter-spacing:-.04em}
+  header.doc p{margin:10px 0 0;color:var(--ink6);font-size:16px;max-width:80ch;line-height:1.55}
+  h2.group{max-width:1560px;margin:56px auto 0;padding:0 32px;font-size:22px;font-weight:600;letter-spacing:-.02em}
+  .grid{max-width:1560px;margin:0 auto;padding:28px 32px 8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:56px 28px;justify-items:center}
+  figure{margin:0;width:390px}
+  figcaption{margin-top:18px;font-size:14px;line-height:1.5;color:var(--ink6)}
+  figcaption b{color:var(--ink);font-weight:600}
+  figcaption .tag{display:inline-block;margin-right:6px;padding:2px 8px;border-radius:999px;background:var(--sage1);color:var(--moss);font-size:12px;font-weight:600}
+
+  /* device */
+  .phone{width:390px;height:844px;border-radius:54px;background:var(--page);overflow:hidden;position:relative;display:flex;flex-direction:column;
+    box-shadow:0 0 0 9px #0F1511,0 0 0 10px #2B3530,0 40px 80px -30px rgba(22,48,29,.55)}
+  .island{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:124px;height:36px;border-radius:20px;background:#0B0F0C;z-index:5}
+  .status{height:54px;padding:18px 30px 0 34px;display:flex;justify-content:space-between;align-items:flex-start;font-size:16px;font-weight:600;letter-spacing:-.01em;position:relative;z-index:4}
+  .status .icons{display:flex;gap:6px;align-items:center;padding-top:2px}
+  .status.light{color:#fff}
+  .homebar{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:136px;height:5px;border-radius:5px;background:var(--ink);opacity:.9;z-index:6}
+  .homebar.light{background:#fff}
+  .body{flex:1;padding:10px 20px 0;display:flex;flex-direction:column;gap:18px;overflow:hidden;position:relative}
+  .pad-b{padding-bottom:40px}
+
+  /* type and atoms */
+  .row{display:flex;align-items:center}.between{justify-content:space-between}.center-x{justify-content:center}
+  .gap6{gap:6px}.gap8{gap:8px}.gap10{gap:10px}.gap12{gap:12px}.col{display:flex;flex-direction:column}
+  .h1{font-size:32px;font-weight:600;letter-spacing:-.04em;line-height:1.05;margin:0}
+  .h2{font-size:22px;font-weight:600;letter-spacing:-.025em;margin:0}
+  .label{font-size:13px;color:var(--ink4)}
+  .muted{color:var(--ink6)}
+  .big{font-size:54px;font-weight:600;letter-spacing:-.055em;line-height:.95;font-variant-numeric:tabular-nums}
+  .big .c{color:#A3AAA4}
+  .t1{font-size:16px;font-weight:600;letter-spacing:-.01em}
+  .t2{font-size:13px;color:var(--ink4);margin-top:2px}
+  .amt{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+  .brand{font-weight:600;font-size:19px;letter-spacing:-.025em;display:flex;gap:7px;align-items:center}
+  .mark{width:26px;height:26px;color:var(--moss)}
+  .card{background:var(--white);border-radius:28px;padding:22px;box-shadow:0 1px 0 rgba(23,32,26,.04)}
+  .card.tight{padding:16px 20px}
+  .chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 11px;font-size:12.5px;font-weight:600;white-space:nowrap}
+  .chip.green{background:var(--sage1);color:var(--moss)}
+  .chip.sky{background:var(--sky1);color:#235C7D}
+  .chip.amber{background:var(--amber1);color:var(--amber)}
+  .chip.white{background:var(--white);color:var(--ink)}
+  .avatar{width:44px;height:44px;border-radius:50%;flex:none;background:var(--sage1) center/cover no-repeat;display:grid;place-items:center;font-weight:600;font-size:15px;color:var(--moss)}
+  .avatar.sm{width:40px;height:40px}.avatar.lg{width:64px;height:64px;font-size:20px}.avatar.xl{width:84px;height:84px}
+  .avatar.ring{box-shadow:0 0 0 3px var(--page),0 0 0 5px var(--sage)}
+  .rosa{background-image:url("../web-earth/public/photos/selfie.jpg");background-size:300%;background-position:60% 46%}
+  .luis{background-image:url("../web-earth/public/photos/shop.jpg");background-size:420%;background-position:50% 30%}
+  .dani{background-image:url("../web-earth/public/photos/phone.jpg");background-size:330%;background-position:52% 28%}
+  .ana{background-image:url("../web-earth/public/photos/laugh.jpg");background-size:250%;background-position:42% 22%}
+  .btn{height:56px;border-radius:999px;border:0;font:600 16px Figtree,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;letter-spacing:-.01em}
+  .btn.dark{background:var(--ink);color:#fff}
+  .btn.light{background:var(--white);color:var(--ink)}
+  .btn.ghost{background:transparent;color:var(--ink6);height:46px}
+  .btn.outline{background:transparent;color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.55)}
+  .stack{display:flex;flex-direction:column;gap:6px;margin-top:auto;padding-bottom:30px}
+  .list{display:flex;flex-direction:column}
+  .item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .item:last-child{border-bottom:0}
+  .grow{flex:1;min-width:0}
+  .bar{height:6px;border-radius:6px;background:var(--sand);overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:6px;background:var(--moss)}
+  .search{height:52px;border-radius:18px;background:var(--white);display:flex;align-items:center;gap:10px;padding:0 16px;color:var(--ink4);font-size:15px}
+  .kv{display:flex;justify-content:space-between;font-size:15px;padding:11px 0;border-bottom:1px solid var(--line)}
+  .kv:last-child{border-bottom:0}.kv span:first-child{color:var(--ink4)}.kv span:last-child{font-weight:500}
+  .keys{display:grid;grid-template-columns:repeat(3,1fr);margin-top:auto}
+  .keys span{height:60px;display:grid;place-items:center;font-size:27px;font-weight:500}
+  .actions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .action{height:76px;border-radius:24px;background:var(--white);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;font-size:13px;font-weight:600}
+  .action.dark{background:var(--ink);color:#fff}
+  .tabbar{height:84px;background:rgba(243,240,234,.92);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);padding-top:10px;flex:none;backdrop-filter:blur(12px)}
+  .tab{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--ink4)}
+  .tab.on{color:var(--moss)}
+  .sheet{position:absolute;inset:auto 0 0 0;background:var(--white);border-radius:34px 34px 0 0;padding:14px 22px 40px;display:flex;flex-direction:column;gap:16px;z-index:3}
+  .grabber{width:40px;height:5px;border-radius:5px;background:var(--line);margin:0 auto 4px}
+  .scrim{position:absolute;inset:0;background:rgba(17,24,19,.38);z-index:2}
+  .toggle{width:51px;height:31px;border-radius:31px;background:var(--moss);position:relative;flex:none}
+  .toggle::after{content:"";position:absolute;top:2px;right:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2)}
+  .toggle.off{background:#D9D4C8}.toggle.off::after{right:auto;left:2px}
+  .note{font-size:12px;color:var(--ink4);line-height:1.5}
+  .icon{width:22px;height:22px;flex:none}
+  .ic-tile{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:var(--sage1);color:var(--moss);flex:none}
+</style>
+</head>
+<body>
+
+<!-- icon sprite -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="nest" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="5.5"><ellipse cx="23" cy="32" rx="18" ry="14" transform="rotate(90 23 32)"/><ellipse cx="36.5" cy="24.206" rx="18" ry="14" transform="rotate(210 36.5 24.206)"/><ellipse cx="36.5" cy="39.794" rx="18" ry="14" transform="rotate(330 36.5 39.794)"/></g></symbol>
+    <symbol id="signal" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5.5" width="3" height="6.5" rx="1" fill="currentColor"/><rect x="10" y="3" width="3" height="9" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor"/></symbol>
+    <symbol id="wifi" viewBox="0 0 16 12"><path d="M8 11.5 10.4 9a3.4 3.4 0 0 0-4.8 0Zm-4.6-4.7 1.5 1.6a4.4 4.4 0 0 1 6.2 0l1.5-1.6a6.6 6.6 0 0 0-9.2 0ZM.2 3.5l1.6 1.6a8.8 8.8 0 0 1 12.4 0l1.6-1.6a11 11 0 0 0-15.6 0Z" fill="currentColor"/></symbol>
+    <symbol id="battery" viewBox="0 0 27 13"><rect x=".5" y=".5" width="23" height="12" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="20" height="9" rx="2" fill="currentColor"/><path d="M25 4.5v4a2 2 0 0 0 0-4Z" fill="currentColor" opacity=".4"/></symbol>
+    <symbol id="send" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="leaf" viewBox="0 0 24 24"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 2 2 4.2 2 8 0 5.5-4.8 10-10 10ZM2 21c0-3 1.9-5.4 5.1-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="home" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="sprout" viewBox="0 0 24 24"><path d="M12 21v-9M12 12C12 8 9 5 4 5c0 4 3 7 8 7Zm0 0c0-3 2.5-6 7-6 0 3.5-2.5 6-7 6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 21a8 8 0 0 1 16 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="shield" viewBox="0 0 24 24"><path d="M12 3 5 6v6c0 4.4 3 8 7 9 4-1 7-4.6 7-9V6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="m11 12 8-8m-3 3 2 2m-4 0 1.5 1.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="heart" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="back" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="share" viewBox="0 0 24 24"><path d="M12 15V3m0 0L8 7m4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="faceid" viewBox="0 0 72 72"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 22V12a6 6 0 0 1 6-6h10M50 6h10a6 6 0 0 1 6 6v10M66 50v10a6 6 0 0 1-6 6H50M22 66H12a6 6 0 0 1-6-6V50"/><path d="M26 27v5M46 27v5M36 29v12h-3M28 48c5 4 11 4 16 0"/></g></symbol>
+    <symbol id="bird" viewBox="0 -1 40 16"><path d="M0 7 C6 3 12 2 18 6 C19 7 21 7 22 6 C28 2 34 3 40 7 C34 5 28 6 22 10 L20 11 L18 10 C12 6 6 5 0 7 Z" fill="currentColor"/></symbol>
+  </defs>
+</svg>
+
+<template id="statusbar"></template>
+
+<header class="doc">
+  <h1>Nest app screens</h1>
+  <p>Reference for the build. 390 × 844, Figtree, earth palette, as little copy as possible. Story: Ana lives in Miami; her mom Rosa lives in Buenos Aires. Peso amounts use an example rate. The savings comparison uses Argentina's 2023 inflation of 211.4% (INDEC, see ECONOMIC_PROBLEMS.md): $1,000 held in pesos for the year bought about $321 of what it did in January.</p>
+</header>
+
+<!-- ===================== START ===================== -->
+<h2 class="group">Start</h2>
+<section class="grid">
+
+  <!-- Welcome -->
+  <figure>
+    <div class="phone" style="background:var(--moss9)"><div class="island"></div>
+      <div style="position:absolute;inset:0 0 38% 0;background:url('../web-earth/public/photos/meadow.jpg') 50% 72%/cover"></div>
+      <div style="position:absolute;inset:0 0 38% 0;background:linear-gradient(to bottom,rgba(22,48,29,0) 55%,var(--moss9))"></div>
+      <svg style="position:absolute;top:150px;left:70px;width:34px;height:14px;color:#1C2A22;opacity:.8"><use href="#bird"/></svg>
+      <svg style="position:absolute;top:172px;left:118px;width:24px;height:10px;color:#1C2A22;opacity:.7"><use href="#bird"/></svg>
+      <svg style="position:absolute;top:132px;left:148px;width:18px;height:8px;color:#1C2A22;opacity:.6"><use href="#bird"/></svg>
+      <div class="status light"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><svg width="16" height="12"><use href="#wifi"/></svg><svg width="27" height="13"><use href="#battery"/></svg></span></div>
+      <div class="body" style="justify-content:flex-end;color:#fff;z-index:1">
+        <span class="brand" style="color:#fff"><svg class="mark" style="color:#fff"><use href="#nest"/></svg>Nest</span>
+        <h1 class="h1" style="font-size:46px;color:#fff">Protect what matters.</h1>
+        <div style="color:rgba(255,255,255,.75);font-size:17px;margin-top:-6px">A US dollar account with no fees to send or receive.</div>
+        <div class="stack" style="margin-top:22px">
+          <button class="btn light">Create account</button>
+          <button class="btn ghost" style="color:rgba(255,255,255,.85)">I already have one</button>
+          <div class="note" style="color:rgba(255,255,255,.7);text-align:center">Lost your phone? <u>Get back in</u></div>
+          <div class="note" style="color:rgba(255,255,255,.55);text-align:center;font-size:11.5px">Digital dollars (USDC by Circle). Not a bank account. Not FDIC insured.</div>
+        </div>
+      </div>
+      <div class="homebar light"></div>
+    </div>
+    <figcaption><span class="tag">Start</span><b>1 · Welcome.</b> The website's meadow and birds, one line, two choices.</figcaption>
+  </figure>
+
+  <!-- Face ID setup -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><svg width="16" height="12"><use href="#wifi"/></svg><svg width="27" height="13"><use href="#battery"/></svg></span></div>
+      <div class="body" style="align-items:center;text-align:center">
+        <div style="margin-top:110px;width:132px;height:132px;border-radius:40px;background:var(--white);display:grid;place-items:center">
+          <svg width="76" height="76" style="color:var(--moss)"><use href="#faceid"/></svg>
+        </div>
+        <h1 class="h1" style="margin-top:24px">Sign in with Face ID.</h1>
+        <div class="muted" style="font-size:17px">There's no password to forget or steal.</div>
+        <div class="stack" style="width:100%">
+          <button class="btn dark">Set up Face ID</button>
+          <div class="note">Your passkey stays on this phone.</div>
+        </div>
+      </div>
+      <div class="homebar"></div>
+    </div>
+    <figcaption><span class="tag">Security</span><b>2 · Face ID.</b> Passkey sign-up. No password, no seed phrase.</figcaption>
+  </figure>
+
+  <!-- Claim -->
+  <figure>
+    <div class="phone" style="background:var(--moss)"><div class="island"></div>
+      <div class="status light"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><svg width="16" height="12"><use href="#wifi"/></svg><svg width="27" height="13"><use href="#battery"/></svg></span></div>
+      <svg viewBox="0 0 64 64" style="position:absolute;right:-120px;top:-60px;width:420px;height:420px;color:#fff;opacity:.08"><use href="#nest"/></svg>
+      <div class="body" style="color:#fff;align-items:center;text-align:center">
+        <div class="avatar xl ana" style="margin-top:120px;box-shadow:0 0 0 4px rgba(255,255,255,.25)"></div>
+        <h1 class="h1" style="color:#fff;font-size:38px;margin-top:22px">Ana sent you $250.</h1>
+        <div style="color:rgba(255,255,255,.75);font-size:17px">You don't need a bank account to get it.</div>
+        <div class="stack" style="width:100%">
+          <button class="btn light">Claim with your phone number</button>
+          <div class="note" style="color:rgba(255,255,255,.6)">Yours to use in 24 hours, since it's Ana's first payment to you.</div>
+        </div>
+      </div>
+      <div class="homebar light"></div>
+    </div>
+    <figcaption><span class="tag">No app needed</span><b>3 · Claim.</b> What Rosa sees if she doesn't have Nest yet.</figcaption>
+  </figure>
+</section>
+
+<!-- ===================== EVERYDAY ===================== -->
+<h2 class="group">Everyday</h2>
+<section class="grid">
+
+  <!-- Home -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><svg width="16" height="12"><use href="#wifi"/></svg><svg width="27" height="13"><use href="#battery"/></svg></span></div>
+      <div class="body">
+        <div class="row between">
+          <span class="brand"><svg class="mark"><use href="#nest"/></svg>Nest</span>
+          <span class="avatar sm ana"></span>
+        </div>
+        <div class="card">
+          <div class="label">Balance</div>
+          <div class="big" style="margin-top:8px">$4,280<span class="c">.12</span></div>
+          <svg viewBox="0 0 300 64" width="100%" height="64" style="margin-top:14px;overflow:visible" aria-label="Past year: your dollars held their value while the same money in pesos fell">
+            <path d="M0 10 C60 9 120 11 180 9 S260 10 300 10" fill="none" stroke="#2F5D3A" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M0 10 C40 14 70 22 110 28 S190 44 230 50 S280 56 300 58" fill="none" stroke="#5FA8D6" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 4"/>
+            <circle cx="300" cy="10" r="4.5" fill="#2F5D3A" stroke="#fff" stroke-width="2"/>
+            <circle cx="300" cy="58" r="4" fill="#5FA8D6" stroke="#fff" stroke-width="2"/>
+          </svg>
+          <div class="row between" style="margin-top:6px;font-size:12px;color:var(--ink4)"><span><b style="color:var(--moss);font-weight:600">In dollars</b> · <span style="color:#235C7D">same money in pesos</span></span><span>Past year</span></div>
+          <div class="row gap8" style="margin-top:16px">
+            <span class="chip green"><svg width="13" height="13"><use href="#leaf"/></svg>Held in US dollars</span>
+            <span class="chip sky">≈ ARS 4.15M · example rate</span>
+          </div>
+        </div>
+        <div class="actions">
+          <div class="action dark"><svg width="20" height="20"><use href="#send"/></svg>Send</div>
+          <div class="action"><svg width="20" height="20"><use href="#plus"/></svg>Add</div>
+          <div class="action"><svg width="20" height="20"><use href="#down"/></svg>Receive</div>
+        </div>
+        <div>
+          <div class="row between" style="margin-bottom:2px"><span class="label">Activity</span><span class="label">See all</span></div>
+          <div class="list">
+            <div class="item"><span class="avatar" style="background:var(--amber1);color:var(--amber)">?</span><div class="grow"><div class="t1">New number</div><div class="t2">Undone · Money back</div></div><span class="amt" style="color:var(--ink4);text-decoration:line-through">$500.00</span></div>
+            <div class="item"><span class="avatar rosa"></span><div class="grow"><div class="t1">Mamá</div><div class="t2">Arrived in 0.9s · No fee</div></div><span class="amt">−$250.00</span></div>
+            <div class="item"><span class="avatar dani"></span><div class="grow"><div class="t1">Daniela</div><div class="t2">Received</div></div><span class="amt" style="color:var(--moss)">+$120.00</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab on"><svg width="24" height="24"><use href="#home"/></svg>Home</div>
+        <div class="tab"><svg width="24" height="24"><use href="#sprout"/></svg>Save</div>
+        <div class="tab"><svg width="24" height="24"><use href="#shield"/></svg>Security</div>
+        <div class="tab"><svg width="24" height="24"><use href="#user"/></svg>You</div>
+      </div>
+      <div class="homebar"></div>
+    </div>
+    <figcaption><span class="tag">Inflation-proof</span><b>4 · Home.</b> One number, one line: your dollars against the same money in pesos.</figcaption>
+  </figure>
+
+  <!-- Receive -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><svg width="16" height="12"><use href="#wifi"/></svg><svg width="27" height="13"><use href="#battery"/></svg></span></div>
+      <div class="body" style="align-items:center;text-align:center">
+        <div class="row between" style="width:100%"><svg width="24" height="24"><use href="#back"/></svg><span class="t1">Receive</span><span style="width:24px"></span></div>
+        <div class="card" style="margin-top:22px;padding:26px;width:100%;display:flex;flex-direction:column;align-items:center;gap:16px">
+          <div class="avatar lg ana"></div>
+          <div><div class="h2">Ana Martínez</div><div class="label" style="margin-top:4px">@ana</div></div>
+          <svg viewBox="0 0 29 29" width="210" height="210" shape-rendering="crispEdges" aria-label="QR code">
+            <rect width="29" height="29" fill="#fff"/>
+            <g fill="#17201A">
+              <path d="M1 1h7v7H1zM2 2v5h5V2zM3 3h3v3H3zM21 1h7v7h-7zM22 2v5h5V2zM23 3h3v3h-3zM1 21h7v7H1zM2 22v5h5v-5zM3 23h3v3H3z" fill-rule="evenodd"/>
+              <path d="M10 1h1v2h-1zM12 2h2v1h-2zM15 1h1v3h-1zM17 2h2v2h-2zM10 5h2v2h-2zM13 5h1v3h-1zM16 6h3v1h-3zM10 9h3v1h-3zM15 9h2v2h-2zM18 9h1v3h-1zM1 10h2v1H1zM4 10h3v2H4zM8 10h1v3H8zM20 10h3v1h-3zM24 10h1v2h-1zM26 10h2v1h-2zM11 12h3v1h-3zM2 13h2v2H2zM6 13h1v1H6zM15 13h2v3h-2zM19 13h2v1h-2zM22 13h1v3h-1zM25 13h3v2h-3zM10 15h2v2h-2zM4 16h3v1H4zM13 16h1v2h-1zM18 16h3v2h-3zM24 16h1v1h-1zM1 17h2v1H1zM8 17h1v2H8zM26 17h2v3h-2zM10 19h3v1h-3zM15 19h2v2h-2zM20 19h1v3h-1zM22 20h3v1h-3zM10 22h1v3h-1zM12 22h3v1h-3zM17 22h2v2h-2zM23 22h2v3h-2zM13 24h2v2h-2zM16 25h3v1h-3zM20 24h2v1h-2zM26 23h2v2h-2zM11 26h1v2h-1zM14 27h3v1h-3zM19 27h3v1h-3zM24 26h1v2h-1zM26 27h2v1h-2z"/>
+            </g>
+            <rect x="11.5" y="11.5" width="6" height="6" rx="1.5" fill="#fff"/>
+            <use href="#nest" x="12" y="12" width="5" height="5" style="color:#2F5D3A"/>
+          </svg>
+        </div>
+        <div class="row gap8" style="margin-top:4px"><span class="chip green">No fee to receive</span><span class="chip green">Arrives in a second</span></div>
+        <div class="stack" style="width:100%">
+          <button class="btn dark"><svg width="18" height="18"><use href="#share"/></svg>Share my link</button>
+          <button class="btn ghost">Get paid by direct deposit</button>
+        </div>
+      </div>
+      <div class="homebar"></div>
+    </div>
+    <figcaption><span class="tag">No fees</span><b>5 · Receive.</b> A QR code and a link. Nothing to explain.</figcaption>
+  </figure>
+
+  <!-- Save -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><svg width="16" height="12"><use href="#wifi"/></svg><svg width="27" height="13"><use href="#battery"/></svg></span></div>
+      <div class="body">
+        <h1 class="h1">Save</h1>
+        <div class="label" style="margin-top:-10px">Goals are set aside from your $4,280.12 balance.</div>
+        <div class="card">
+          <div class="t1">What $1,000 was worth a year later</div>
+          <div class="col gap10" style="margin-top:18px">
+            <div class="row gap10"><span style="width:84px;font-size:14px;color:var(--ink6)">In Nest</span><div class="bar grow" style="height:12px"><i style="width:100%"></i></div><span class="amt" style="width:58px;text-align:right">$1,000</span></div>
+            <div class="row gap10"><span style="width:84px;font-size:14px;color:var(--ink6)">In pesos</span><div class="bar grow" style="height:12px"><i style="width:32%;background:#5FA8D6"></i></div><span class="amt" style="width:58px;text-align:right;color:#235C7D">$321</span></div>
+          </div>
+          <div class="note" style="margin-top:12px">Saved in January 2023. Argentina had 211% inflation that year (INDEC).</div>
+        </div>
+        <div class="list">
+          <div class="item"><span class="ic-tile"><svg class="icon"><use href="#shield"/></svg></span><div class="grow"><div class="row between"><span class="t1">Rainy day</span><span class="amt">$620</span></div><div class="bar" style="margin-top:9px"><i style="width:62%"></i></div></div></div>
+          <div class="item"><span class="ic-tile"><svg class="icon"><use href="#sprout"/></svg></span><div class="grow"><div class="row between"><span class="t1">School fees</span><span class="amt">$430</span></div><div class="bar" style="margin-top:9px"><i style="width:43%"></i></div></div></div>
+          <div class="item"><span class="ic-tile"><svg class="icon"><use href="#home"/></svg></span><div class="grow"><div class="row between"><span class="t1">First home</span><span class="amt">$1,090</span></div><div class="bar" style="margin-top:9px"><i style="width:22%"></i></div></div></div>
+        </div>
+        <button class="btn light" style="margin-top:auto;margin-bottom:12px"><svg width="18" height="18"><use href="#plus"/></svg>New goal</button>
+      </div>
+      <div class="tabbar">
+        <div class="tab"><svg width="24" height="24"><use href="#home"/></svg>Home</div>
+        <div class="tab on"><svg width="24" height="24"><use href="#sprout"/></svg>Save</div>
+        <div class="tab"><svg width="24" height="24"><use href="#shield"/></svg>Security</div>
+        <div class="tab"><svg width="24" height="24"><use href="#user"/></svg>You</div>
+      </div>
+      <div class="homebar"></div>
+    </div>
+    <figcaption><span class="tag">Inflation-proof</span><b>6 · Save.</b> One real comparison, sourced. Sky blue always means local currency.</figcaption>
+  </figure>
+
+  <!-- Vault detail -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><svg width="16" height="12"><use href="#wifi"/></svg><svg width="27" height="13"><use href="#battery"/></svg></span></div>
+      <div class="body">
+        <div class="row between"><svg width="24" height="24"><use href="#back"/></svg><span class="label">Goal</span><span style="width:24px"></span></div>
+        <div class="col" style="align-items:center;text-align:center;gap:8px;margin-top:6px">
+          <span class="ic-tile" style="width:56px;height:56px;border-radius:18px"><svg width="26" height="26"><use href="#shield"/></svg></span>
+          <div class="h2" style="margin-top:6px">Rainy day</div>
+          <div class="big" style="font-size:48px">$620</div>
+          <div class="label">of $1,000</div>
+        </div>
+        <div class="bar" style="height:10px"><i style="width:62%"></i></div>
+        <div class="card tight">
+          <div class="row between"><div><div class="t1">Weekly top-up</div><div class="t2">$25 every Friday</div></div><span class="toggle"></span></div>
+        </div>
+        <div>
+          <div class="label" style="margin-bottom:2px">This week</div>
+          <div class="list">
+            <div class="item"><div class="grow"><div class="t1">Weekly top-up</div><div class="t2">Friday</div></div><span class="amt" style="color:var(--moss)">+$25.00</span></div>
+            <div class="item"><div class="grow"><div class="t1">Weekly top-up</div><div class="t2">Last Friday</div></div><span class="amt" style="color:var(--moss)">+$25.00</span></div>
+            <div class="item"><div class="grow"><div class="t1">Added</div><div class="t2">Friday</div></div><span class="amt" style="color:var(--moss)">+$50.00</span></div>
+          </div>
+        </div>
+        <div class="row gap10" style="margin-top:auto;padding-bottom:34px">
+          <button class="btn light">Withdraw</button>
+          <button class="btn dark">Add money</button>
+        </div>
+      </div>
+      <div class="homebar"></div>
+    </div>
+    <figcaption><span class="tag">Save</span><b>7 · Vault.</b> A goal, a bar, round-ups. No interest, no yield promises.</figcaption>
+  </figure>
+</section>
+
+<!-- ===================== SEND ===================== -->
+<h2 class="group">Send to Mamá</h2>
+<section class="grid">
+
+  <!-- Send to -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><svg width="16" height="12"><use href="#wifi"/></svg><svg width="27" height="13"><use href="#battery"/></svg></span></div>
+      <div class="body">
+        <h1 class="h1">Send to</h1>
+        <div class="search"><svg width="18" height="18"><use href="#search"/></svg>Name, @handle or phone</div>
+        <div class="row gap12" style="justify-content:space-between">
+          <div class="col" style="align-items:center;gap:6px;font-size:13px;font-weight:600"><span class="avatar lg ring rosa"></span>Mamá</div>
+          <div class="col" style="align-items:center;gap:6px;font-size:13px;font-weight:600"><span class="avatar lg luis"></span>Tío Luis</div>
+          <div class="col" style="align-items:center;gap:6px;font-size:13px;font-weight:600"><span class="avatar lg dani"></span>Daniela</div>
+          <div class="col" style="align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--ink4)"><span class="avatar lg" style="background:var(--white);color:var(--ink4)"><svg width="22" height="22"><use href="#plus"/></svg></span>New</div>
+        </div>
+        <div>
+          <div class="label" style="margin-bottom:2px">Recent</div>
+          <div class="list">
+            <div class="item"><span class="avatar rosa"></span><div class="grow"><div class="t1">Mamá</div><div class="t2">Paid 12 times · last Sunday</div></div><svg width="18" height="18" style="color:var(--ink4)"><use href="#chev"/></svg></div>
+            <div class="item"><span class="avatar luis"></span><div class="grow"><div class="t1">Tío Luis</div><div class="t2">Paid 3 times · in August</div></div><svg width="18" height="18" style="color:var(--ink4)"><use href="#chev"/></svg></div>
+            <div class="item"><span class="avatar" style="background:var(--amber1);color:var(--amber)">+</span><div class="grow"><div class="t1">+54 9 11 5555 0142</div><div class="t2" style="color:var(--amber);font-weight:600">New · 24 hours to undo</div></div><svg width="18" height="18" style="color:var(--ink4)"><use href="#chev"/></svg></div>
+          </div>
+        </div>
+      </div>
+      <div class="homebar"></div>
+    </div>
+    <figcaption><span class="tag">Undo</span><b>8 · Send to.</b> Faces first, with one fact about each person. New numbers are marked in amber.</figcaption>
+  </figure>
+
+  <!-- Amount -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><svg width="16" height="12"><use href="#wifi"/></svg><svg width="27" height="13"><use href="#battery"/></svg></span></div>
+      <div class="body">
+        <div class="row between"><svg width="24" height="24"><use href="#back"/></svg><span class="row gap8"><span class="avatar sm rosa"></span><span class="t1">Mamá</span></span><span style="width:24px"></span></div>
+        <div style="text-align:center;margin-top:40px">
+          <div class="big" style="font-size:84px">$250</div>
+          <div class="label" style="margin-top:12px;font-size:15px">≈ ARS 242,500 · example rate</div>
+          <div class="label" style="margin-top:4px">$4,280.12 available</div>
+        </div>
+        <div class="row gap8 center-x"><span class="chip green">No fee</span><span class="chip green">Arrives in a second</span></div>
+        <div class="keys">
+          <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>.</span><span>0</span><span style="font-size:22px">⌫</span>
+        </div>
+        <div style="padding-bottom:34px"><button class="btn dark">Review</button></div>
+      </div>
+      <div class="homebar"></div>
+    </div>
+    <figcaption><span class="tag">No fees · 24/7</span><b>9 · Amount.</b> Two chips do all the selling.</figcaption>
+  </figure>
+
+  <!-- Confirm -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><svg width="16" height="12"><use href="#wifi"/></svg><svg width="27" height="13"><use href="#battery"/></svg></span></div>
+      <div class="body">
+        <div class="row between"><svg width="24" height="24"><use href="#back"/></svg><span class="row gap8"><span class="avatar sm rosa"></span><span class="t1">Mamá</span></span><span style="width:24px"></span></div>
+        <div style="text-align:center;margin-top:40px"><div class="big" style="font-size:84px">$250</div></div>
+      </div>
+      <div class="scrim"></div>
+      <div class="sheet">
+        <div class="grabber"></div>
+        <div class="row gap12"><span class="avatar rosa"></span><div><div class="t1" style="font-size:18px">Send $250.00 to Mamá</div><div class="t2">Buenos Aires</div></div></div>
+        <div>
+          <div class="kv"><span>Fee</span><span>$0.00</span></div>
+          <div class="kv"><span>Arrives</span><span>About a second</span></div>
+          <div class="kv"><span>She gets</span><span>$250.00 (≈ ARS 242,500)</span></div>
+          <div class="kv"><span>Undo</span><span>Off. You've paid her before.</span></div>
+        </div>
+        <div style="height:62px;border-radius:999px;background:var(--ink);position:relative;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.75);font-size:16px;font-weight:600;margin-top:4px">
+          Slide to send
+          <span style="position:absolute;left:6px;top:6px;width:50px;height:50px;border-radius:50%;background:#fff;display:grid;place-items:center;color:var(--ink)"><svg width="20" height="20"><use href="#send"/></svg></span>
+        </div>
+        <div class="label" style="text-align:center;margin-top:-6px">Face ID confirms when you let go</div>
+      </div>
+      <div class="homebar" style="z-index:7"></div>
+    </div>
+    <figcaption><span class="tag">Security</span><b>10 · Confirm.</b> Slide to send, then Face ID. It says up front whether this payment can be undone.</figcaption>
+  </figure>
+
+  <!-- Arrived -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><svg width="16" height="12"><use href="#wifi"/></svg><svg width="27" height="13"><use href="#battery"/></svg></span></div>
+      <svg style="position:absolute;top:120px;left:60px;width:30px;height:12px;color:var(--moss);opacity:.5"><use href="#bird"/></svg>
+      <svg style="position:absolute;top:104px;left:300px;width:22px;height:9px;color:var(--moss);opacity:.4"><use href="#bird"/></svg>
+      <div class="body" style="align-items:center;text-align:center">
+        <div style="position:relative;margin-top:96px">
+          <span class="avatar xl rosa"></span>
+          <span style="position:absolute;right:-6px;bottom:-4px;width:36px;height:36px;border-radius:50%;background:var(--moss);display:grid;place-items:center;box-shadow:0 0 0 4px var(--page)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg></span>
+        </div>
+        <h1 class="h1" style="margin-top:26px">Mamá has your $250.</h1>
+        <div class="muted" style="font-size:17px">It got there in 0.9 seconds.</div>
+        <div class="card tight" style="width:100%;margin-top:14px">
+          <div class="kv"><span>Amount</span><span>$250.00</span></div>
+          <div class="kv"><span>Fee</span><span>$0.00</span></div>
+          <div class="kv"><span>When</span><span>Sunday, 9:41 PM</span></div>
+        </div>
+        <div class="stack" style="width:100%">
+          <button class="btn dark">Done</button>
+          <button class="btn ghost">Share receipt</button>
+          <div class="note" style="text-align:center"><u>Something wrong?</u></div>
+        </div>
+      </div>
+      <div class="homebar"></div>
+    </div>
+    <figcaption><span class="tag">24/7</span><b>11 · Arrived.</b> Leads with the feeling. The Sunday-night time says 24/7 without saying it.</figcaption>
+  </figure>
+</section>
+
+<!-- ===================== PROTECTION ===================== -->
+<h2 class="group">When it's a scam</h2>
+<section class="grid">
+
+  <!-- Scam check -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><svg width="16" height="12"><use href="#wifi"/></svg><svg width="27" height="13"><use href="#battery"/></svg></span></div>
+      <div class="body">
+        <div style="margin-top:40px;width:64px;height:64px;border-radius:22px;background:var(--amber1);display:grid;place-items:center;color:var(--amber);font-size:32px;font-weight:700">!</div>
+        <h1 class="h1" style="font-size:36px">This might be a scam.</h1>
+        <div class="card" style="background:var(--amber1)">
+          <div class="col" style="gap:14px;font-size:16px;color:#4B3507">
+            <div class="row gap10"><span style="width:8px;height:8px;border-radius:50%;background:var(--amber)"></span>You've never paid this number</div>
+            <div class="row gap10"><span style="width:8px;height:8px;border-radius:50%;background:var(--amber)"></span>It's using Mamá's name, but it isn't her saved number</div>
+            <div class="row gap10"><span style="width:8px;height:8px;border-radius:50%;background:var(--amber)"></span>$500 is a lot for a first payment</div>
+          </div>
+        </div>
+        <div class="label" style="text-align:center">If you send it, you can still undo it for 24 hours.</div>
+        <div class="stack">
+          <button class="btn dark">Don't send</button>
+          <button class="btn ghost">Hold to send anyway</button>
+        </div>
+      </div>
+      <div class="homebar"></div>
+    </div>
+    <figcaption><span class="tag">Security</span><b>12 · Scam check.</b> Calm, three plain reasons. Sending anyway takes a press and hold.</figcaption>
+  </figure>
+
+  <!-- Undo -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><svg width="16" height="12"><use href="#wifi"/></svg><svg width="27" height="13"><use href="#battery"/></svg></span></div>
+      <div class="body" style="align-items:center;text-align:center">
+        <h1 class="h1" style="margin-top:36px">You have 24 hours to undo this.</h1>
+        <div style="position:relative;width:200px;height:200px;margin-top:10px">
+          <svg viewBox="0 0 200 200" width="200" height="200" style="transform:rotate(-90deg)"><circle cx="100" cy="100" r="90" fill="none" stroke="#E4ECDF" stroke-width="12"/><circle cx="100" cy="100" r="90" fill="none" stroke="#8A5A10" stroke-width="12" stroke-linecap="round" stroke-dasharray="565.5" stroke-dashoffset="0.3"/></svg>
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+            <div style="font-size:34px;font-weight:600;letter-spacing:-.04em;font-variant-numeric:tabular-nums">23:59:12</div>
+            <div class="label">left to undo</div>
+          </div>
+        </div>
+        <div class="card tight" style="width:100%">
+          <div class="kv"><span>To</span><span>+54 9 11 5555 0142</span></div>
+          <div class="kv"><span>Amount</span><span>$500.00</span></div>
+          <div class="kv"><span>Releases</span><span>Monday, 9:41 PM</span></div>
+          <div class="kv"><span>Status</span><span style="color:var(--amber)">On hold</span></div>
+        </div>
+        <div class="stack" style="width:100%">
+          <button class="btn dark"><svg width="18" height="18"><use href="#undo"/></svg>Undo and get $500 back</button>
+          <button class="btn ghost">Done</button>
+        </div>
+      </div>
+      <div class="homebar"></div>
+    </div>
+    <figcaption><span class="tag">Undo</span><b>13 · Undo.</b> The first payment to someone new waits. One tap brings it home.</figcaption>
+  </figure>
+
+  <!-- Security -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><svg width="16" height="12"><use href="#wifi"/></svg><svg width="27" height="13"><use href="#battery"/></svg></span></div>
+      <div class="body">
+        <h1 class="h1">Security</h1>
+        <div class="card" style="background:var(--moss);color:#fff;display:flex;align-items:center;gap:14px">
+          <svg width="40" height="40" style="color:#fff;flex:none"><use href="#shield"/></svg>
+          <div><div class="t1" style="color:#fff">Only you can move your money.</div><div style="font-size:13px;color:rgba(255,255,255,.75);margin-top:2px">All protections are on.</div></div>
+        </div>
+        <div class="card" style="padding:4px 20px">
+          <div class="item"><span class="ic-tile"><svg class="icon"><use href="#key"/></svg></span><div class="grow"><div class="t1">Lock Nest</div><div class="t2">Stops all sends until you unlock</div></div><span class="toggle off"></span></div>
+          <div class="item"><span class="ic-tile"><svg class="icon"><use href="#user"/></svg></span><div class="grow"><div class="t1">Face ID</div><div class="t2">Passkey on this iPhone</div></div><span class="toggle"></span></div>
+          <div class="item"><span class="ic-tile"><svg class="icon"><use href="#shield"/></svg></span><div class="grow"><div class="t1">Scam check</div><div class="t2">Before you pay someone new</div></div><span class="toggle"></span></div>
+          <div class="item"><span class="ic-tile"><svg class="icon"><use href="#clock"/></svg></span><div class="grow"><div class="t1">Undo window</div><div class="t2">24 hours for someone new</div></div><svg width="18" height="18" style="color:var(--ink4)"><use href="#chev"/></svg></div>
+          <div class="item"><span class="ic-tile"><svg class="icon"><use href="#key"/></svg></span><div class="grow"><div class="t1">Family safe word</div><div class="t2">Releases a held payment early</div></div><svg width="18" height="18" style="color:var(--ink4)"><use href="#chev"/></svg></div>
+          <div class="item"><span class="avatar sm rosa"></span><div class="grow"><div class="t1">Trusted contact</div><div class="t2">Mamá</div></div><svg width="18" height="18" style="color:var(--ink4)"><use href="#chev"/></svg></div>
+          <div class="item"><span class="ic-tile"><svg class="icon"><use href="#heart"/></svg></span><div class="grow"><div class="t1">Talk to a person</div><div class="t2">Replies in about 5 minutes</div></div><svg width="18" height="18" style="color:var(--ink4)"><use href="#chev"/></svg></div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab"><svg width="24" height="24"><use href="#home"/></svg>Home</div>
+        <div class="tab"><svg width="24" height="24"><use href="#sprout"/></svg>Save</div>
+        <div class="tab on"><svg width="24" height="24"><use href="#shield"/></svg>Security</div>
+        <div class="tab"><svg width="24" height="24"><use href="#user"/></svg>You</div>
+      </div>
+      <div class="homebar"></div>
+    </div>
+    <figcaption><span class="tag">Security</span><b>14 · Security.</b> Every protection in one place, all on by default.</figcaption>
+  </figure>
+</section>
+
+<!-- ===================== OFFLINE ===================== -->
+<h2 class="group">No Wi-Fi</h2>
+<section class="grid">
+
+  <!-- Offline send -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><span style="font-size:12px;font-weight:600">No data</span><svg width="27" height="13"><use href="#battery"/></svg></span></div>
+      <div class="body" style="align-items:center;text-align:center">
+        <div style="margin-top:22px;align-self:stretch" class="row gap8 center-x"><span class="chip amber">No Wi-Fi or data</span></div>
+        <div style="position:relative;margin-top:30px">
+          <span class="avatar xl rosa"></span>
+          <span style="position:absolute;right:-6px;bottom:-4px;width:36px;height:36px;border-radius:50%;background:var(--white);display:grid;place-items:center;box-shadow:0 0 0 4px var(--page)"><svg width="18" height="18" style="color:var(--moss)"><use href="#send"/></svg></span>
+        </div>
+        <h1 class="h1" style="margin-top:24px">Your $250 is on its way to Mamá.</h1>
+        <div class="muted" style="font-size:17px">We sent it by text message.</div>
+        <div class="card tight" style="width:100%;margin-top:14px">
+          <div class="kv"><span>Signed</span><span>On this phone, with Face ID</span></div>
+          <div class="kv"><span>Sent by</span><span>Text message</span></div>
+          <div class="kv"><span>Fee</span><span>$0.00</span></div>
+        </div>
+        <div class="note" style="margin-top:4px">No signal at all? It waits on your phone and goes out the moment you're back online.</div>
+        <div class="stack" style="width:100%">
+          <button class="btn dark">Done</button>
+        </div>
+      </div>
+      <div class="homebar"></div>
+    </div>
+    <figcaption><span class="tag">Offline</span><b>15 · No Wi-Fi.</b> The payment is signed on the phone and sent by text message to a Nest relay. With no signal at all, it waits on the phone and sends when a connection returns.</figcaption>
+  </figure>
+
+  <!-- Queued, no signal -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span class="icons"><span style="font-size:12px;font-weight:600;color:var(--ink4)">No service</span><svg width="27" height="13"><use href="#battery"/></svg></span></div>
+      <div class="body">
+        <div class="row between">
+          <span class="brand"><svg class="mark"><use href="#nest"/></svg>Nest</span>
+          <span class="chip amber">Offline</span>
+        </div>
+        <div class="card" style="background:var(--amber1)">
+          <div class="row gap12">
+            <span class="avatar luis"></span>
+            <div class="grow"><div class="t1">$80.00 to Tío Luis</div><div class="t2" style="color:var(--amber)">Ready to send · goes out when you're back online</div></div>
+          </div>
+        </div>
+        <div>
+          <div class="label" style="margin-bottom:2px">Activity</div>
+          <div class="list">
+            <div class="item"><span class="avatar rosa"></span><div class="grow"><div class="t1">Mamá</div><div class="t2">Sent by text · No fee</div></div><span class="amt">−$250.00</span></div>
+            <div class="item"><span class="avatar dani"></span><div class="grow"><div class="t1">Daniela</div><div class="t2">Received</div></div><span class="amt" style="color:var(--moss)">+$120.00</span></div>
+          </div>
+        </div>
+        <div class="note" style="margin-top:auto;margin-bottom:40px;text-align:center">Payments wait here and go out in order when you're back online.</div>
+      </div>
+      <div class="homebar"></div>
+    </div>
+    <figcaption><span class="tag">Offline</span><b>16 · Waiting to send.</b> With no signal at all, payments are signed and saved in order, then go out on reconnect.</figcaption>
+  </figure>
+</section>
+
+<div style="height:80px"></div>
+</body>
+</html>
