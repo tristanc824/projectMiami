@@ -4,7 +4,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Guard brand kit
+        // Nest brand kit
         carbon: "#0A0B0D",
         panel: "#111318",
         slate: "#5B616E",

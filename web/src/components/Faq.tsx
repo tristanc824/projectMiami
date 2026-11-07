@@ -4,7 +4,7 @@ import { stagger } from "../lib/motion";
 // Honest answers; see PITCH_RESEARCH.md for the sources behind the caveats.
 const qa = [
   {
-    q: "What can I do with a Guard account?",
+    q: "What can I do with a Nest account?",
     a: "Hold your money in digital dollars, save toward goals in vaults, pay people by @handle or QR, and send money anywhere in about a second. Scam protection is built into every payment.",
   },
   {
@@ -17,11 +17,11 @@ const qa = [
   },
   {
     q: "What if I get scammed into sending money?",
-    a: "The first payment to someone new is held in an on-chain escrow with an undo window, so you can cancel it. Guard also flags requests that look like impersonation before anything moves.",
+    a: "The first payment to someone new is held in an on-chain escrow with an undo window, so you can cancel it. Nest also flags requests that look like impersonation before anything moves.",
   },
   {
-    q: "Is Guard live?",
-    a: "Not yet. Guard is a prototype built for SharkByte 2026. The demo runs on Solana devnet with test USDC, so no real money moves.",
+    q: "Is Nest live?",
+    a: "Not yet. Nest is a prototype built for SharkByte 2026. The demo runs on Solana devnet with test USDC, so no real money moves.",
   },
 ];
 

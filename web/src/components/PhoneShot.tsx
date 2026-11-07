@@ -1,5 +1,5 @@
 import { ArrowDownLeft, ArrowUpRight, Coffee, Plus, Send, ShieldCheck } from "lucide-react";
-import { GuardMark } from "./Logo";
+import { NestMark } from "./Logo";
 import { cn } from "../lib/cn";
 
 const vaults = [
@@ -13,10 +13,10 @@ const activity = [
   { icon: ArrowDownLeft, title: "Salary", sub: "Added from bank", amount: "+$1,400.00", plus: true },
 ];
 
-/** Product shot: the Guard account home in the app's dark theme (balance, vaults, activity). */
+/** Product shot: the Nest account home in the app's dark theme (balance, vaults, activity). */
 export function PhoneShot({ className }: { className?: string }) {
   return (
-    <div className={cn("relative w-[min(340px,82vw)]", className)} role="img" aria-label="The Guard app home: a $4,280.12 balance held in US dollars, savings vaults, and recent activity">
+    <div className={cn("relative w-[min(340px,82vw)]", className)} role="img" aria-label="The Nest app home: a $4,280.12 balance held in US dollars, savings vaults, and recent activity">
       {/* titanium frame */}
       <div className="rounded-[58px] bg-[linear-gradient(145deg,#3A3F4A,#16181D_40%,#2A2E36)] p-[3px] shadow-[0_60px_120px_-40px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.06)]">
         <div className="rounded-[55px] bg-black p-[9px]">
@@ -30,7 +30,7 @@ export function PhoneShot({ className }: { className?: string }) {
 
             <div className="px-5 pt-7">
               <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-[14px] font-semibold"><GuardMark className="h-5 w-5" /> Guard</span>
+                <span className="flex items-center gap-1.5 text-[14px] font-semibold"><NestMark className="h-5 w-5" /> Nest</span>
                 <span className="grid h-8 w-8 place-items-center rounded-full bg-white/10 text-[12px] font-semibold">AR</span>
               </div>
 

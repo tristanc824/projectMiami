@@ -6,9 +6,9 @@ export const LOOP = 6000;
 
 export const T = {
   press: 350, //            sender taps Send
-  legA: [350, 1450], //     comet: You → Guard
-  check: [1450, 2300], //   Guard scans the transfer
-  legB: [2350, 3450], //    comet: Guard → Family
+  legA: [350, 1450], //     comet: You → Nest
+  check: [1450, 2300], //   Nest scans the transfer
+  legB: [2350, 3450], //    comet: Nest → Family
   type: [3550, 4450], //    receipt signature types in
   fade: 5400, //            everything settles back for the next loop
 } as const;

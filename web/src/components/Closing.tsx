@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { ChevronsRight } from "lucide-react";
-import { GuardMark } from "./Logo";
+import { NestMark } from "./Logo";
 import { stagger } from "../lib/motion";
 
 /**
@@ -20,9 +20,9 @@ export function Closing() {
       <div className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[85%] bg-[radial-gradient(50%_60%_at_50%_100%,rgba(0,82,255,0.3),rgba(0,82,255,0.06)_60%,transparent_85%)]" />
       <div className="wrap">
         <div data-reveal>
-          <GuardMark className="mx-auto h-14 w-14" />
+          <NestMark className="mx-auto h-14 w-14" />
           <h2 className="headline mx-auto mt-7 max-w-[14ch] text-[clamp(40px,6.4vw,80px)] leading-[1.02]">Protect what matters.</h2>
-          <p className="mx-auto mt-4 max-w-[38ch] text-[17px] text-white/60">Be one of the first to open a Guard account.</p>
+          <p className="mx-auto mt-4 max-w-[38ch] text-[17px] text-white/60">Be one of the first to open a Nest account.</p>
         </div>
         {/* radius: form 28px = button 22px (44px pill) + 6px padding */}
         <form data-reveal style={stagger(1)} onSubmit={submit} noValidate

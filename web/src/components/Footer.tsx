@@ -16,7 +16,7 @@ export function Footer() {
         <div className="flex flex-wrap items-start justify-between gap-8">
           <div>
             <Logo className="text-[16px] text-white" />
-            <p className="mt-2 text-[15px] text-white/55">Your money, in dollars, protected.</p>
+            <p className="mt-2 text-[15px] text-white/55">Protect what matters.</p>
           </div>
           <nav aria-label="Footer" className="-my-3 flex flex-wrap gap-x-6 text-[14px] text-white/55">
             {nav.map((l) => (
@@ -27,10 +27,10 @@ export function Footer() {
           </nav>
         </div>
         <p className="fine mt-10 max-w-[80ch]">
-          Guard is a hackathon prototype. The demo runs on Solana devnet with test USDC, and cash-out to local currency is simulated.
+          Nest is a hackathon prototype. The demo runs on Solana devnet with test USDC, and cash-out to local currency is simulated.
           USDC is a digital dollar, not an insured bank deposit, and completed blockchain transfers can’t be reversed. Availability will depend on each country’s rules.
         </p>
-        <p className="mt-4 text-[13px] text-white/45">© 2026 Guard</p>
+        <p className="mt-4 text-[13px] text-white/45">© 2026 Nest</p>
       </div>
     </footer>
   );

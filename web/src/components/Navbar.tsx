@@ -39,7 +39,7 @@ export function Navbar() {
       )}
     >
       <nav className="wrap grid h-16 grid-cols-[1fr_auto_1fr] items-center" aria-label="Main">
-        <a href="#top" aria-label="Guard home" className="-ml-1 justify-self-start rounded-lg px-1 py-2.5"><Logo /></a>
+        <a href="#top" aria-label="Nest home" className="-ml-1 justify-self-start rounded-lg px-1 py-2.5"><Logo /></a>
         <div className="hidden gap-8 text-[14px] sm:flex">
           {links.map((l) => (
             <a key={l.id} href={`#${l.id}`} aria-current={active === l.id ? "true" : undefined}

@@ -1,6 +1,6 @@
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "../../lib/cn";
-import { GuardNode, RecipientCard, SenderCard } from "./FlowNodes";
+import { NestNode, RecipientCard, SenderCard } from "./FlowNodes";
 import { useInView, useLoopClock, useMediaQuery } from "./hooks";
 import { LOOP, SETTLE_SECONDS, T, easeInOutCubic, phaseAt, span, type Phase } from "./timeline";
 
@@ -29,7 +29,7 @@ const SIG = "4vJ9xQm2Wb7nTz…Kp7Rf3";
 type LegEls = { path: SVGPathElement; lit: SVGPathElement; comet: SVGGElement; head: SVGGElement; tails: SVGPathElement[]; len: number };
 
 /**
- * The Send flow: You → Guard → Family, as one scripted transfer on a loop.
+ * The Send flow: You → Nest → Family, as one scripted transfer on a loop.
  * - one requestAnimationFrame clock (see timeline.ts) drives every moving part
  * - per-frame values (comet, timer, receipt) are written straight to the DOM; React re-renders only
  *   on the five phase changes, which drive the CSS state transitions (spring easing)
@@ -133,7 +133,7 @@ export function SendFlow() {
         className={cn("relative mx-auto w-full", wide ? "max-w-[960px]" : "max-w-[340px]")}
         style={{ aspectRatio: `${g.w} / ${g.h}` }}
         role="img"
-        aria-label="A $200 transfer from you in Miami is checked by Guard for scams, then lands with family abroad in about a second."
+        aria-label="A $200 transfer from you in Miami is checked by Nest for scams, then lands with family abroad in about a second."
       >
         <svg ref={svg} viewBox={`0 0 ${g.w} ${g.h}`} className="absolute inset-0 h-full w-full overflow-visible" aria-hidden>
           <defs>
@@ -175,7 +175,7 @@ export function SendFlow() {
           <SenderCard ref={press} className={wide ? "w-[214px] lg:w-[232px]" : "w-[256px]"} />
         </div>
         <div className="absolute -translate-x-1/2 -translate-y-1/2" style={at(g.nodes[1])}>
-          <GuardNode phase={phase} />
+          <NestNode phase={phase} />
         </div>
         <div className="absolute -translate-x-1/2 -translate-y-1/2" style={at(g.nodes[2])}>
           <RecipientCard phase={phase} className={wide ? "w-[214px] lg:w-[232px]" : "w-[256px]"} />

@@ -1,10 +1,10 @@
-# Guard: features worth building and the app UI
+# Nest: features worth building and the app UI
 
 Written November 7, 2026. This builds on [EVENT_BRAINSTORM.md](./EVENT_BRAINSTORM.md) (the SharkByte opening deck's prize tracks) and [PITCH_RESEARCH.md](./PITCH_RESEARCH.md) (sourced problems, judging angle and demo plan). Everything here is a **recommendation** until the team agrees.
 
 ## Positioning (decided by Caleb, Nov 7)
 
-**Guard is a neobank, not a family app.** It's a financial tool for anyone to **save, store, use and protect** money in digital dollars, plus many other features. Sending money to family is **one use case and the marketing angle for Miami**, where many families are migrants. It is not the product's identity.
+**Nest is a neobank, not a family app.** It's a financial tool for anyone to **save, store, use and protect** money in digital dollars, plus many other features. Sending money to family is **one use case and the marketing angle for Miami**, where many families are migrants. It is not the product's identity.
 
 Rules this sets:
 - Lead with the account: "Your money, in dollars, protected." Family remittance comes in as a use case.
@@ -22,7 +22,7 @@ Rules this sets:
 | **Resilience** | Emergency fund that unlocks automatically on a verified disaster alert (Storm Trigger, framed for individuals), offline send queue for outages | Pioneer |
 | **Insights** | Spending and saving insights, how much you'd have lost holding local currency, a fee-savings tracker | Nice to have |
 
-The pioneer features in section 1b still apply. Read each one as "for any Guard user", for example the safe word protects *your* account, and the trusted contact is anyone you choose.
+The pioneer features in section 1b still apply. Read each one as "for any Nest user", for example the safe word protects *your* account, and the trusted contact is anyone you choose.
 
 ## The short version
 
@@ -38,7 +38,7 @@ The pioneer features in section 1b still apply. Read each one as "for any Guard 
 | # | Feature | Problem it fixes | Complexity it adds | Extra prize it can hit | Build time |
 |---|---|---|---|---|---|
 | 1 | **Undo window for new recipients.** The first transfer to a new address goes into a program-controlled escrow (a PDA) for, say, 10 minutes (24h in production). The sender can cancel; otherwise it releases. | Impostor and "Hi Mum" scams. Instant, irreversible payments are a scammer's favorite feature | Anchor program with escrow, cancel and release instructions, plus a timer | **Best Use of Solana** (real program logic) | 6–10 h |
-| 2 | **Sponsored fees.** Guard pays the Solana fee, so users never hold SOL | Families shouldn't have to buy crypto to send $50 | Fee-payer server that co-signs | Solana | 2–3 h |
+| 2 | **Sponsored fees.** Nest pays the Solana fee, so users never hold SOL | Families shouldn't have to buy crypto to send $50 | Fee-payer server that co-signs | Solana | 2–3 h |
 | 3 | **AI scam check.** Paste a message or upload a screenshot. The app compares it with saved recipients, flags urgency and new-account language, and explains in plain English or Spanish | Same scam problem, caught *before* money moves | Gemini API call, plus rules for new address, recently changed payee and urgency words | **Gemini**, or **Swarms** if built as 3 agents (reader → evidence → explainer). Route through **Prune** for its cost/policy receipt | 3–5 h (Gemini), 6+ h (Swarms) |
 | 4 | **Passkey login and a second check on big sends** (Auth0) | Stolen passwords and phones | Auth0 login plus a step-up prompt over $X | **Auth0** | 3–4 h |
 | 5 | **Claim link.** The recipient gets a link, opens it on any phone, and claims the money. It's refunded if never claimed | Family without wallets; payout networks down after disasters | Claim program or escrow PDA plus a claim page | Solana | 4–6 h (shares code with #1) |
@@ -62,7 +62,7 @@ The pioneer features in section 1b still apply. Read each one as "for any Guard 
 
 Each idea below was searched for in shipped consumer remittance apps, neobanks and wallets. "No prior art found" means **no shipped consumer product turned up in our searches**. Say "first we know of" on stage, never "first ever."
 
-**Build note:** USDC on Solana is a classic SPL token. Anything that relies on Token-2022 features (transfer hooks, confidential transfers) needs Guard's own wrapped-dollar mint, held 1:1 against USDC.
+**Build note:** USDC on Solana is a classic SPL token. Anything that relies on Token-2022 features (transfer hooks, confidential transfers) needs Nest's own wrapped-dollar mint, held 1:1 against USDC.
 
 | Rank | Feature | What it does | Closest thing that exists | Weekend build | Extra prizes |
 |---|---|---|---|---|---|
@@ -70,7 +70,7 @@ Each idea below was searched for in shipped consumer remittance apps, neobanks a
 | 2 | **Family safe word** | The family's code word (stored hashed) must be answered before an early release from the undo window. Wrong guesses are limited on-chain | The FBI recommends family safe words against AI voice-clone scams ([CBS](https://www.cbsnews.com/news/elder-scams-family-safe-word)). No app ties one to a payment | About 50 lines on top of the undo-window escrow | Solana, Gemini |
 | 3 | **Second pair of eyes** | Big or first-time transfers from an elderly parent need a chosen family member's approval | EverSafe and Carefull only *monitor*. Fuse uses multisig, but the user holds all keys | Squads v4 spending limits and time locks | Solana, Auth0 |
 | 4 | **Family Key** (hardware) | A Raspberry Pi box with one button at the approver's home. Pressing it signs the approval | DIY signers ([SeedSigner](https://seedsigner.com/)) only sign the owner's own transactions | Pi + display + keypair + Squads approve call | **Hardware**, Solana |
-| 5 | **Scam-velocity radar** | When an address suddenly receives many first-time payments from different Guard users, its undo window automatically stretches (1h → 72h) | Enterprise risk scores (TRM, Range) are static. No crowd-driven, on-chain version found | Helius webhook → Tiger Data live rollups → keeper updates the program's settings | **Tiger Data**, Solana |
+| 5 | **Scam-velocity radar** | When an address suddenly receives many first-time payments from different Nest users, its undo window automatically stretches (1h → 72h) | Enterprise risk scores (TRM, Range) are static. No crowd-driven, on-chain version found | Helius webhook → Tiger Data live rollups → keeper updates the program's settings | **Tiger Data**, Solana |
 | 6 | **School Dollars** | Money that can only be spent at verified schools or billers. Unspent money returns to the sender | WFP restricts aid to approved stores on a private chain. Remittance apps pay billers directly instead | Token-2022 transfer-hook allowlist + Solana Attestation Service | Solana, Auth0 |
 | 7 | **Staked, private scam registry** | Reporters stake USDC on a report and lose it if the report is wrong. Clients check addresses privately using hash prefixes, the [HIBP k-anonymity method](https://blog.mozilla.org/security/2018/06/25/scanning-breached-accounts-k-anonymity/) | Chainabuse is centralized and unverified | ZK-compressed report accounts + a stake-and-slash program | Solana |
 | 8 | **Groceries clock** | Savings shown as "14 months of groceries in Maracaibo", priced live | No consumer product found. Pyth publishes US CPI on-chain | Pyth + a custom price feed | Solana, Gemini |
@@ -96,7 +96,7 @@ That one story hits Solana, Hardware, Tiger Data, EC-Council and Gemini. It also
 
 Devpost lists the judging criteria as **"TBD"**, so overall placing will come down to the demo, the story and how big the idea feels. One project can enter several tracks. Select each one on Devpost by hand.
 
-| Track | Prize | How Guard qualifies honestly | Priority |
+| Track | Prize | How Nest qualifies honestly | Priority |
 |---|---|---|---|
 | 1st / 2nd / 3rd Overall | iPads + ManaTech / monitors / chairs | The whole product and the live demo | **Core** |
 | MLH Best Use of Solana | Unruggable hardware wallets | Undo-window escrow program, sponsored fees, claim links, real devnet transactions | **Core** |
@@ -104,12 +104,12 @@ Devpost lists the judging criteria as **"TBD"**, so overall placing will come do
 | MLH Best Use of Auth0 | Wireless headphones | Passkey sign-in, plus a second check before large sends | **High** |
 | MLH Best Use of Tiger Data | Stream Deck Mini | Store every transfer event in Tiger Data (Postgres for time-series data). Power the scam check with live "velocity" rules (5 new recipients in 1 hour, amounts far above normal) and a real-time activity view | Medium: a genuine use, not decoration |
 | MLH Best Use of Vultr | Assorted | Host the fee-payer and API server on Vultr | Medium (easy if we deploy anyway) |
-| MLH Best Domain (GoDaddy Registry) | Gift card | Register a domain for Guard. **Costs money; the team decides** | Low |
+| MLH Best Domain (GoDaddy Registry) | Gift card | Register a domain for Nest. **Costs money; the team decides** | Low |
 | MLH SpaceXSI raffle | Cursor keyboard | Build with Cursor, add a Grok Bot automation (for example a bot that posts each deploy and demo transaction to the team chat), and describe both on Devpost | Low effort if we're already using Cursor |
 | Swarms API | CEO interview + $1k credits | Swap the Gemini check for a three-agent Swarms review: reader → evidence → explainer | Only if time allows (more work than Gemini) |
 | Prune API | Prune Pro | Route the AI scam-check calls through Prune and show its cost and policy receipt | Low (needs a supported integration) |
 | EC-Council | COASP certification scholarships | Emergency mode: verify hurricane alerts and keep working offline (feature #7) | Stretch: a second product |
-| Best Use of Hardware | Raspberry Pi 5s | A physical "Guard Key" button that approves vault withdrawals | Skip unless someone has hardware |
+| Best Use of Hardware | Raspberry Pi 5s | A physical "Nest Key" button that approves vault withdrawals | Skip unless someone has hardware |
 | First Time Hacker | Headphones | Check whether anyone on the team qualifies | Ask |
 
 Realistic stack: **Overall + Solana + Gemini + Auth0 + Tiger Data + Vultr**, plus the SpaceXSI raffle if we're on Cursor.
@@ -118,14 +118,14 @@ Realistic stack: **Overall + Solana + Gemini + Auth0 + Tiger Data + Vultr**, plu
 
 ## 3. Making it look massive (the vision for the pitch)
 
-Judges reward a scrappy weekend build that clearly points at something huge. Present Guard as a **platform with a wedge**, not just an app:
+Judges reward a scrappy weekend build that clearly points at something huge. Present Nest as a **platform with a wedge**, not just an app:
 
 1. **The wedge (built this weekend):** families sending money home, protected by the undo window and scam check.
 2. **Save:** a dollar account for people in currencies that keep losing value, the billions in Argentina, Nigeria, Türkiye, Venezuela and beyond (sources in PITCH_RESEARCH.md).
-3. **Send:** about $685B a year flows to low- and middle-income countries, and the average fee is 6.49%. That's roughly **$44B a year in fees** (our estimate: 685 × 6.49%) that Guard can undercut.
+3. **Send:** about $685B a year flows to low- and middle-income countries, and the average fee is 6.49%. That's roughly **$44B a year in fees** (our estimate: 685 × 6.49%) that Nest can undercut.
 4. **Protect, the moat:** each scam address one user reports is blocked for every other user. Like a spam filter, the network gets safer as it grows, which a single wallet can't copy.
 5. **Spend:** pay merchants by QR in digital dollars, and later a card.
-6. **Guard Shield for other apps:** offer the undo window and scam check as an API that other wallets and fintechs plug in. This turns a consumer app into infrastructure, which is what tends to win grand prizes.
+6. **Nest Shield for other apps:** offer the undo window and scam check as an API that other wallets and fintechs plug in. This turns a consumer app into infrastructure, which is what tends to win grand prizes.
 
 Pitch line for the vision: *"Today it's a mom in Manila getting $250 safely. Tomorrow it's the safety layer under every digital-dollar payment."*
 
@@ -157,17 +157,17 @@ Tristan's app mockup isn't in the repo yet. Once he shares it, we'll line these 
 
 ### UI rules from Zander Whitehurst (@zanderwhitehurst)
 
-Taken from about 85 of his UI-tip reels (Nov 7, 2026), checked against what we've built. Each rule is his tip; the arrow is what it means for Guard.
+Taken from about 85 of his UI-tip reels (Nov 7, 2026), checked against what we've built. Each rule is his tip; the arrow is what it means for Nest.
 
-| His tip | What we do in Guard |
+| His tip | What we do in Nest |
 |---|---|
-| Stop adding colors to your UI | One accent (Guard blue). Green and amber only for status. No decorative color. |
+| Stop adding colors to your UI | One accent (Nest blue). Green and amber only for status. No decorative color. |
 | Stop adding backgrounds, borders and containers to cards | Fewer boxed cards. Group with spacing and a hairline divider instead of a filled, bordered box. |
 | Stop centering text | Center only short headlines. Body copy, lists and form labels are left-aligned. |
 | Stop using tiny text | Nothing under 13px in the app; 15–17px for body. Our 11px labels go up. |
 | Stop mixing modes | Pick dark everywhere. The website's phone mockups must match the app's dark screens, not show light screens inside a dark site. |
 | Stop overusing primary buttons | One primary button per screen; the rest secondary or plain links. |
-| Stop designing "Are you sure?" modals | Use undo instead of confirmation pop-ups. **This is exactly Guard's undo window, so use his point in the pitch.** |
+| Stop designing "Are you sure?" modals | Use undo instead of confirmation pop-ups. **This is exactly Nest's undo window, so use his point in the pitch.** |
 | Stop using red for danger buttons | Destructive actions get clear wording ("Cancel and get $500 back"), not a scary red button. |
 | Stop guessing spacing, corner radius, layout and tokens | 4/8px spacing scale, and a corner-radius rule: outer radius = inner radius + padding. Name these as tokens. |
 | Stop guessing icon and text alignment | Align icons to the text's center line, using one icon size per text size. |
@@ -190,4 +190,4 @@ Taken from about 85 of his UI-tip reels (Nov 7, 2026), checked against what we'v
 - **Error states in plain words:** "Couldn't reach the network. Your money hasn't moved. Try again."
 - **Devnet badge** in the corner so judges know what's test money.
 
-The screens are drawn in the brand kit on the Guard App Screens canvas: https://claude.ai/artifact/StsXG6Df5FxqYBPBHWpuEN (private until Caleb shares it).
+The screens are drawn in the brand kit on the Nest App Screens canvas: https://claude.ai/artifact/StsXG6Df5FxqYBPBHWpuEN (private until Caleb shares it).

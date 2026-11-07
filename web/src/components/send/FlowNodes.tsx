@@ -1,6 +1,6 @@
 import { forwardRef, type ReactNode } from "react";
 import { Check, House, ShieldCheck, Smartphone } from "lucide-react";
-import { GuardMark } from "../Logo";
+import { NestMark } from "../Logo";
 import { cn } from "../../lib/cn";
 import { RollingNumber } from "./RollingNumber";
 import { SPRING, type Phase } from "./timeline";
@@ -56,8 +56,8 @@ export const SenderCard = forwardRef<HTMLSpanElement, { className?: string }>(fu
   );
 });
 
-/** Guard: a scan ring while checking, then a green tick and status. */
-export function GuardNode({ phase }: { phase: Phase }) {
+/** Nest: a scan ring while checking, then a green tick and status. */
+export function NestNode({ phase }: { phase: Phase }) {
   const ok = passed(phase);
   return (
     <div className="relative grid h-24 w-24 place-items-center lg:h-28 lg:w-28">
@@ -84,7 +84,7 @@ export function GuardNode({ phase }: { phase: Phase }) {
       {/* passed: ring turns green */}
       <div className={cn("absolute inset-0 rounded-full border border-mint/60 transition-opacity duration-500", ok ? "opacity-100" : "opacity-0")} />
 
-      <GuardMark className="relative h-10 w-10 lg:h-11 lg:w-11" />
+      <NestMark className="relative h-10 w-10 lg:h-11 lg:w-11" />
 
       <span
         className={cn("absolute -bottom-0.5 -right-0.5 grid h-7 w-7 place-items-center rounded-full bg-mint text-carbon ring-4 ring-carbon transition duration-500", ok ? "scale-100 opacity-100" : "scale-50 opacity-0")}
@@ -95,7 +95,7 @@ export function GuardNode({ phase }: { phase: Phase }) {
 
       {/* status under the node, absolutely placed so the circle stays centered on the path */}
       <div className="absolute left-1/2 top-full mt-4 h-7 w-[200px] -translate-x-1/2 text-center text-[13px] font-medium">
-        <Status show={phase === "send" || phase === "reset"} className="text-white/45">Guard is watching</Status>
+        <Status show={phase === "send" || phase === "reset"} className="text-white/45">Nest is watching</Status>
         <Status show={phase === "check"} className="text-sky">Checking for scams…</Status>
         <Status show={ok} className="text-mint"><ShieldCheck size={14} /> Scam check passed</Status>
       </div>

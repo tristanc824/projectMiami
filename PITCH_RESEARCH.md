@@ -1,10 +1,10 @@
-# Guard: problems, pitch angle and live demo
+# Nest: problems, pitch angle and live demo
 
 Researched November 7, 2026. Every fact has a source link. Anything marked **(idea)** or **(recommendation)** is our suggestion, not a fact. Read [HACKATHON_CONTEXT.md](./HACKATHON_CONTEXT.md) first for the earlier planning record.
 
 ## The one-paragraph version
 
-Guard is a digital-dollar account on Solana with two jobs: **keep savings safe** from inflation and failing banks, and **send money to family abroad safely**. The angle judges will remember: *instant, irreversible payments are a scammer's favorite feature, so Guard adds an undo button.* The demo has one "aha" moment: a scam transfer gets caught and cancelled live, on-chain. Everything else supports that moment.
+Nest is a digital-dollar account on Solana with two jobs: **keep savings safe** from inflation and failing banks, and **send money to family abroad safely**. The angle judges will remember: *instant, irreversible payments are a scammer's favorite feature, so Nest adds an undo button.* The demo has one "aha" moment: a scam transfer gets caught and cancelled live, on-chain. Everything else supports that moment.
 
 ---
 
@@ -45,7 +45,7 @@ Guard is a digital-dollar account on Solana with two jobs: **keep savings safe**
 
 ### Be honest about the limits (judges will ask)
 - **USDC can lose its peg.** It dropped to about $0.87 in March 2023, when $3.3B of its reserves was stuck at SVB, and recovered within days. [Cointelegraph](https://cointelegraph.com/news/usdc-depegs-as-circle-confirms-3-3b-stuck-with-silicon-valley-bank)
-- **The US GENIUS Act (2025)** requires 1:1 reserves and **bans paying yield** on stablecoins. Issuers must also be able to freeze tokens under lawful orders. So Guard **cannot promise interest, and cannot promise funds can never be frozen.** [Covington](https://www.cov.com/news-and-insights/insights/2025/07/the-genius-act-becomes-law-key-provisions-from-the-federal-stablecoin-regulatory-framework)
+- **The US GENIUS Act (2025)** requires 1:1 reserves and **bans paying yield** on stablecoins. Issuers must also be able to freeze tokens under lawful orders. So Nest **cannot promise interest, and cannot promise funds can never be frozen.** [Covington](https://www.cov.com/news-and-insights/insights/2025/07/the-genius-act-becomes-law-key-provisions-from-the-federal-stablecoin-regulatory-framework)
 - **Cashing out to local currency** depends on licensed partners in each country. We have not verified coverage, so the demo labels cash-out as simulated.
 
 ---
@@ -68,7 +68,7 @@ Skip: compressed NFTs, yield on savings (banned), and anything that claims to ma
 
 ## 3. What wins hackathons like this
 
-### Winners closest to Guard
+### Winners closest to Nest
 | Project | Event, place | What it was |
 |---|---|---|
 | Credible | Colosseum Cypherpunk 2025, Stablecoin track, 2nd | Stablecoin remittances to India ([Colosseum](https://blog.colosseum.com/announcing-the-winners-of-the-solana-cypherpunk-hackathon/)) |
@@ -77,7 +77,7 @@ Skip: compressed NFTs, yield on savings (banned), and anything that claims to ma
 | Ripe | Renaissance 2024, Payments track, 4th | Scans GCash/Venmo QR codes and pays merchants in local currency using USDC ([BitPinas](https://bitpinas.com/feature/ph-based-projects-solana-renaissance/)) |
 | GlobalX.money | ETHGlobal New Delhi, track 1st | Money from abroad lands in Indian bank accounts in under 10 seconds ([ETHGlobal](https://ethglobal.com/showcase/globalx-money-08tpa)) |
 
-**The pattern:** plain remittance apps place in tracks, but grand prizes go to projects with a **new primitive**. Guard's new primitive is the **undo window**, so it must be real and on-chain.
+**The pattern:** plain remittance apps place in tracks, but grand prizes go to projects with a **new primitive**. Nest's new primitive is the **undo window**, so it must be real and on-chain.
 
 ### What judges say they reward
 - Colosseum's criteria: founder–market fit, insight, product and execution, market, communication, viability, traction. The video is "one of the first resources judges review." ([Colosseum](https://www.colosseum.com/hackathon))
@@ -88,9 +88,9 @@ Skip: compressed NFTs, yield on savings (banned), and anything that claims to ma
 ### Our angle (recommendation)
 - **Who:** one Miami family. A parent here sends money to a mother in Caracas, Manila or Kingston. If anyone on the team has lived this, open with it.
 - **Two threats:** inflation eats savings back home, and fees and scams eat the transfer.
-- **The line:** *"Fast money is easy. Safe money is Guard."* or *"Instant and irreversible is a scammer's favorite feature. Guard gives you an undo button."*
-- **Versus Wise, Western Union and Revolut:** days and a 6.49% average fee, and the family still ends up holding a weakening currency. Guard settles in seconds and lets them keep dollars.
-- **Versus crypto wallets:** fast, but with no protection and full of jargon. Guard adds bank-style safety without a bank in the middle.
+- **The line:** *"Fast money is easy. Safe money is Nest."* or *"Instant and irreversible is a scammer's favorite feature. Nest gives you an undo button."*
+- **Versus Wise, Western Union and Revolut:** days and a 6.49% average fee, and the family still ends up holding a weakening currency. Nest settles in seconds and lets them keep dollars.
+- **Versus crypto wallets:** fast, but with no protection and full of jargon. Nest adds bank-style safety without a bank in the middle.
 - **Honesty, in one sentence:** "The escrow, sponsored fees and claim links are real on devnet (here's the explorer). Cash-out is simulated until we connect a licensed partner."
 
 ---
@@ -108,11 +108,11 @@ Skip: compressed NFTs, yield on savings (banned), and anything that claims to ma
 | Humane AI Pin had to re-edit its launch video after it showed wrong answers ([Neowin](https://www.neowin.net/news/humane-fixes-promo-video-where-its-ai-pin-gave-wrong-answers/)) | Never fake something in the video. Label what's simulated. |
 
 ### Demo moments (pick 4)
-1. **The undo (the aha moment).** A text appears on screen: "Mom, it's me, new number, send $500 here." Guard flags it, and the money sits in on-chain escrow. Tap **Cancel** and it comes back. Show the explorer.
-2. **Race against the wire.** A big stopwatch: a bank wire takes "1–5 business days, ~6.49% fee," while Guard takes about a second and $0.00. Say "about a second," not "400ms": that figure is the slot time, and confirmation takes a little longer ([Helius](https://www.helius.dev/blog/solana-commitment-levels)).
+1. **The undo (the aha moment).** A text appears on screen: "Mom, it's me, new number, send $500 here." Nest flags it, and the money sits in on-chain escrow. Tap **Cancel** and it comes back. Show the explorer.
+2. **Race against the wire.** A big stopwatch: a bank wire takes "1–5 business days, ~6.49% fee," while Nest takes about a second and $0.00. Say "about a second," not "400ms": that figure is the slot time, and confirmation takes a little longer ([Helius](https://www.helius.dev/blog/solana-commitment-levels)).
 3. **Across the border.** A teammate at the back plays Mom, with tape on the floor marked "BORDER." Split screen: send $200, and her phone goes green.
 4. **"Judges, hold up your phones."** A QR code on the slide opens a claim page, which creates a wallet in the browser, and a judge receives 5 test USDC.
-5. **Inflation counter.** It runs during the whole pitch: "$1,000 held in local currency since we started has lost $X." Guard's balance stays at $1,000.00. Close by pointing at it. Use a cited inflation rate.
+5. **Inflation counter.** It runs during the whole pitch: "$1,000 held in local currency since we started has lost $X." Nest's balance stays at $1,000.00. Close by pointing at it. Use a cited inflation rate.
 6. **Cash-out, labeled "Simulated."** Being honest is a feature.
 
 ### 3-minute pitch (recommendation)
@@ -123,14 +123,14 @@ Skip: compressed NFTs, yield on savings (banned), and anything that claims to ma
 | 0:45–2:00 | Live: race against the wire with a send across the border, then the scam caught and undone, then a judge's QR claim. |
 | 2:00–2:25 | Why Solana: sub-cent fees, about a second to settle, programmable escrow, sponsored fees. |
 | 2:25–2:45 | Who it's for and why now: Miami's diaspora, Ueno four days ago, and the 6.49% average fee. |
-| 2:45–3:00 | Point at the counter: "Since I started, they lost $X. Guard lost nothing." Then the ask. |
+| 2:45–3:00 | Point at the counter: "Since I started, they lost $X. Nest lost nothing." Then the ask. |
 
 ### 90-second video (recommendation)
 | Time | Shot |
 |---|---|
 | 0–8s | A phone shows "arrives in 3 days, fee $13.98." Voiceover: "This is how my family sends money." |
 | 8–15s | The "new number" scam text, with a caption showing real loss numbers. |
-| 15–22s | Title: "Guard. Save in digital dollars. Send home in seconds." |
+| 15–22s | Title: "Nest. Save in digital dollars. Send home in seconds." |
 | 22–40s | Real screen recording: balance in dollars, plus the inflation counter. |
 | 40–58s | Two phones, Miami and abroad. Send, and the second phone turns green, with the explorer link flashing. |
 | 58–72s | The scam send is caught and undone. |

@@ -1,4 +1,4 @@
-# Guard: blockchain stack and integrations
+# Nest: blockchain stack and integrations
 
 Status checked **November 7, 2026**. **[V]** = verified from a primary source (official docs or GitHub, npm/crates, a live API, or on-chain data). **[S]** = secondary source, probably right. **[U]** = unverified.
 
@@ -6,7 +6,7 @@ Status checked **November 7, 2026**. **[V]** = verified from a primary source (o
 
 **USDC on Solana uses the classic SPL Token program, not Token-2022 [V on-chain].** So transfer hooks, confidential transfers and the other Token-2022 extensions can never apply to USDC.
 
-→ Every Guard protection (undo window, envelopes, co-approval, Storm Trigger) has to live in **program-controlled custody**: our Anchor program's accounts (PDAs) or Squads accounts.
+→ Every Nest protection (undo window, envelopes, co-approval, Storm Trigger) has to live in **program-controlled custody**: our Anchor program's accounts (PDAs) or Squads accounts.
 
 PYUSD and USDG *are* Token-2022 [V], if a mint with extensions is ever needed. USDC also has a freeze authority held by Circle, so say "the issuer can freeze" honestly.
 
@@ -40,13 +40,13 @@ PYUSD and USDG *are* Token-2022 [V], if a mint with extensions is ever needed. U
 ## Reference architecture
 - **Client:** an installable web app (PWA) with an offline queue of pre-signed durable-nonce transactions.
 - **Sign-in and fees:** a Privy or Grid passkey session; **Kora** co-signs as fee payer, so the user never needs SOL.
-- **Programs:** the **Guard Anchor program** holds escrow (undo window, claim links), vaults and goals (auto-save), and purpose envelopes (merchant allowlist). A **Squads v4** account requires 2 of 2 signatures above a limit (trusted contact). **Streamflow** handles paychecks. **SAS** stores scam-registry attestations.
+- **Programs:** the **Nest Anchor program** holds escrow (undo window, claim links), vaults and goals (auto-save), and purpose envelopes (merchant allowlist). A **Squads v4** account requires 2 of 2 signatures above a limit (trusted contact). **Streamflow** handles paychecks. **SAS** stores scam-registry attestations.
 - **Oracles:** **Pyth** for FX quotes; **Switchboard** for NWS hurricane alerts and the Range risk score, which gate releases.
 - **Indexing:** **Helius** webhooks feed **TimescaleDB** for the velocity radar, which feeds the **AI scam check** (also uses SAS and Range).
 - **Cash-out:** a route agent compares the Pyth rate with ramp quotes, then pays out through SPEI, PIX or M-Pesa (mocked for the demo).
 
 ## The 5 integrations most likely to impress Solana judges
-1. **Undo-window escrow + Squads co-approval:** real programmable custody. The pitch: *"Solana now finalizes in about a second (Alpenglow went live Oct 21, 2026). Guard makes fast money safe: fast **and** reversible, through escrow."*
+1. **Undo-window escrow + Squads co-approval:** real programmable custody. The pitch: *"Solana now finalizes in about a second (Alpenglow went live Oct 21, 2026). Nest makes fast money safe: fast **and** reversible, through escrow."*
 2. **Switchboard-verified NOAA Storm Trigger:** a novel custom data feed, and very Miami.
 3. **SAS shared scam registry:** uses a new Solana Foundation building block that other wallets can read.
 4. **Passkey + Kora gasless USDC:** the user never sees SOL, and Kora is a Foundation tool.

@@ -20,7 +20,7 @@ export function Pillars() {
             <span className="text-white/40">Nothing it doesn’t.</span>
           </h2>
           <p className="body-lg mt-5 max-w-[48ch]">
-            Guard holds your money in digital dollars and gives you the tools to grow it, use it and keep it safe.
+            Nest holds your money in digital dollars and gives you the tools to grow it, use it and keep it safe.
           </p>
         </div>
 

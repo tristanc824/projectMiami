@@ -7,7 +7,7 @@ import { Vortex } from "./Vortex";
 const delay = (s: number) => ({ animationDelay: `${s}s` }) as CSSProperties;
 
 /**
- * Hero: centered two-tone headline and two pills over a "planet horizon": the Guard globe rising
+ * Hero: centered two-tone headline and two pills over a "planet horizon": the Nest globe rising
  * from the bottom edge with money arcs between cities, fed by the vortex lines.
  */
 export function Hero() {
