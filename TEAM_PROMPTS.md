@@ -17,6 +17,17 @@ Anything below marked **confirmed** came from Tristan. Anything marked **open** 
 - The story is a Miami family sending support to relatives abroad.
 - Countries Tristan asked to consider: **Cuba** and **Mexico**, plus **Paraguay**. None of those is the chosen corridor yet.
 - The original flow is: local fiat in, USDC on Solana, send or hold, local fiat out, then real spending.
+- November 7 update: the user selected **React Native / Expo** for a shared web and iPhone app. The first UI/demo implementation is in [`apps/mobile`](apps/mobile/README.md). All money movement there is simulated; do not claim a real wallet or payout exists.
+
+## Run the first mobile preview
+
+```sh
+cd apps/mobile
+npm install
+npm start
+```
+
+Scan the terminal QR with an iPhone using Expo Go on the same network. Use `npm run web` for web. Auth0 native sign-in requires a development/TestFlight build and actual tenant configuration; follow the mobile README. `DESIGN.md` records the Cash App / PayPal baseline and original Lazo design choices. Lazo remains a working name.
 
 ## What the product is trying to be
 

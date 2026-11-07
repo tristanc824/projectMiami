@@ -1,8 +1,24 @@
-# projectMiami
+# Nest
 
-SharkByte hackathon project. **Nest**: a dollar account for anyone with a phone, on Solana. *Protect what matters.*
+SharkByte hackathon project. **Nest**: a dollar account for anyone with a phone, on Solana. *Protect what matters.* (The app code and some older docs still say "Guard"; the product is now Nest. See APP_HANDOFF.md.)
 
-**Start here if you're building the app:** [APP_HANDOFF.md](./APP_HANDOFF.md). It has the brand, features, copy rules and the 9 app screens ([`app-design/nest-app-screens.html`](./app-design/nest-app-screens.html), open in a browser).
+## Run the iPhone / web preview
+
+The app is in [`apps/mobile`](./apps/mobile/README.md), built with React Native / Expo. It uses clearly labeled local demo funds. For the iPhone, open it in Expo Go; native Auth0 login and TestFlight use a development/store build.
+
+```sh
+cd apps/mobile
+npm install
+npm start
+```
+
+Use `npm run web` in the same directory for the shared web app.
+
+The backend is in [`apps/api`](./apps/api/HANDOFF.md): a Next.js app (DAT) with Privy SMS login, self-custody Solana wallets, sponsored devnet USDC transfers, and Stripe test-mode deposits. A development build can use it for real devnet money; see "Live mode" in the mobile README. Secrets go in `apps/api/.env.local` and are never committed. See the mobile README for Auth0, signing, EAS, and TestFlight instructions.
+
+- [DESIGN.md](./DESIGN.md) — Cash App / PayPal reference research and the earlier Guard design system.
+
+**Start here if you're building the app:** [APP_HANDOFF.md](./APP_HANDOFF.md). It has the brand, features, copy rules and the 14 app screens ([`app-design/nest-app-screens.html`](./app-design/nest-app-screens.html), open in a browser).
 
 - [PITCH_PLAYBOOK.md](./PITCH_PLAYBOOK.md) — the angle, selling points, 3-minute table script, 30-second opener, Q&A prep and 90-second demo video. Fill in section 0 before the first judge.
 - [`web-earth/`](./web-earth) — current website (earth edition). `npm install && npm run dev` → http://localhost:5175
