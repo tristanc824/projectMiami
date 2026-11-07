@@ -29,12 +29,9 @@ export function Hero() {
       <div className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-t from-carbon to-transparent" />
 
       <div className="wrap flex flex-1 flex-col items-center pt-28 text-center sm:pt-32">
-        <a href="#account" className="rise inline-flex min-h-[40px] items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 font-mono text-[13px] uppercase tracking-[0.14em] text-white/65 transition hover:border-white/25 hover:text-white">
-          <span className="h-1.5 w-1.5 rounded-full bg-sky shadow-[0_0_8px_2px_rgba(125,180,255,0.7)]" /> Protect what matters
-        </a>
-        <h1 className="rise headline mt-6 text-[clamp(40px,6.6vw,88px)] leading-[0.98]" style={delay(0.08)}>
-          <span className="block text-white">Your money, in dollars.</span>{" "}
-          <span className="block bg-gradient-to-b from-white/75 to-white/30 bg-clip-text text-transparent">Protected anywhere.</span>
+        <h1 className="rise headline mt-10 text-[clamp(40px,6.6vw,88px)] leading-[0.98]" style={delay(0.08)}>
+          <span className="block text-white">Protect</span>{" "}
+          <span className="block bg-gradient-to-b from-white/75 to-white/30 bg-clip-text text-transparent">what matters.</span>
         </h1>
         <p className="rise mt-6 max-w-[52ch] text-[clamp(16px,1.6vw,19px)] leading-relaxed text-white/65" style={delay(0.16)}>
           One account to save, spend and send digital dollars,
