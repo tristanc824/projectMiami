@@ -6,8 +6,7 @@ For Tristan, building the app in Cursor. This is the current source of truth for
 | What | Where | How |
 |---|---|---|
 | **App screens** (14 mockups) | [`app-design/nest-app-screens.html`](./app-design/nest-app-screens.html) | Open in any browser. No build step. |
-| **Website, current** (earth edition) | [`web-earth/`](./web-earth) | `cd web-earth && npm install && npm run dev` → http://localhost:5175 |
-| Website, earlier blue edition | [`web/`](./web) | `cd web && npm install && npm run dev` → http://localhost:5174 |
+| **Website** | [`web-earth/`](./web-earth) | `cd web-earth && npm install && npm run dev` → http://localhost:5175 |
 | Pitch, angle and demo script | [PITCH_PLAYBOOK.md](./PITCH_PLAYBOOK.md) | |
 | Solana stack and architecture | [BLOCKCHAIN_STACK.md](./BLOCKCHAIN_STACK.md) | |
 
