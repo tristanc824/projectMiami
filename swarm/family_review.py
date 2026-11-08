@@ -17,9 +17,13 @@ import urllib.request
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-BASE = "https://api.swarms.world"
-MODEL = "gpt-5.4-mini"
+# SWARMS_BASE_URL and SWARMS_MODEL override these without a code change.
+BASE = os.environ.get("SWARMS_BASE_URL", "https://api.swarms.world").rstrip("/")
+MODEL = os.environ.get("SWARMS_MODEL", "gpt-5.4-mini")
 MIN_RUN_CREDITS = 1.0
+# Field names a credits response may use. If none is present the pre-check is
+# skipped and Swarms' own 402 on the run is what stops an empty balance.
+CREDIT_FIELDS = ("total_credits", "credits", "balance", "available_credits", "credit_balance")
 AGENT_NAMES = ("PlainSpeaker", "Skeptic", "Watchdog", "Judge")
 VERDICT_KEYS = {"decision", "sentence", "sentence_es", "threat", "limit", "suspicion"}
 SUSPICION_LEVELS = ("none", "low", "high")
@@ -36,6 +40,7 @@ SIGNALS: dict[str, tuple[str, str]] = {
     "verified_without_statement": ("high", "The relationship is marked verified, but nothing in this request said so."),
     "verified_flipped": ("medium", "The relationship changed from not verified to verified since the last review."),
     "conflicting_amounts": ("high", "The request mentions more than one different amount to send."),
+    "amount_mismatch": ("high", "The amount in the person's words and the amount Prune cleaned do not match."),
     "self_correction": ("medium", "The speaker corrected themselves while giving the request."),
     "pressure": ("medium", "The request pushes for speed or secrecy, or asks for a new way to pay."),
 }
@@ -235,6 +240,7 @@ def detect_signals(
     amounts_mentioned: int = 0,
     self_correction: bool = False,
     pressure: bool = False,
+    amount_mismatch: bool = False,
 ) -> list[str]:
     """Deterministic typo and tamper checks on the safe facts. Returns codes from SIGNALS."""
     found: set[str] = set()
@@ -267,6 +273,8 @@ def detect_signals(
 
     if amounts_mentioned > 1:
         found.add("conflicting_amounts")
+    if amount_mismatch:
+        found.add("amount_mismatch")
     if self_correction:
         found.add("self_correction")
     if pressure:
@@ -354,7 +362,11 @@ def request_json(url: str, api_key: str, body: dict[str, Any] | None = None) -> 
         with urllib.request.urlopen(request, timeout=120) as response:
             result = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as error:
-        detail = error.read().decode("utf-8", errors="replace")
+        if error.code in (401, 403):
+            raise SystemExit("swarms-auth") from error  # missing, wrong or revoked SWARMS_API_KEY
+        if error.code == 402:
+            raise SystemExit("budget") from error
+        detail = error.read().decode("utf-8", errors="replace")[:300]
         raise SystemExit(f"Swarms API returned {error.code}: {detail}") from error
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, UnicodeDecodeError) as error:
         raise SystemExit(f"Swarms API request failed: {error}") from error
@@ -363,13 +375,25 @@ def request_json(url: str, api_key: str, body: dict[str, Any] | None = None) -> 
     return result
 
 
-def ensure_budget(api_key: str) -> None:
-    credits = request_json(f"{BASE}/v1/account/credits", api_key)
+def credit_balance(api_key: str) -> float | None:
+    """The Swarms credit balance, or None when the account endpoint is missing or its shape is unknown."""
     try:
-        balance = float(credits["total_credits"])
-    except (KeyError, TypeError, ValueError) as error:
-        raise SystemExit("budget") from error
-    if balance < MIN_RUN_CREDITS:
+        credits = request_json(f"{BASE}/v1/account/credits", api_key)
+    except SystemExit as stop:
+        if str(stop) in {"swarms-auth", "budget"}:
+            raise
+        return None  # the endpoint moved or failed; the run itself still reports 402
+    for field in CREDIT_FIELDS:
+        try:
+            return float(credits[field])
+        except (KeyError, TypeError, ValueError):
+            continue
+    return None
+
+
+def ensure_budget(api_key: str) -> None:
+    balance = credit_balance(api_key)
+    if balance is not None and balance < MIN_RUN_CREDITS:
         raise SystemExit("budget")
 
 
@@ -378,22 +402,51 @@ def post_swarm(body: dict[str, Any], api_key: str) -> dict[str, Any]:
     return request_json(f"{BASE}/v1/swarm/completions", api_key, body)
 
 
+def _content(turn: Any) -> str | None:
+    if not isinstance(turn, dict) or "content" not in turn:
+        return None
+    content = turn["content"]
+    return content if isinstance(content, str) else json.dumps(content)
+
+
 def extract_outputs(result: dict[str, Any]) -> dict[str, str]:
+    """Each agent's text from a SequentialWorkflow reply.
+
+    Swarms documents `output` as a list of {"role": <agent name>, "content": ...}
+    turns, and it may also hold the task as an earlier turn. Match by agent name,
+    keeping each agent's last turn; if the roles are not agent names, fall back to
+    the last four turns in workflow order."""
     turns = result.get("output")
-    if not isinstance(turns, list) or len(turns) < len(AGENT_NAMES):
+    if not isinstance(turns, list):
         return {}
-    outputs: dict[str, str] = {}
-    for name, turn in zip(AGENT_NAMES, turns):
-        if not isinstance(turn, dict) or "content" not in turn:
-            return {}
-        content = turn["content"]
-        outputs[name] = content if isinstance(content, str) else json.dumps(content)
-    return outputs
+    by_role: dict[str, str] = {}
+    for turn in turns:
+        text = _content(turn)
+        role = turn.get("role") if isinstance(turn, dict) else None
+        if text is not None and role in AGENT_NAMES:
+            by_role[role] = text
+    if all(name in by_role for name in AGENT_NAMES):
+        return {name: by_role[name] for name in AGENT_NAMES}
+    if len(turns) < len(AGENT_NAMES):
+        return {}
+    tail = [_content(turn) for turn in turns[-len(AGENT_NAMES):]]
+    if any(text is None for text in tail):
+        return {}
+    return dict(zip(AGENT_NAMES, tail))  # type: ignore[arg-type]
+
+
+JSON_FENCE = re.compile(r"^\s*```(?:json)?\s*(.*?)\s*```\s*$", re.DOTALL)
+
+
+def verdict_text(text: str) -> str:
+    """The Judge's JSON without a ```json fence, which models often add."""
+    match = JSON_FENCE.match(text) if isinstance(text, str) else None
+    return match.group(1) if match else text
 
 
 def valid_verdict(text: str) -> bool:
     try:
-        verdict = json.loads(text)
+        verdict = json.loads(verdict_text(text))
     except (json.JSONDecodeError, TypeError):
         return False
     if not isinstance(verdict, dict) or set(verdict) != VERDICT_KEYS:
@@ -446,7 +499,7 @@ def run_review(case: dict[str, Any], api_key: str) -> dict[str, Any]:
         if outputs and valid_verdict(outputs["Judge"]):
             return {
                 "outputs": outputs,
-                "verdict": apply_checks(json.loads(outputs["Judge"]), signal_codes(case)),
+                "verdict": apply_checks(json.loads(verdict_text(outputs["Judge"])), signal_codes(case)),
                 "credit_cost": total_cost if has_cost else None,
                 "attempts": attempt + 1,
             }

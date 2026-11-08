@@ -4,9 +4,32 @@ Caleb, this is yours to build on. It's the backend for checking a family transfe
 anyone signs it. It has **no UI**: the Nest app owns all the screens. This guide covers
 what it does, how to run it, the API contract, and what is still open.
 
-Everything here lives in `app.py`, `swarm/`, `hold/` and `programs/family_hold/`. None
-of it touches `apps/`, `web-earth/` or the site, so it merges with `main` and `nest`
-without conflicts.
+Everything here lives in `app.py`, `swarm/`, `tests/`, `hold/` and `programs/family_hold/`.
+None of it touches `apps/`, `web-earth/` or the site, so it merges with `main` and
+`calebs-output` without conflicts.
+
+## Start here (5 minutes)
+
+```powershell
+python -m unittest discover tests          # 1. the whole pipeline against stand-in Swarms and Prune; no keys needed
+$env:SWARMS_API_KEY = "..."                # 2. your keys (https://swarms.world/platform/api-keys, https://withprune.com/sharkbyte)
+$env:PRUNE_API_KEY  = "..."
+python app.py --check                      # 3. PASS/FAIL for each key, credits, the Swarms model, and the local checks
+python app.py --check --live               # 4. one real review end to end (a few Swarms credits and one Prune call)
+python app.py                              # 5. serve the API on http://127.0.0.1:8000
+```
+
+Only Python 3.10+ is needed: the standard library, no packages to install.
+
+| Variable | Needed | What it does |
+|---|---|---|
+| `SWARMS_API_KEY` | yes | The four review agents |
+| `PRUNE_API_KEY` | yes | Cleans the transcript and seals a confirmed sentence |
+| `SWARMS_MODEL` | no | The agents' model (default `gpt-5.4-mini`). `--check` says whether Swarms lists it. |
+| `SWARMS_BASE_URL` | no | Default `https://api.swarms.world` |
+| `PRUNE_URL`, `PRUNE_MODEL` | no | Default Prune Gemini proxy, `gemini-3.5-flash-lite` |
+| `REVIEW_API_TOKEN` | to listen on a network | Bearer token callers must send |
+| `REVIEW_ALLOWED_ORIGINS` | for browser callers | Comma-separated origins allowed with CORS |
 
 ## What it does
 
@@ -125,6 +148,7 @@ or another machine from spending the Swarms credits.
 | 400 | `bad-request`, `bad-transcript` | Bad JSON, a body that is not an object, or an empty or too-long transcript |
 | 403 | `forbidden` | Wrong origin, wrong token, not JSON, or a non-loopback Host |
 | 402 | `budget` | The Swarms balance is too low |
+| 502 | `swarms-auth` | Swarms rejected `SWARMS_API_KEY` (missing, wrong or revoked) |
 | 502 | `bad-verdict`, `swarms-api` | The Judge returned invalid JSON twice, or the Swarms API failed |
 | 422 | `blocked-in` | Prune failed, or the cleaned text still held a phone or account number. Swarms was not called. |
 | 502 | `no-receipt` | The decision was `confirm`, but Prune did not stamp it. The verdict is included. Do not treat it as ready. |
@@ -149,6 +173,7 @@ request, otherwise the next one is compared with the old one.
 | `verified_without_statement` | high | `relationship_verified: true` arrived with nothing in the transcript or the last review saying so |
 | `verified_flipped` | medium | The relationship went from not verified to verified since the last review |
 | `conflicting_amounts` | high | The transcript gives two different amounts to send |
+| `amount_mismatch` | high | Prune cleaned a different amount than the one in the person's words. The words win; this flags the disagreement. |
 | `self_correction` | medium | "actually", "I mean", "make it", "mejor dicho"... |
 | `pressure` | medium | "urgent", "don't tell", "gift card", "new number", "otra cuenta"... |
 
@@ -204,6 +229,8 @@ Git ignores.
 
 ## Still open
 
-- The real-Swarms run hasn't been tested end to end (no key on the machine). Offline mode and all the local checks are tested.
+- A live run with a real Swarms key hasn't been done yet: no key was available. Run `python app.py --check --live` once
+  a key is set. What is tested: the whole pipeline against a stand-in Swarms built from the documented response
+  format (`tests/`), and the same pipeline with the **real** Prune service (cleaning, then a signed receipt).
 - The last-review memory is per process, so one person at a time.
 - Amount and "verified" parsing understands English and Spanish. Other languages fall back to a single standalone number.

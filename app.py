@@ -184,6 +184,17 @@ def safe_case(source: Any) -> dict[str, Any]:
     return result
 
 
+def spoken_amounts(transcript: str) -> list[str]:
+    """The distinct amounts to send that the words themselves state, as safe amount strings."""
+    found: list[str] = []
+    for match in AMOUNT_PATTERNS["amount_usdc"].finditer(PHONE_LIKE.sub(" ", transcript.strip())):
+        captured = next((group for group in match.groups() if group is not None), None)
+        amount = _safe_amount(captured)
+        if amount is not None and all(float(amount) != float(seen) for seen in found):
+            found.append(amount)
+    return found
+
+
 def transcript_notes(transcript: str) -> dict[str, Any]:
     """What the words themselves show: distinct amounts to send, a stated verification, corrections, pressure."""
     text = transcript.strip()
@@ -211,8 +222,9 @@ def transcript_notes(transcript: str) -> dict[str, Any]:
 def check_case(case: dict[str, Any], transcript: str) -> dict[str, Any]:
     """Attach the Watchdog's local typo and tamper signals to a prepared case."""
     checked = dict(case)
+    mismatch = bool(checked.pop("prune_amount_disagrees", False))
     checked["signals"] = family_review.detect_signals(
-        checked, previous=last_reviewed(), **transcript_notes(transcript)
+        checked, previous=last_reviewed(), amount_mismatch=mismatch, **transcript_notes(transcript)
     )
     return checked
 
@@ -274,12 +286,22 @@ def _prune_amount(value: Any) -> str | None:
     return _safe_amount(match.group(1))
 
 
-def apply_prune_fields(case: dict[str, Any], fields: dict[str, str]) -> dict[str, Any]:
-    """Add Prune's cleaned role and purpose. A parsed amount replaces the local one."""
+def apply_prune_fields(case: dict[str, Any], fields: dict[str, str], transcript: str = "") -> dict[str, Any]:
+    """Add Prune's cleaned role and purpose.
+
+    The person's own words decide the amount: Prune is a model and can misread
+    800 as 80. When the words state one amount and Prune disagrees, the words win
+    and the Watchdog flags amount_mismatch. Prune's amount is used only when the
+    words gave none."""
     updated = dict(case)
     amount = _prune_amount(fields.get("amount"))
+    spoken = spoken_amounts(transcript)
     if amount is not None:
-        updated["amount_usdc"] = amount
+        if len(spoken) == 1:
+            if float(amount) != float(spoken[0]):
+                updated["prune_amount_disagrees"] = True
+        elif not spoken:
+            updated["amount_usdc"] = amount
     role = family_review._safe_label(fields.get("relationship"))
     purpose = family_review._safe_label(fields.get("purpose"))
     if role:
@@ -422,14 +444,14 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
                 {"error": "blocked-in", "case": local, "signals": local_signals, "prune": prune_view(local, None)},
             )
             return
-        case = check_case(apply_prune_fields(prepared, fields), transcript)
+        case = check_case(apply_prune_fields(prepared, fields, transcript), transcript)
         signals = family_review.describe_signals(case["signals"])
         try:
             review = family_review.run_review(case, api_key)
         except SystemExit as stop:
             reason = str(stop)
             status = HTTPStatus.PAYMENT_REQUIRED if reason == "budget" else HTTPStatus.BAD_GATEWAY
-            safe_reason = reason if reason in {"budget", "bad-verdict"} else "swarms-api"
+            safe_reason = reason if reason in {"budget", "bad-verdict", "swarms-auth"} else "swarms-api"
             self._json(status, {"error": safe_reason, "case": case, "signals": signals, "prune": prune_view(case, None)})
             return
         except Exception:  # noqa: BLE001 - an unexpected API shape must not drop the connection
@@ -504,6 +526,95 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
 
+def run_check(live: bool) -> int:
+    """Setup check for whoever runs this: keys, Swarms, Prune, and the local checks. Exit 0 when ready."""
+    import urllib.error
+    import urllib.request
+
+    failures = 0
+
+    def report(ok: bool | None, name: str, detail: str = "") -> None:
+        nonlocal failures
+        label = "PASS" if ok else ("WARN" if ok is None else "FAIL")
+        failures += ok is False
+        print(f"[{label}] {name}" + (f": {detail}" if detail else ""))
+
+    remember(None)
+    sample = "Send 800 dollars."
+    case = check_case(apply_voice_facts({}, sample), sample)
+    review = family_review.offline_review(case)
+    report(
+        case["signals"] == ["extra_zero"] and review["verdict"]["decision"] == "hold",
+        "Watchdog local checks",
+        "800 instead of 80 is flagged extra_zero and held",
+    )
+    remember(None)
+
+    swarms_key = os.environ.get("SWARMS_API_KEY", "").strip()
+    prune_key = os.environ.get("PRUNE_API_KEY", "").strip()
+    base = family_review.BASE
+    try:
+        with urllib.request.urlopen(f"{base}/health", timeout=20) as response:
+            report(response.status == 200, "Swarms API reachable", base)
+    except Exception as error:  # noqa: BLE001 - report any network failure
+        report(False, "Swarms API reachable", f"{base}: {type(error).__name__}")
+    if not swarms_key:
+        report(False, "SWARMS_API_KEY", "not set. Create one at https://swarms.world/platform/api-keys")
+    else:
+        try:
+            balance = family_review.credit_balance(swarms_key)
+            if balance is None:
+                report(None, "Swarms key and credits", "key accepted; balance not readable, runs will report 402 if empty")
+            else:
+                report(balance >= family_review.MIN_RUN_CREDITS, "Swarms key and credits", f"{balance:g} credits")
+        except SystemExit as stop:
+            report(False, "Swarms key and credits", "key rejected (401/403)" if str(stop) == "swarms-auth" else str(stop))
+        try:
+            models = family_review.request_json(f"{base}/v1/models/available", swarms_key)
+            found = family_review.MODEL in json.dumps(models)
+            report(True if found else None, "Swarms model", f"{family_review.MODEL} {'is listed' if found else 'not found in /v1/models/available; set SWARMS_MODEL to a listed model'}")
+        except SystemExit as stop:
+            report(None, "Swarms model", f"could not list models ({str(stop)[:80]})")
+    report(bool(prune_key) or None, "PRUNE_API_KEY", "set" if prune_key else "not set. Reviews need it; get one at https://withprune.com/sharkbyte")
+
+    if live:
+        if not (swarms_key and prune_key):
+            report(False, "Live review", "needs both SWARMS_API_KEY and PRUNE_API_KEY")
+        else:
+            server = ThreadingHTTPServer(("127.0.0.1", 0), VoiceReviewHandler)
+            server.offline = False  # type: ignore[attr-defined]
+            VoiceReviewHandler.log_message = lambda *args: None  # type: ignore[method-assign]
+            threading.Thread(target=server.serve_forever, daemon=True).start()
+            try:
+                body = json.dumps({"transcript": "Send 80 dollars. The relationship is verified."}).encode("utf-8")
+                request = urllib.request.Request(
+                    f"http://127.0.0.1:{server.server_address[1]}/api/review",
+                    data=body,
+                    headers={"Content-Type": "application/json", **({"Authorization": f"Bearer {api_token()}"} if api_token() else {})},
+                    method="POST",
+                )
+                try:
+                    with urllib.request.urlopen(request, timeout=300) as response:
+                        result = json.loads(response.read())
+                    verdict = result["verdict"]
+                    report(
+                        True,
+                        "Live review (Prune, Watchdog, 4 Swarms agents, Prune seal)",
+                        f"decision={verdict['decision']} suspicion={verdict['suspicion']} "
+                        f"receipt={'yes' if result['prune']['receipt'] else 'no'} cost={result['credit_cost']}",
+                    )
+                except urllib.error.HTTPError as error:
+                    detail = json.loads(error.read() or b"{}").get("error", "")
+                    report(False, "Live review", f"HTTP {error.code} {detail}")
+            finally:
+                server.shutdown()
+                remember(None)
+    else:
+        print("       Add --live to run one real review (costs a few Swarms credits and a Prune call).")
+    print("Ready." if failures == 0 else f"{failures} check(s) failed.")
+    return 0 if failures == 0 else 1
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the Project Miami family review API (JSON only, no UI).")
     parser.add_argument("--host", default="127.0.0.1")
@@ -513,7 +624,11 @@ def main() -> None:
         action="store_true",
         help="Build against the API without SWARMS_API_KEY: the Watchdog's checks run, and the agents' text is canned and labeled.",
     )
+    parser.add_argument("--check", action="store_true", help="Check keys, Swarms, Prune and the local checks, then exit.")
+    parser.add_argument("--live", action="store_true", help="With --check, also run one real review end to end.")
     args = parser.parse_args()
+    if args.check:
+        sys.exit(run_check(args.live))
     if args.host not in LOOPBACK_HOSTS and not api_token():
         sys.exit(
             "Set REVIEW_API_TOKEN before binding to a non-loopback address, "
