@@ -1,4 +1,12 @@
-import { Connection, Keypair, PublicKey, TransactionMessage, VersionedTransaction } from '@solana/web3.js';
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  SendTransactionError,
+  TransactionExpiredBlockheightExceededError,
+  TransactionMessage,
+  VersionedTransaction,
+} from '@solana/web3.js';
 import {
   createAssociatedTokenAccountIdempotentInstruction,
   createTransferCheckedInstruction,
@@ -24,18 +32,42 @@ function keypair(name) {
 export const treasury = () => keypair('TREASURY_SECRET_KEY');
 export const feePayer = () => keypair('FEE_PAYER_SECRET_KEY');
 
+// A missing token account is a zero balance. An RPC failure is not: it throws,
+// so a flaky node cannot make a funded wallet look empty.
 export async function usdcBalance(owner) {
   const ata = getAssociatedTokenAddressSync(USDC_MINT, owner);
-  try {
-    const { value } = await connection().getTokenAccountBalance(ata);
-    return BigInt(value.amount);
-  } catch {
-    return 0n;
+  if (!(await connection().getAccountInfo(ata))) return 0n;
+  const { value } = await connection().getTokenAccountBalance(ata);
+  return BigInt(value.amount);
+}
+
+// The transaction was handed to the network but its outcome is unknown, so the
+// money may have moved. Callers must not retry with a new transaction.
+export class SubmittedError extends Error {
+  constructor(signature, cause) {
+    super('SUBMITTED_UNCONFIRMED');
+    this.signature = signature;
+    this.cause = cause;
   }
 }
 
-async function confirm(signature, blockhash, lastValidBlockHeight) {
-  const { value } = await connection().confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
+// Sends a fully signed transaction and waits for confirmation. Throws a plain
+// Error only when the money definitely did not move, and SubmittedError when it might have.
+async function broadcast(tx, blockhash, lastValidBlockHeight) {
+  const signature = bs58.encode(tx.signatures[0]);
+  try {
+    await connection().sendTransaction(tx);
+  } catch (err) {
+    if (err instanceof SendTransactionError) throw err; // refused in preflight, never sent
+    throw new SubmittedError(signature, err);
+  }
+  let value;
+  try {
+    ({ value } = await connection().confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed'));
+  } catch (err) {
+    if (err instanceof TransactionExpiredBlockheightExceededError) throw new Error('Transaction expired before it landed');
+    throw new SubmittedError(signature, err);
+  }
   if (value.err) throw new Error('Transaction failed on the network');
   return signature;
 }
@@ -58,7 +90,7 @@ export async function sendFromTreasury(recipient, amount) {
     }).compileToV0Message(),
   );
   tx.sign([from]);
-  return confirm(await connection().sendTransaction(tx), blockhash, lastValidBlockHeight);
+  return broadcast(tx, blockhash, lastValidBlockHeight);
 }
 
 export async function prepareTransfer(owner, recipient, amount) {
@@ -75,7 +107,10 @@ export async function prepareTransfer(owner, recipient, amount) {
 }
 
 // The user's signature is required: without it the network rejects the transaction, so this cannot move their funds.
-export async function submitTransfer(owner, messageB64, signatureB64, lastValidBlockHeight) {
+// lastValidBlockHeight comes from the network, not the client: the message's blockhash is no newer than the
+// latest one, so the latest expiry is a safe upper bound, and a client value of 0 cannot fake an expiry.
+export async function submitTransfer(owner, messageB64, signatureB64) {
+  if (typeof messageB64 !== 'string' || typeof signatureB64 !== 'string') throw new Error('Missing transaction');
   const payer = feePayer();
   const { message } = assertSponsorable(Buffer.from(messageB64, 'base64'), {
     feePayer: payer.publicKey,
@@ -85,5 +120,6 @@ export async function submitTransfer(owner, messageB64, signatureB64, lastValidB
   const tx = new VersionedTransaction(message);
   tx.addSignature(owner, Buffer.from(signatureB64, 'base64'));
   tx.sign([payer]);
-  return confirm(await connection().sendTransaction(tx), message.recentBlockhash, lastValidBlockHeight);
+  const { lastValidBlockHeight } = await connection().getLatestBlockhash();
+  return broadcast(tx, message.recentBlockhash, lastValidBlockHeight);
 }

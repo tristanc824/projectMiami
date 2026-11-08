@@ -1,11 +1,11 @@
-import { allow, fail, json, requireUser, route } from '@/lib/server/http';
+import { allow, fail, json, readJson, requireUser, route } from '@/lib/server/http';
 import { createUserForPhone, solanaWallet, userByPhone } from '@/lib/server/privy';
 import { normalizePhone } from '@/lib/phone.mjs';
 
 export const POST = route(async (req: Request) => {
   const me = await requireUser(req);
   if (me instanceof Response) return me;
-  const phone = normalizePhone((await req.json()).phone);
+  const phone = normalizePhone((await readJson(req))?.phone);
   if (!phone) return fail('Enter a full phone number');
   let user = await userByPhone(phone);
   const invited = !user;
