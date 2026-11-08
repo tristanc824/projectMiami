@@ -44,6 +44,22 @@ SIGNALS: dict[str, tuple[str, str]] = {
     "amount_mismatch": ("high", "The amount in the person's words and the amount Prune cleaned do not match."),
     "recipient_not_in_contacts": ("high", "The recipient is not in the sender's contacts. Paying someone you have not saved is how most scams start."),
     "recipient_contacts_unchecked": ("low", "The app did not say whether the recipient is in the sender's contacts."),
+    # Identity: facts the phone works out, sent as yes/no or a number, never names or phone numbers.
+    "new_contact": ("high", "The recipient was saved as a contact in the last 7 days. Scammers ask you to save a \"new number\" first."),
+    "message_request": ("high", "The request came as a message request: someone the sender has never messaged before."),
+    "name_mismatch": ("high", "The name the requester gave does not match the name saved for this contact."),
+    "recipient_details_changed": ("high", "This contact's payment account is different from the one used before."),
+    "new_recipient_account": ("medium", "The recipient's account is less than 7 days old."),
+    "first_time_recipient": ("low", "The sender has never sent money to this recipient before."),
+    # Scam patterns, found locally in the request and in the message that asked for money.
+    "claims_new_number": ("high", "The message says they have a new phone number or lost their phone: the most common way scammers pretend to be family."),
+    "authority_impersonation": ("high", "The message claims to be police, a bank fraud team or the government. None of them asks for a family transfer."),
+    "code_request": ("high", "The message asks for a PIN, a verification code, a password, a recovery phrase or remote access. Never share these."),
+    "payment_pivot": ("high", "The message asks to pay with gift cards or crypto, or to a different account than usual."),
+    "refund_overpayment": ("high", "The message says money was sent by mistake and asks for it back."),
+    "investment_promise": ("high", "The message promises profit or guaranteed returns: the mark of an investment scam."),
+    "prize_fee": ("high", "The message says a prize or inheritance needs a fee paid first."),
+    "emergency_story": ("medium", "The message describes an emergency (accident, jail, hospital, stranded): the usual cover for a family-impersonation scam."),
     "negated_instruction": ("high", "The request says not to send (\"don't send 80\"). Ask whether to send anything at all."),
     "amount_not_stated": ("high", "No amount to send was stated or supplied, so the amount shown is only a placeholder."),
     "amount_guessed": ("high", "The amount was guessed from a lone number, not from words like \"send 80\". Confirm it."),
@@ -53,6 +69,25 @@ SIGNALS: dict[str, tuple[str, str]] = {
     "pressure": ("medium", "The request pushes for speed or secrecy, or asks for a new way to pay."),
 }
 HIGH_SIGNALS = {code for code, (level, _) in SIGNALS.items() if level == "high"}
+# Codes the server finds by scanning words. detect_signals only accepts these from scam_patterns.
+SCAM_CODES = (
+    "claims_new_number", "authority_impersonation", "code_request", "payment_pivot",
+    "refund_overpayment", "investment_promise", "prize_fee", "emergency_story",
+)
+NEW_CONTACT_DAYS = 7
+NEW_ACCOUNT_DAYS = 7
+REQUEST_CHANNELS = ("in_person", "call", "message", "message_request", "email", "unknown")
+
+# What the agents know about how family-transfer scams work. It helps them name the pattern and
+# give the safe step; it never lets them add a sign the local checks did not list.
+SCAM_PLAYBOOK = """Scam playbook, from real fraud cases. Use it to name the pattern and the safe step, never to add a sign the task does not list:
+1. "New number" impersonation ("Hi Mom, I lost my phone, this is my new number", then a money request). Signs: claims_new_number, new_contact, message_request, name_mismatch. Safe step: call the old number already saved, or ask something only the real person knows.
+2. Emergency or grandparent scam (accident, jail, bail, hospital, stranded abroad, "don't tell anyone"). Signs: emergency_story, pressure, recipient_not_in_contacts. Safe step: hang up and call the relative, or another family member, on a saved number.
+3. Authority impersonation (police, bank fraud team, government, "move your money to a safe account"). Signs: authority_impersonation, payment_pivot. Safe step: no real agency asks for this; call the number printed on the card or the official site.
+4. Code theft (asking to read back a PIN, a verification code or a recovery phrase, or to install a remote-access app). Sign: code_request. Safe step: never share it; the hold PIN is only for the person collecting the money.
+5. Changed details or a taken-over account (a known contact suddenly pays to a different or brand-new account). Signs: recipient_details_changed, new_recipient_account, payment_pivot. Safe step: confirm the change by voice on a number already saved.
+6. Refund, investment and prize scams. Signs: refund_overpayment, investment_promise, prize_fee. Safe step: a real refund goes back the way it came; nobody pays a fee to receive a prize.
+A real relative can answer a call-back on the number you already had. A scammer cannot."""
 
 # Safe Hold: a flagged transfer waits this long on-chain, then needs the sender and the
 # approver to sign. SAFE_HOLD_SECONDS shortens it for a live demo.
@@ -116,6 +151,11 @@ Translate naturally and do not mix languages unless a proper noun requires it.""
                 "Skeptic",
                 """Review only for a wrong amount, the wrong person, or someone pretending to be a relative.
 A recipient who is not in the sender's contacts is a wrong-person risk: flag it.
+A new contact, a message request, a name that does not match the saved contact, changed payment details, or a claimed new number is a sign of someone pretending to be a relative: flag it.
+"""
+                + SCAM_PLAYBOOK
+                + """
+Name the playbook pattern that fits, if any, and the safe step.
 State which of those checks the supplied facts support, and name what that check cannot stop.
 A warning that exists only in the app is not a security boundary; say so if the proposed check is only a warning.
 Do not introduce any other threat, feature, fee, exchange rate, delivery time, corridor, provider, custody model, or recovery model.
@@ -128,11 +168,17 @@ A flagged transfer is not refused: it waits 24 hours in a Safe Hold and then nee
                 """You look for typos and tampering in a proposed family transfer, such as an extra or missing zero, an amount that changed between reviews, or a relationship marked verified with nothing to back it up.
 Local checks have already run. The task lists the warning signs they found, each with a code and a plain explanation.
 Your whole answer must be in plain English. Earlier agents may have written in another language; do not follow them. The Judge translates for the family.
+You also look for scams: someone new or inconsistent asking for money.
 For each listed sign, write one plain sentence about what may have gone wrong and one question the sender should answer before signing, for example "Did you mean 80 or 800?".
 Use the amounts in the task to make each question concrete. Take "still needed" from the task; do not work it out yourself.
+For identity and scam signs, the question is the safe step from the playbook, for example "Can you call them back on the number you already had saved?".
+"""
+                + SCAM_PLAYBOOK
+                + """
 If no warning signs are listed, say "No warning signs from the local checks." and do not invent any.
 Never add a sign that is not listed, and never say the transfer is safe.
 End with exactly one line: "suspicion: none", "suspicion: low", or "suspicion: high". Use high when any listed sign is marked high.""",
+                max_tokens=900,
             ),
             agent(
                 "Judge",
@@ -142,6 +188,9 @@ If any warning sign marked high is listed in the task, decision must be "hold" o
 sentence must be one plain sentence written in English, always, even when the output language is Spanish or anything else.
 sentence_es is a legacy field name: put the same sentence translated into the output language named in the task, even when that language is not Spanish. When the output language is not English, sentence and sentence_es must differ.
 Base the decision only on a wrong amount, the wrong person, someone pretending to be a relative, or the listed warning signs.
+When an identity or scam sign is listed, threat names the scam pattern and the sentence gives the safe step, such as calling the person back on a number already saved before anyone signs.
+When no identity or scam sign is listed, do not tell the sender to call anyone back: a warning on every transfer teaches people to ignore it.
+threat and limit are short phrases in English.
 Name what the check cannot stop in limit. A warning that exists only in the app is not a security boundary.
 "confirm" means only that a person may review it; you do not sign, send, or approve USDC.
 Do not claim Cuba support, hack-proof funds, deposit insurance, or that a confirmed Solana transfer can be undone.
@@ -218,6 +267,7 @@ def build_task(case: dict[str, Any]) -> str:
             f"- fiat leg: {fiat_leg}",
             "- recipient is in the sender's contacts: "
             + {True: "yes", False: "no"}.get(case.get("recipient_in_contacts"), "not checked"),
+            *identity_lines(case),
             *signal_lines(case),
             f"- output language: {_language(case.get('output_language'))}",
             "- corridor: unset",
@@ -228,6 +278,54 @@ def build_task(case: dict[str, Any]) -> str:
             "The swarm does not sign or send funds. A person makes the final decision.",
         ]
     )
+
+
+def _days(value: Any) -> int | None:
+    """A whole, non-negative count such as days or transfers. Anything else is unknown."""
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        return None
+    return value
+
+
+def _yes_no(value: Any) -> str:
+    return {True: "yes", False: "no"}.get(value, "not checked") if isinstance(value, bool) else "not checked"
+
+
+def identity_lines(case: dict[str, Any]) -> list[str]:
+    """Who is asking, as safe facts: counts, yes/no and a channel name. No names or numbers."""
+    added = _days(case.get("contact_added_days"))
+    age = _days(case.get("recipient_account_age_days"))
+    prior = _days(case.get("prior_transfers_to_recipient"))
+    channel = case.get("request_channel")
+    return [
+        "- recipient saved as a contact: " + ("not checked" if added is None else f"{added} days ago"),
+        "- how the request reached the sender: "
+        + (channel.replace("_", " ") if channel in REQUEST_CHANNELS else "not checked"),
+        "- name the requester gave matches the saved contact: " + _yes_no(case.get("claimed_name_matches_contact")),
+        "- recipient's payment account changed since the last transfer: " + _yes_no(case.get("recipient_details_changed")),
+        "- recipient's account age: " + ("not checked" if age is None else f"{age} days"),
+        "- earlier transfers to this recipient: " + ("not checked" if prior is None else str(prior)),
+    ]
+
+
+def identity_signals(case: dict[str, Any]) -> set[str]:
+    """Identity checks on facts the phone sent. A fact that was not sent adds nothing here."""
+    found: set[str] = set()
+    added = _days(case.get("contact_added_days"))
+    if added is not None and added < NEW_CONTACT_DAYS:
+        found.add("new_contact")
+    if case.get("request_channel") == "message_request":
+        found.add("message_request")
+    if case.get("claimed_name_matches_contact") is False:
+        found.add("name_mismatch")
+    if case.get("recipient_details_changed") is True:
+        found.add("recipient_details_changed")
+    age = _days(case.get("recipient_account_age_days"))
+    if age is not None and age < NEW_ACCOUNT_DAYS:
+        found.add("new_recipient_account")
+    if _days(case.get("prior_transfers_to_recipient")) == 0:
+        found.add("first_time_recipient")
+    return found
 
 
 def signal_codes(case: dict[str, Any]) -> list[str]:
@@ -280,6 +378,7 @@ def detect_signals(
     amount_source: str = "case",
     recipient_in_contacts: bool | None = None,
     request_facts_assumed: bool = False,
+    scam_patterns: list[str] | tuple[str, ...] = (),
 ) -> list[str]:
     """Deterministic typo and tamper checks on the safe facts. Returns codes from SIGNALS.
 
@@ -314,6 +413,8 @@ def detect_signals(
         found.add("recipient_contacts_unchecked")
     if request_facts_assumed:
         found.add("request_facts_assumed")
+    found |= identity_signals(case)
+    found |= {code for code in scam_patterns if code in SCAM_CODES}
 
     if previous:
         before = _decimal(previous.get("amount_usdc"))

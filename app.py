@@ -134,6 +134,67 @@ PRESSURE = re.compile(
     re.IGNORECASE,
 )
 
+# Scam patterns, in English and Spanish. They run here on the request and on the message that
+# asked for money; only the matching codes reach the agents, never the words.
+# Asked to give it to *them*: "send the PIN to my sister" is how a hold is collected, "read me the PIN" is not.
+_ASK = r"(?:(?:send|tell|give|read|share|text|forward)\s+(?:me|us)|dame|env[ií]ame|m[aá]ndame|dime|p[aá]same|l[eé]eme)"
+SCAM_PATTERNS: dict[str, re.Pattern[str]] = {
+    "claims_new_number": re.compile(
+        r"\b(?:new (?:phone |cell |mobile |whatsapp )?number|my new (?:phone|cell|whatsapp)|"
+        r"(?:lost|broke|dropped|cracked) my (?:phone|cell)|(?:my )?phone (?:broke|is broken|got stolen|was stolen)|"
+        r"n[uú]mero nuevo|nuevo n[uú]mero|perd[ií] (?:mi )?(?:tel[eé]fono|celular)|se me rompi[oó] el (?:tel[eé]fono|celular))\b",
+        re.IGNORECASE,
+    ),
+    "authority_impersonation": re.compile(
+        # Narrow on purpose: "immigration fees" or "her social security check" are honest family reasons.
+        r"\b(?:police|sheriff|irs|tax office|fraud (?:department|team|unit)|bank security|"
+        r"safe account|secure account|social security (?:administration|office)|federal agent|fbi|government agency|"
+        r"(?:immigration|customs) (?:officer|agent)|polic[ií]a|departamento de fraude|seguridad del banco|cuenta segura)\b",
+        re.IGNORECASE,
+    ),
+    "code_request": re.compile(
+        rf"\b(?:{_ASK}\s+(?:\w+\s+){{0,3}}?(?:pin|codes?|passcode|password|c[oó]digos?|clave|contrase[ñn]a)\b|"
+        r"verification codes?|one[- ]time (?:code|password)|recovery phrase|seed phrase|secret phrase|private key|"
+        r"anydesk|teamviewer|remote access|frase (?:de recuperaci[oó]n|semilla)|c[oó]digo de verificaci[oó]n)",
+        re.IGNORECASE,
+    ),
+    "payment_pivot": re.compile(
+        r"\b(?:gift ?cards?|itunes cards?|google play cards?|steam cards?|bitcoin|btc|crypto(?:currency)? atm|"
+        r"(?:new|different|another|other) (?:bank )?(?:account|wallet|address)|switched banks|"
+        r"tarjetas? de regalo|otra cuenta|cuenta nueva|nueva cuenta|billetera nueva|cambi[eé] de banco)\b",
+        re.IGNORECASE,
+    ),
+    "refund_overpayment": re.compile(
+        r"\b(?:(?:sent|paid|transferred|deposited) (?:you |to you )?(?:\w+ ){0,2}by mistake|sent (?:you )?too much|"
+        r"overpa(?:id|yment)|send (?:it |the (?:difference|extra|rest) )?back|refund (?:the|my) (?:difference|extra|overpayment)|"
+        r"(?:envi[eé]|deposit[eé]|mand[eé]) (?:\w+ ){0,2}por error|devu[eé]lv[ea]me)\b",
+        re.IGNORECASE,
+    ),
+    "investment_promise": re.compile(
+        r"\b(?:guaranteed (?:returns?|profits?)|double your money|investment opportunity|trading platform|"
+        r"returns? of \d+ ?%|\d+ ?% (?:returns?|profit)|ganancias? garantizadas?|duplica(?:r)? tu dinero|oportunidad de inversi[oó]n)",
+        re.IGNORECASE,
+    ),
+    "prize_fee": re.compile(
+        r"\b(?:you (?:have )?won|lottery|sweepstakes|inheritance|release fee|processing fee|claim (?:your|the) (?:prize|winnings)|"
+        r"ganaste|loter[ií]a|herencia|reclam(?:a|ar) (?:tu|el) premio)\b",
+        re.IGNORECASE,
+    ),
+    "emergency_story": re.compile(
+        # "by accident" / "por accidente" is not an accident story.
+        r"\b(?:(?<!by )(?<!by an )accident|car crash|in jail|arrested|bail|hospital|emergency|stranded|kidnapp?ed|ransom|"
+        r"(?<!por )accidente|c[aá]rcel|preso|arrestad[oa]|fianza|emergencia|secuestrad[oa]|rescate)\b",
+        re.IGNORECASE,
+    ),
+}
+
+
+def scam_patterns(*texts: str) -> list[str]:
+    """Scam pattern codes found in any of the texts."""
+    joined = "\n".join(text for text in texts if isinstance(text, str))
+    return [code for code, pattern in SCAM_PATTERNS.items() if pattern.search(joined)]
+
+
 # The last case this server reviewed. The Watchdog compares each new request with it,
 # so an amount or relationship that changes between reviews is noticed. A tab cannot
 # hide a change by editing what it sends: the memory lives here, not in the browser.
@@ -194,6 +255,17 @@ def safe_case(source: Any) -> dict[str, Any]:
     known = source.get("recipient_in_contacts")
     if known is True or known is False:
         result["recipient_in_contacts"] = known
+    # Identity facts the phone works out from its own contacts and history: counts, yes/no,
+    # and a channel name. The names and numbers they come from never leave the phone.
+    for field in ("claimed_name_matches_contact", "recipient_details_changed"):
+        if source.get(field) is True or source.get(field) is False:
+            result[field] = source[field]
+    for field in ("contact_added_days", "recipient_account_age_days", "prior_transfers_to_recipient"):
+        value = source.get(field)
+        if isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 100_000:
+            result[field] = value
+    if source.get("request_channel") in family_review.REQUEST_CHANNELS:
+        result["request_channel"] = source["request_channel"]
     relationship = source.get("relationship_verified")
     if relationship is True or relationship is False:
         result["relationship_verified"] = relationship
@@ -245,12 +317,17 @@ def transcript_notes(transcript: str) -> dict[str, Any]:
     }
 
 
-def check_case(case: dict[str, Any], transcript: str) -> dict[str, Any]:
-    """Attach the Watchdog's local typo and tamper signals to a prepared case."""
+def check_case(case: dict[str, Any], transcript: str, incoming_message: str = "") -> dict[str, Any]:
+    """Attach the Watchdog's local typo, tamper, identity and scam signals to a prepared case.
+
+    incoming_message is the text or call that asked for money. It is only scanned here for scam
+    patterns and pressure; its amounts are not the sender's instruction, and it is never forwarded."""
     checked = dict(case)
     mismatch = bool(checked.pop("prune_amount_disagrees", False))
     source = checked.pop("_amount_source", "case")
     defaulted = bool(checked.pop("_request_defaulted", False))
+    notes = transcript_notes(transcript)
+    notes["pressure"] = notes["pressure"] or bool(PRESSURE.search(incoming_message or ""))
     checked["signals"] = family_review.detect_signals(
         checked,
         previous=last_reviewed(),
@@ -258,7 +335,8 @@ def check_case(case: dict[str, Any], transcript: str) -> dict[str, Any]:
         amount_source=source,
         request_facts_assumed=defaulted,
         recipient_in_contacts=checked.get("recipient_in_contacts"),
-        **transcript_notes(transcript),
+        scam_patterns=scam_patterns(transcript, incoming_message),
+        **notes,
     )
     return checked
 
@@ -594,17 +672,23 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
         if not isinstance(transcript, str) or not transcript.strip() or len(transcript) > MAX_TRANSCRIPT_CHARS:
             self._json(HTTPStatus.BAD_REQUEST, {"error": "bad-transcript"})
             return
+        # The text or call that asked for money, if the app has it. Scanned here for scam
+        # patterns only: it is not sent to Prune or Swarms and not echoed back.
+        incoming = payload.get("incoming_message", "")
+        if not isinstance(incoming, str) or len(incoming) > MAX_TRANSCRIPT_CHARS:
+            self._json(HTTPStatus.BAD_REQUEST, {"error": "bad-incoming-message"})
+            return
 
         prepared = apply_voice_facts(payload.get("case"), transcript)
         if getattr(self.server, "offline", False):
-            case = check_case(prepared, transcript)
+            case = check_case(prepared, transcript, incoming)
             signals = family_review.describe_signals(case["signals"])
             review = family_review.offline_review(case)
             remember(case)
             self._json(HTTPStatus.OK, self._review_body(case, signals, review, prune_view(case, None)))
             return
         api_key = os.environ.get("SWARMS_API_KEY", "").strip()
-        local = check_case(prepared, transcript)
+        local = check_case(prepared, transcript, incoming)
         local_signals = family_review.describe_signals(local["signals"])
         if not api_key:
             self._json(
@@ -628,7 +712,7 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
                 {"error": "blocked-in", "case": local, "signals": local_signals, "prune": prune_view(local, None), "hold_policy": family_review.failed_policy(local, "blocked-in")},
             )
             return
-        case = check_case(apply_prune_fields(prepared, fields, transcript), transcript)
+        case = check_case(apply_prune_fields(prepared, fields, transcript), transcript, incoming)
         signals = family_review.describe_signals(case["signals"])
         try:
             review = family_review.run_review(case, api_key)

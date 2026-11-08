@@ -110,6 +110,20 @@ or another machine from spending the Swarms credits.
 - `recipient_in_contacts` is `true` or `false`, worked out **on the phone** from the sender's contacts.
   Only this yes/no is sent, never the contact list or phone numbers. `false` puts the transfer in a Safe Hold.
   Leave it out and the review only notes that contacts were not checked.
+- **Identity facts**, all optional and all worked out on the phone. Only these values are sent, never names
+  or phone numbers. A missing or wrongly typed value is ignored, not guessed.
+
+  | Field | Type | Holds when |
+  |---|---|---|
+  | `contact_added_days` | whole number | under 7: a brand-new contact (`new_contact`) |
+  | `request_channel` | `in_person`, `call`, `message`, `message_request`, `email`, `unknown` | `message_request` |
+  | `claimed_name_matches_contact` | boolean | `false`: the name they gave is not the saved name |
+  | `recipient_details_changed` | boolean | `true`: a different payment account than last time |
+  | `recipient_account_age_days` | whole number | under 7 adds a medium sign |
+  | `prior_transfers_to_recipient` | whole number | 0 adds a low sign |
+- `incoming_message` (optional, top level, up to 2000 characters): the text or call that asked for money.
+  The server scans it for scam patterns and pressure. It is **not** sent to Prune or Swarms and is not
+  echoed back; only the matching codes reach the agents.
 - `case` is optional. Amounts are strings with up to 2 decimals, at most 100000, and
   invalid values fall back to defaults. `output_locale` must be one of the 47 keys of
   `LANGUAGES` in `app.py`.
@@ -193,6 +207,20 @@ request, otherwise the next one is compared with the old one.
 | `invalid_amount_facts` | high | An amount, the total requested or the other contributions is missing or invalid. Unknown is never treated as zero. |
 | `recipient_not_in_contacts` | high | The recipient is not in the sender's contacts: paying someone you have not saved is how most scams start |
 | `recipient_contacts_unchecked` | low | The app did not send `recipient_in_contacts` |
+| `new_contact` | high | The recipient was saved less than 7 days ago |
+| `message_request` | high | The request came as a message request from someone never messaged before |
+| `name_mismatch` | high | The name the requester gave is not the saved contact's name |
+| `recipient_details_changed` | high | A known contact now wants a different payment account |
+| `new_recipient_account` | medium | The recipient's account is less than 7 days old |
+| `first_time_recipient` | low | No earlier transfers to this recipient |
+| `claims_new_number` | high | "this is my new number", "I dropped my phone", "perdí mi celular" |
+| `authority_impersonation` | high | Police, bank fraud team, "safe account", government agency |
+| `code_request` | high | "read me the code", verification codes, recovery phrase, AnyDesk. "Send the PIN to my sister" is fine; "send *me* the PIN" is not. |
+| `payment_pivot` | high | Gift cards, bitcoin, crypto ATM, "pay my new account", "switched banks" |
+| `refund_overpayment` | high | "I sent you 500 by mistake, send it back" |
+| `investment_promise` | high | Guaranteed returns, "double your money", trading platform |
+| `prize_fee` | high | Lottery, inheritance, "processing fee to claim your prize" |
+| `emergency_story` | medium | Accident, jail, bail, hospital, stranded ("by accident" does not count) |
 | `request_facts_assumed` | low | The total requested and other contributions were not supplied, so sample values were used. Send them in `case`. |
 | `self_correction` | medium | "actually", "I mean", "make it", "mejor dicho"... |
 | `pressure` | medium | "urgent", "don't tell", "gift card", "new number", "otra cuenta"... |
@@ -294,6 +322,55 @@ In the app, for example:
 ```ts
 const recipientInContacts = contacts.some((c) => normalizePhone(c.phone) === normalizePhone(typedPhone));
 body: JSON.stringify({ transcript, case: { ...previousCase, recipient_in_contacts: recipientInContacts } })
+```
+
+## Scam scenarios the agents are trained on
+
+The Skeptic, Watchdog and Judge carry a scam playbook (`SCAM_PLAYBOOK` in `swarm/family_review.py`):
+new-number impersonation, emergency/grandparent calls, authority impersonation, code theft, changed
+account details, and refund, investment and prize scams. For each one it gives the signs to look for
+and the safe step to tell the family, usually *"call them back on the number you already had saved"*.
+The playbook helps the agents explain; it never lets them add a sign the local checks did not find,
+and a model can never remove a hold the checks raised.
+
+`swarm/scam_scenarios.py` is the red-team suite: 11 scams (English and Spanish) and 3 honest controls
+that must go through, including one full of words that sound risky ("immigration fees", "I'll text her
+the PIN", "by accident").
+
+```bash
+python -m swarm.scam_scenarios            # local checks only: free, no keys
+python -m swarm.scam_scenarios --live     # real Prune + Swarms, prints the Judge's verdict for each
+python -m swarm.scam_scenarios --live --only hi_mom_new_number   # one scenario, for a judge demo
+```
+
+Live run on 2026-11-07 with real Prune and Swarms: **14/14**. All 11 scams went to the Safe Hold (the
+Judge chose `stop` for most), and all 3 honest controls were approved with no hold. What the Judge told the family:
+
+| Scenario | Judge |
+|---|---|
+| "Hi Mom, this is my new number" | stop: *"Do not sign it yet; call the son back on the old number already saved before sending anything."* |
+| Message request using a teammate's name | hold: *"Call the number you already had saved before anyone signs, because the message request and name mismatch could be a family impersonation scam."* |
+| Known contact, "pay my new account" | hold: *"Call your sister back on a number you already saved before you sign anything."* |
+| "Read me the code" | stop: *"Do not share any PIN, verification code, password, recovery phrase, or remote access request..."* |
+| Routine transfer to a teammate | confirm: *"You may review this family transfer of 80 digital dollars for school expenses."* |
+
+To teach it a new scam: add a scenario to `SCENARIOS`, run it, and if it is missed add a pattern to
+`SCAM_PATTERNS` in `app.py` (and a code in `SIGNALS`) or a line to `SCAM_PLAYBOOK`. Add an honest
+control for every new pattern so it does not start holding normal family transfers.
+
+For the judges, in the app send screen:
+
+```ts
+const saved = contacts.find((c) => normalizePhone(c.phone) === normalizePhone(typedPhone));
+const facts = {
+  recipient_in_contacts: Boolean(saved),
+  contact_added_days: saved ? daysSince(saved.addedAt) : undefined,
+  request_channel: requestCameFrom,            // "message_request" when it came from an unknown sender
+  claimed_name_matches_contact: saved ? sameName(claimedName, saved.name) : undefined,
+  recipient_details_changed: saved ? saved.lastWallet !== typedWallet : undefined,
+  prior_transfers_to_recipient: saved?.transfers ?? 0,
+};
+body: JSON.stringify({ transcript, incoming_message: messageThatAskedForMoney, case: { ...previousCase, ...facts } })
 ```
 
 ## Calling it from the Nest app
