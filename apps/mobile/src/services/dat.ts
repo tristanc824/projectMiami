@@ -31,12 +31,12 @@ export type TokenSource = () => Promise<string | null>;
 export type Signer = (messageBase64: string) => Promise<string>;
 
 async function call<T>(path: string, init: RequestInit): Promise<T> {
-  if (!datConfigured) throw new Error('The Guard server address is not set (EXPO_PUBLIC_DAT_API_URL).');
+  if (!datConfigured) throw new Error('The Nest server address is not set (EXPO_PUBLIC_DAT_API_URL).');
   let res: Response;
   try {
     res = await fetch(`${baseUrl}${path}`, init);
   } catch {
-    throw new Error('Could not reach the Guard server. Check your connection and try again.');
+    throw new Error('Could not reach the Nest server. Check your connection and try again.');
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Something went wrong. Please try again.');

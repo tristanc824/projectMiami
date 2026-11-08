@@ -1,16 +1,22 @@
-# Guard — iPhone and web preview
+# Nest — mobile and web app
 
-React Native + Expo SDK 58 + TypeScript + Expo Router. Upgraded from SDK 57 to match the Expo Go version installed on the team's iPhone. React Native, React, Router, and Expo modules are aligned with SDK 58.
+React Native + Expo SDK 58 + TypeScript + Expo Router.
 
-**Protect what matters.** The latest styling uses bold amounts, a prominent keypad, and rounded pill controls inspired by the user-supplied Cash App screenshot.
+The app is redesigned around the supplied [Nest mockups](../../app-design/nest-app-screens.html) and [website](../../web-earth/): warm cream, moss green, bundled Figtree fonts, the Nest ring mark, meadow photography, and flat pill controls. [DESIGN.md](../../DESIGN.md) describes the implementation and its limits.
 
-The current UI follows the user's globe/wallet references: white surfaces, black text and globe artwork, blue accents, and a floating glass tab bar. The first launch opens the new sign-in screen; choose **Demo** to enter the sample wallet. Reopen the welcome screen from **You → Open sign-in screen**. Native Liquid Glass is used when the iPhone/build supports it; other platforms use a frosted fallback. Auth0 still needs tenant configuration and a native development/TestFlight build for actual iPhone sign-in.
+The primary tabs are **Home, Save, Security, You**. Send starts with recipient selection and ends with a review sheet. Receive generates a real scannable QR request link. Activity and the retained family requests are full screens accessible from You.
 
-The sign-in screen is now fully black, with the complete globe centered beneath the Guard tagline and **Demo** / **Sign in** pill buttons at the bottom. Its layout fits a 320 × 568 phone without cropping the globe.
+**Demo** opens a local wallet starting at $0; use Add to try payments. Savings goals reserve part of the demo balance, persist on the device, and release funds back to the available balance. Live savings are disabled. Security protections shown in the mockups are labeled as previews until connected; existing Auth0 / Privy sign-in is preserved. Completed devnet transfers cannot be undone.
 
-The login globe now spins in 3D on a 45-second loop using Expo GL, which is included in Expo Go SDK 58. It pauses when the app is backgrounded or login loses focus. Reduce Motion shows the original static globe. The home globe stays static.
+The app display name and icons are Nest. Existing signing identifiers, callback scheme (`lazo`), API contracts, and storage keys are preserved for compatibility. A native build must be regenerated/rebuilt to pick up its installed display name and icon.
 
-Animation verification: six browser flow checks passed, including rendered-frame motion, removal of the animation surface after navigation, and live Reduced Motion preference changes. TypeScript, lint, and the iOS JavaScript export passed. Physical-device animation performance has not been measured.
+## Withdraw, contacts, and keyboard improvements
+
+Withdraw offers Bank account and Apple Cash, both using the same Nest account balance. Local demo withdrawals deduct the amount and example fee, excluding reserved savings. Connected withdrawals return test USDC to the demo treasury through the existing devnet cash-out flow. Apple Cash and bank delivery remain simulated. Receipts identify the destination, devnet transaction when applicable, and payout status.
+
+Save private names for recipients from Send, receipts, or You → Saved contacts. Previous recipients appear in Send again; saved names work in payment review, receipts, and activity search. Contact books are local and separate for demo mode and each connected wallet.
+
+Forms, sign-in, and bottom sheets adjust for the native keyboard and scroll the focused field into view. A Done toolbar dismisses numeric keyboards. The custom amount keypad yields while typing phone numbers or notes. [UX_AUDIT.md](./UX_AUDIT.md) records the fixes and verification limits.
 
 ## Get it on your iPhone tonight
 
@@ -53,13 +59,13 @@ The authoritative Expo configuration is `app.config.ts`; generated native folder
 
 ## Live mode: real devnet wallets
 
-A **development or TestFlight build** can run Guard against the DAT backend in [`apps/api`](../api/HANDOFF.md). Expo Go and web always stay in demo mode, because Privy's Expo SDK needs native modules and doesn't support the web.
+A **development or TestFlight build** can run Nest against the DAT backend in [`apps/api`](../api/HANDOFF.md). Expo Go and web always stay in demo mode, because Privy's Expo SDK needs native modules and doesn't support the web.
 
 | Step | In live mode |
 | --- | --- |
 | Sign in | SMS code through Privy, which creates a self-custody Solana wallet |
 | Balance | Real devnet USDC, refreshed every 4 seconds; incoming payments appear as "Money received" |
-| Send | To any phone number. A number not on Guard yet gets a wallet waiting for its owner |
+| Send | To any phone number. A number not on Nest yet gets a wallet waiting for its owner |
 | Add | Stripe **test** card (whole dollars, up to $20), then real devnet USDC from the treasury |
 | Withdraw | Real USDC back to the treasury; the bank payout is **simulated** |
 | Receipt | Transaction signature and a Solana Explorer link |
@@ -80,7 +86,7 @@ Not yet verified on a device: the format of Privy's Expo signature (the app acce
 
 ## What is still simulated
 
-**In demo mode, all money movement is simulated.** Balances, transfers, family goals, and MXN rates are local sample data. No real wallet, on-chain transfer, bank account, card charge, or fiat partner is connected. Demo wallets start at $0; use Add to fund tests or Reset demo to start over. Request links open a payment review with the recipient phone number, amount, and note filled in; demo payments stay on the sender’s device. Web links use the current site address (localhost links require access to that server); Expo Go links require the running Expo server, and development/TestFlight links require Guard installed. Live requests use the signed-in phone number and require a live Guard build to send devnet USDC. Existing version-1 demo data resets once to the empty wallet; subsequent test funds persist. Live mode is described above.
+**In demo mode, all money movement is simulated.** Balances, transfers, family goals, and MXN rates are local sample data. No real wallet, on-chain transfer, bank account, card charge, or fiat partner is connected. Demo wallets start at $0; use Add to fund tests or Reset demo to start over. Request links open a payment review with the recipient phone number, amount, and note filled in; demo payments stay on the sender’s device. Web links use the current site address (localhost links require access to that server); Expo Go links require the running Expo server, and development/TestFlight links require Nest installed. Live requests use the signed-in phone number and require a live Nest build to send devnet USDC. Existing version-1 demo data resets once to the empty wallet; subsequent test funds persist. Live mode is described above.
 
 Wallet custody and the actual corridor/provider remain team decisions. This first version intentionally does not decide those through hidden implementation assumptions.
 
@@ -92,7 +98,7 @@ The native Auth0 SDK needs a **development or TestFlight build**, not Expo Go. E
 
 1. Create a Native application in your Auth0 tenant for iOS. Use a separate Single Page Application for the web deployment if appropriate for your tenant configuration.
 2. Copy `.env.example` to `.env` and enter the public domain/client ID for the target build. Never add a client secret, seed phrase, private key, or backend secret to an `EXPO_PUBLIC_` variable.
-3. Keep the bundle identifier consistent with your App Store Connect record. Default: `com.projectmiami.lazo`. The custom URL scheme is `lazo`. These internal identifiers are retained from the original scaffold to preserve callbacks and existing signing setup; the display name, Expo slug, icon, and UI now use Guard.
+3. Keep the bundle identifier consistent with your App Store Connect record. Default: `com.projectmiami.lazo`. The custom URL scheme is `lazo`. These internal identifiers are retained from the original scaffold to preserve callbacks and existing signing setup; the display name, Expo slug, icon, and UI now use Nest.
 4. For that default identifier, add this exact callback URL **and logout URL** to the Native application, substituting your real domain:
 
 ```text
@@ -152,17 +158,11 @@ npm run test:browser
 
 Browser tests use installed Google Chrome and a localhost Expo server. The Node/browser processes need local IPC/socket access. They check the end-to-end demo flow; they do not test a Solana transaction, bank payout, or unconfigured Auth0 tenant.
 
-Verification completed for this initial version: TypeScript and lint passed; seven domain tests and two phone-sized browser flow tests passed. Web and iOS JavaScript exports and iOS native prebuild succeeded. The iOS export is not a compiled/signed IPA, and no physical-device install or TestFlight upload has been verified. Phone/desktop screenshots are in `../../design/previews/`.
-
-SDK 58 upgrade verification: Expo Doctor passed all 20 checks; TypeScript, lint, seven domain tests, three browser/manifest tests, the iOS JavaScript export, and regenerated iOS prebuild passed. The iPhone manifest explicitly advertises `sdkVersion: 58.0.0` and `runtimeVersion: exposdk:58.0.0`.
-
-Globe/glass redesign verification: TypeScript, lint, all 20 Expo Doctor checks, four browser/manifest flow tests, and the updated iOS JavaScript export passed. Screenshots cover the globe sign-in screen, home, sending/review, family, a 320-point phone, and desktop web. Native glass appearance still needs a physical-device check; the browser screenshots show the frosted fallback.
-
 ## Files for teammates
 
 - `src/app/`: Expo Router screens and navigation.
 - `src/components/`: shared UI and amount keypad.
-- `src/theme.ts`: Guard design tokens.
+- `src/theme.ts`: Nest design tokens.
 - `src/domain/wallet.ts`: pure demo arithmetic and validation.
 - `src/state/WalletProvider.tsx`: local demo state/persistence.
 - `src/services/auth.ts`: Auth0 native/web integration.

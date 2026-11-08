@@ -12,7 +12,7 @@ const ThemeContext = createContext<{ scheme: Scheme; preference: ThemePreference
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const system = useColorScheme();
-  const [preference, setPreferenceState] = useState<ThemePreference>('system');
+  const [preference, setPreferenceState] = useState<ThemePreference>('light');
   useEffect(() => {
     let active = true;
     void AsyncStorage.getItem(THEME_KEY).then(value => {
