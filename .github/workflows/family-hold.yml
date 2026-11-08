@@ -79,6 +79,8 @@ jobs:
             # solana-program 1.18 uses blake3's `digest` feature; newer blake3 moved to digest 0.11,
             # whose crypto-common 0.2 / hybrid-array 0.4 are edition 2024 (Cargo 1.75 cannot read them).
             pin blake3 1 1.5.5
+            # getrandom 0.3.2+ adds a wasip2 backend (wasip2 needs Rust 1.87, wit-bindgen is edition 2024).
+            pin getrandom 0.3 0.3.1
           fi
           grep -A1 -E 'name = "(blake3|digest|crypto-common|proc-macro-crate|toml_edit|indexmap)"' Cargo.lock
 
@@ -96,7 +98,7 @@ jobs:
             echo "$bad"
             for spec in $(echo "$bad" | cut -d' ' -f1); do
               echo "== $spec is pulled in by:"
-              cargo tree --locked -i "$spec" -e normal,build --target all | head -15 || true
+              cargo tree --locked -i "$spec" -e normal,build --target all 2>&1 | head -15 || true
             done
             exit 1
           fi
