@@ -211,4 +211,4 @@ English for the missing-person question (new): "Who do you want to send $250 to?
 - pesos / mangos / lucas / palos → the pesos question (V6.3).
 - dólares / verdes / USD → dollars.
 
-**Decided (Caleb, Nov 7): keep "$" in Spanish**, same as English. Mitigation: the confirm card already says "Nest envía dólares" context via the read-back and the amount question, and V6.3 asks "¿En dólares?" whenever pesos are mentioned. Locale number formats still differ (AR: 250,00; MX: 250.00). An Argentine speaker should proofread the vos column.
+**Decided (Caleb, Nov 7): keep "$" in Spanish**, same as English. The safeguard is V6.3: whenever the user mentions pesos or slang for local money, Nest asks "¿En dólares?" before drafting anything. Locale number formats still differ (AR: 250,00; MX: 250.00). An Argentine speaker should proofread the vos column.
