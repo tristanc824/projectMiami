@@ -8,6 +8,7 @@ holds USDC, and it does not settle the product decisions that remain open.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -45,6 +46,11 @@ SIGNALS: dict[str, tuple[str, str]] = {
     "pressure": ("medium", "The request pushes for speed or secrecy, or asks for a new way to pay."),
 }
 HIGH_SIGNALS = {code for code, (level, _) in SIGNALS.items() if level == "high"}
+
+# Safe Hold: a flagged transfer waits this long on-chain, then needs the sender and the
+# approver to sign. SAFE_HOLD_SECONDS shortens it for a live demo.
+SAFE_HOLD_SECONDS = int(os.environ.get("SAFE_HOLD_SECONDS", str(24 * 60 * 60)))
+SKEPTIC_FLAG = re.compile(r"^\s*flag:\s*(yes|no)\s*$", re.IGNORECASE | re.MULTILINE)
 
 SAMPLE_CASE = {
     "sender_role": "relative in Miami",
@@ -105,7 +111,9 @@ Translate naturally and do not mix languages unless a proper noun requires it.""
 State which of those checks the supplied facts support, and name what that check cannot stop.
 A warning that exists only in the app is not a security boundary; say so if the proposed check is only a warning.
 Do not introduce any other threat, feature, fee, exchange rate, delivery time, corridor, provider, custody model, or recovery model.
-Pass the checked amount, relationship status, threat, and limit forward clearly for the Judge.""",
+Pass the checked amount, relationship status, threat, and limit forward clearly for the Judge.
+End with exactly one line: "flag: yes" when the facts do not support the amount, the person, or the relationship, or when any warning sign marked high is listed; otherwise "flag: no".
+A flagged transfer is not refused: it waits 24 hours in a Safe Hold and then needs the sender and a second family member to confirm.""",
             ),
             agent(
                 "Watchdog",
@@ -327,9 +335,11 @@ def offline_review(case: dict[str, Any]) -> dict[str, Any]:
         f"You are about to send {amount} digital dollars to {relation}, and the local payout is a labeled simulation. "
         f"[Offline demo: the {language} sentence needs the Swarms API.]"
     )
+    flagged_offline = not verified or any(code in HIGH_SIGNALS for code in codes)
     skeptic = (
         "Offline demo. The amount and relationship checks need the Swarms agents. "
-        "A warning that exists only in the app is not a security boundary."
+        "A warning that exists only in the app is not a security boundary.\n"
+        f"flag: {'yes' if flagged_offline else 'no'}"
     )
     if codes:
         notes = [f"- {SIGNALS[code][1]}" for code in codes]
@@ -355,12 +365,64 @@ def offline_review(case: dict[str, Any]) -> dict[str, Any]:
         },
         codes,
     )
+    outputs = {"PlainSpeaker": plain, "Skeptic": skeptic, "Watchdog": watchdog, "Judge": json.dumps(verdict)}
     return {
-        "outputs": {"PlainSpeaker": plain, "Skeptic": skeptic, "Watchdog": watchdog, "Judge": json.dumps(verdict)},
+        "outputs": outputs,
         "verdict": verdict,
+        "hold_policy": hold_policy(case, outputs, verdict),
         "credit_cost": None,
         "attempts": 1,
         "offline": True,
+    }
+
+
+def skeptic_flag(text: str) -> bool | None:
+    """The Skeptic's last "flag: yes|no" line, or None when it gave none."""
+    found = SKEPTIC_FLAG.findall(text or "")
+    return None if not found else found[-1].lower() == "yes"
+
+
+def review_hash(case: dict[str, Any], verdict: dict[str, Any]) -> str:
+    """sha256 of the safe facts and the verdict. It goes on-chain with a Safe Hold, so anyone can
+    check later that this hold came from this review. No names or numbers beyond amounts are in it."""
+    facts = {
+        "amount_usdc": case.get("amount_usdc"),
+        "requested_usdc": case.get("requested_usdc"),
+        "other_contributions_usdc": case.get("other_contributions_usdc"),
+        "relationship_verified": case.get("relationship_verified") is True,
+        "signals": signal_codes(case),
+        "decision": verdict.get("decision"),
+        "suspicion": verdict.get("suspicion"),
+        "sentence": verdict.get("sentence"),
+    }
+    canonical = json.dumps(facts, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def hold_policy(case: dict[str, Any], outputs: dict[str, str], verdict: dict[str, Any]) -> dict[str, Any]:
+    """Whether this transfer must go into a Safe Hold, and why.
+
+    Flagged when the Skeptic says "flag: yes" (or gives no flag line: fail closed), when the
+    Watchdog's local checks found a high sign, or when the Judge did not confirm. A model can
+    add a flag; it cannot remove one the local checks raised."""
+    reasons: list[str] = []
+    flag = skeptic_flag(outputs.get("Skeptic", ""))
+    if flag is None:
+        reasons.append("skeptic_unclear")
+    elif flag:
+        reasons.append("skeptic_flag")
+    reasons += [f"watchdog:{code}" for code in signal_codes(case) if code in HIGH_SIGNALS]
+    if verdict.get("decision") != "confirm":
+        reasons.append(f"judge:{verdict.get('decision')}")
+    required = bool(reasons)
+    return {
+        "required": required,
+        "hold_seconds": SAFE_HOLD_SECONDS if required else 0,
+        "hold_hours": round(SAFE_HOLD_SECONDS / 3600, 2) if required else 0,
+        "confirmations": ["sender", "approver"] if required else ["approver"],
+        "reasons": reasons,
+        "review_hash": review_hash(case, verdict),
+        "sender_can_cancel": True,
     }
 
 
@@ -519,9 +581,11 @@ def run_review(case: dict[str, Any], api_key: str) -> dict[str, Any]:
             untranslated = not english_output(case) and verdict["sentence"].strip() == verdict["sentence_es"].strip()
             if untranslated and attempt == 0:
                 continue
+            checked = apply_checks(verdict, signal_codes(case))
             return {
                 "outputs": outputs,
-                "verdict": apply_checks(json.loads(verdict_text(outputs["Judge"])), signal_codes(case)),
+                "verdict": checked,
+                "hold_policy": hold_policy(case, outputs, checked),
                 "credit_cost": total_cost if has_cost else None,
                 "attempts": attempt + 1,
             }

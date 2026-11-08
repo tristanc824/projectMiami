@@ -37,6 +37,7 @@ class FakeUpstream(BaseHTTPRequestHandler):
     credits = 25.0
     prune_amount: str | None = None  # None: echo the note's amount, like a correct Prune
     same_language = False  # True: the Judge writes both sentences in Spanish, as a real run once did
+    skeptic_line = "\nflag: no"
 
     def log_message(self, *args) -> None:  # keep test output quiet
         pass
@@ -91,7 +92,7 @@ class FakeUpstream(BaseHTTPRequestHandler):
             "output": [
                 {"role": "User", "content": body["task"]},
                 {"role": "PlainSpeaker", "content": "You are about to send money. La transferencia es una simulación."},
-                {"role": "Skeptic", "content": "The amount and relationship are stated."},
+                {"role": "Skeptic", "content": "The amount and relationship are stated." + FakeUpstream.skeptic_line},
                 {"role": "Watchdog", "content": "No warning signs from the local checks.\nsuspicion: none"},
                 {"role": "Judge", "content": "```json\n" + json.dumps(verdict) + "\n```"},
             ],
@@ -132,6 +133,7 @@ class ReviewApiTest(unittest.TestCase):
         FakeUpstream.judge_decision = "confirm"
         FakeUpstream.credits = 25.0
         FakeUpstream.prune_amount = None
+        FakeUpstream.skeptic_line = "\nflag: no"
         FakeUpstream.swarm_bodies.clear()
         FakeUpstream.prune_bodies.clear()
         FakeUpstream.prune_headers.clear()
@@ -218,6 +220,69 @@ class ReviewApiTest(unittest.TestCase):
             FakeUpstream.same_language = False
         self.assertEqual(status, 200, body)
         self.assertEqual(body["attempts"], 2, "an English sentence identical to the Spanish one triggers one retry")
+
+    # --- Safe Hold -------------------------------------------------------------------
+
+    def test_clean_review_needs_no_safe_hold(self) -> None:
+        status, body = self.post("/api/review", {"transcript": "Send 80 dollars. The relationship is verified."})
+        policy = body["hold_policy"]
+        self.assertEqual(status, 200, body)
+        self.assertFalse(policy["required"])
+        self.assertEqual(policy["confirmations"], ["approver"])
+        self.assertRegex(policy["review_hash"], r"^[0-9a-f]{64}$")
+
+    def test_extra_zero_goes_to_a_24_hour_double_confirmed_safe_hold(self) -> None:
+        status, body = self.post("/api/review", {"transcript": "Send 800 dollars."})
+        policy = body["hold_policy"]
+        self.assertTrue(policy["required"])
+        self.assertEqual((policy["hold_seconds"], policy["hold_hours"]), (86400, 24))
+        self.assertEqual(policy["confirmations"], ["sender", "approver"])
+        self.assertIn("watchdog:extra_zero", policy["reasons"])
+        self.assertTrue(policy["sender_can_cancel"])
+
+    def test_skeptic_flag_forces_a_safe_hold_even_when_the_judge_confirms(self) -> None:
+        FakeUpstream.skeptic_line = "\nflag: yes"
+        status, body = self.post("/api/review", {"transcript": "Send 80 dollars. The relationship is verified."})
+        self.assertEqual(body["verdict"]["decision"], "confirm")
+        self.assertTrue(body["hold_policy"]["required"])
+        self.assertEqual(body["hold_policy"]["reasons"], ["skeptic_flag"])
+
+    def test_a_skeptic_without_a_flag_line_fails_closed(self) -> None:
+        FakeUpstream.skeptic_line = ""
+        status, body = self.post("/api/review", {"transcript": "Send 80 dollars. The relationship is verified."})
+        self.assertTrue(body["hold_policy"]["required"])
+        self.assertIn("skeptic_unclear", body["hold_policy"]["reasons"])
+
+    def test_review_hash_changes_with_the_amount(self) -> None:
+        _, first = self.post("/api/review", {"transcript": "Send 80 dollars. The relationship is verified."})
+        self.post("/api/reset", {})
+        _, second = self.post("/api/review", {"transcript": "Send 70 dollars. The relationship is verified."})
+        self.assertNotEqual(first["hold_policy"]["review_hash"], second["hold_policy"]["review_hash"])
+
+    def test_hold_account_is_decoded_for_an_approver_screen(self) -> None:
+        data = bytearray(243)
+        data[0] = 1
+        data[1:33] = bytes(range(1, 33))
+        data[161:169] = (80_000_000).to_bytes(8, "little")
+        data[202:210] = (1_000_000 + 86_400).to_bytes(8, "little", signed=True)
+        data[210:242] = bytes.fromhex("ab" * 32)
+        data[242] = 1
+        hold = app.decode_hold("state", bytes(data), now=1_000_000)
+        self.assertEqual(hold["amount_usdc"], "80")
+        self.assertTrue(hold["safe_hold"])
+        self.assertEqual(hold["seconds_left"], 86_400)
+        self.assertFalse(hold["can_release_now"])
+        self.assertEqual(hold["needs"], ["sender signature", "approver signature", "PIN"])
+        self.assertEqual(hold["review_hash"], "ab" * 32)
+        later = app.decode_hold("state", bytes(data), now=1_000_000 + 86_401)
+        self.assertTrue(later["can_release_now"])
+
+    def test_hold_endpoint_rejects_a_bad_address(self) -> None:
+        import http.client
+
+        connection = http.client.HTTPConnection("127.0.0.1", self.api.server_address[1], timeout=30)
+        connection.request("GET", "/api/hold/not-an-address!")
+        self.assertEqual(connection.getresponse().status, 400)
 
     def test_judge_output_matched_by_agent_name(self) -> None:
         outputs = family_review.extract_outputs({"output": [

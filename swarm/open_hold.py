@@ -1,7 +1,9 @@
 """Run Prune, then the swarm, and stop before any signature unless both pass.
 
-Deposit happens only when the Judge says confirm and Prune returns a receipt
-signature, and it locks exactly the reviewed amount. The Solana hold itself is
+A clean review is sealed by Prune and locked as usual. A flagged review (the
+Skeptic flags it, the Watchdog finds a high sign, or the Judge does not
+confirm) goes into a Safe Hold: 24 hours on-chain, then the sender and the
+approver must both confirm. Either way it locks exactly the reviewed amount. The Solana hold itself is
 node hold/hold.mjs. The sender can refund that hold alone. Only the approver,
 the other family member, can release it, with their signature and the PIN.
 """
@@ -70,10 +72,23 @@ def main() -> int:
 
     review = run_review(case, api_key)
     verdict = review["verdict"]
+    policy = review["hold_policy"]
     print(verdict["decision"])
-    if verdict["decision"] != "confirm":
+    node = ["node", str(ROOT / "hold" / "hold.mjs"), "lock", amount, "--review-hash", policy["review_hash"]]
+
+    if policy["required"]:
+        # Flagged: not refused, but the money waits on-chain and needs two confirmations.
+        print("SAFE HOLD: " + ", ".join(policy["reasons"]))
         print(verdict["sentence"])
-        return 0
+        print(
+            f"The money waits {policy['hold_hours']:g} hours on-chain. Then the sender and the approver must both "
+            "confirm. The sender can cancel any time."
+        )
+        if not args.deposit:
+            print(f"Pass --deposit to lock {amount} test USDC in a Safe Hold.")
+            return 0
+        completed = subprocess.run([*node, "--hold-seconds", str(policy["hold_seconds"])], cwd=ROOT, check=False)
+        return completed.returncode
 
     try:
         sealed = seal_sentence(verdict["sentence"])
@@ -92,14 +107,9 @@ def main() -> int:
         print(f"Pass --deposit to lock {amount} test USDC after this confirm.")
         return 0
 
-    # Lock exactly the amount the swarm reviewed, not a demo amount.
-    completed = subprocess.run(
-        ["node", str(ROOT / "hold" / "hold.mjs"), "lock", amount],
-        cwd=ROOT,
-        check=False,
-    )
+    # Lock exactly the amount the swarm reviewed, with the review's fingerprint on-chain.
+    completed = subprocess.run(node, cwd=ROOT, check=False)
     return completed.returncode
-
 
 if __name__ == "__main__":
     sys.exit(main())

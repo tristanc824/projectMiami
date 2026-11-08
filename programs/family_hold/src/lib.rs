@@ -8,6 +8,12 @@
 //! The PIN is not a secret on its own: its hash sits in public account data
 //! and a 6-digit space is searched in well under a second. The approver's
 //! signature is what stops a stranger, or the recipient alone, from releasing.
+//!
+//! Safe Hold: a deposit may carry a cooling-off delay and a 32-byte hash of
+//! the AI review that flagged it. A flagged hold cannot be released before
+//! its release time, and release then needs the sender to sign again as well
+//! as the approver: a double confirmation after the pressure of the moment
+//! has passed. The sender can still refund at any time.
 
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -16,6 +22,7 @@ use solana_program::{
     program::{invoke, invoke_signed},
     program_error::ProgramError,
     program_pack::Pack,
+    clock::Clock,
     hash::hash,
     pubkey::Pubkey,
     rent::Rent,
@@ -34,7 +41,7 @@ solana_program::declare_id!("7NKeoXoNEgW11tgZKV18PPdktQyFHtYQ4CxJA2ffyC6g");
 const DEPOSIT: u8 = 0;
 const REFUND: u8 = 1;
 const RELEASE: u8 = 2;
-const STATE_SIZE: usize = 202;
+const STATE_SIZE: usize = 243;
 const TAG: usize = 0;
 const SENDER: usize = 1;
 const APPROVER: usize = 33;
@@ -44,6 +51,11 @@ const VAULT: usize = 129;
 const AMOUNT: usize = 161;
 const BUMP: usize = 169;
 const PIN_HASH: usize = 170;
+const RELEASE_AFTER: usize = 202; // i64 unix seconds; 0 = no cooling-off
+const REVIEW_HASH: usize = 210; // sha256 of the review that flagged the transfer
+const FLAGS: usize = 242;
+const FLAG_SAFE_HOLD: u8 = 1;
+const MAX_HOLD_SECONDS: u64 = 30 * 24 * 60 * 60;
 
 const BAD_INSTRUCTION: u32 = 0;
 const SAME_PERSON: u32 = 1;
@@ -53,6 +65,8 @@ const WRONG_DESTINATION: u32 = 4;
 const WRONG_MINT: u32 = 5;
 const WRONG_APPROVER: u32 = 6;
 const WRONG_OWNER: u32 = 7;
+const TOO_EARLY: u32 = 8;
+const BAD_HOLD: u32 = 9;
 
 fn process_instruction(
     program_id: &Pubkey,
@@ -74,7 +88,8 @@ fn process_instruction(
 }
 
 fn deposit(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
-    if data.len() != 40 {
+    // 40 bytes: amount, PIN hash. 80 bytes: also a Safe Hold delay and the review hash.
+    if data.len() != 40 && data.len() != 80 {
         return Err(ProgramError::InvalidInstructionData);
     }
     let amount = u64::from_le_bytes(data[..8].try_into().unwrap());
@@ -82,6 +97,22 @@ fn deposit(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Progra
     if amount == 0 {
         return Err(ProgramError::InvalidInstructionData);
     }
+    let (hold_seconds, review_hash) = if data.len() == 80 {
+        let seconds = u64::from_le_bytes(data[40..48].try_into().unwrap());
+        let review: [u8; 32] = data[48..80].try_into().unwrap();
+        (seconds, review)
+    } else {
+        (0, [0u8; 32])
+    };
+    if hold_seconds > MAX_HOLD_SECONDS {
+        return Err(ProgramError::Custom(BAD_HOLD));
+    }
+    let (release_after, flags) = if hold_seconds > 0 {
+        let now = Clock::get()?.unix_timestamp;
+        (now + hold_seconds as i64, FLAG_SAFE_HOLD)
+    } else {
+        (0, 0)
+    };
 
     let account_info_iter = &mut accounts.iter();
     let fee_payer = next_account_info(account_info_iter)?;
@@ -160,6 +191,9 @@ fn deposit(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Progra
         amount,
         vault_bump,
         &pin_hash,
+        release_after,
+        &review_hash,
+        flags,
     )?;
 
     let vault_bump_bytes = [vault_bump];
@@ -242,6 +276,13 @@ fn release(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Progra
     if hold.approver != *approver.key {
         return Err(ProgramError::Custom(WRONG_APPROVER));
     }
+    if hold.flags & FLAG_SAFE_HOLD != 0 {
+        // Safe Hold: the cooling-off must be over, and the sender confirms again.
+        if Clock::get()?.unix_timestamp < hold.release_after {
+            return Err(ProgramError::Custom(TOO_EARLY));
+        }
+        require_signer(sender)?;
+    }
     if hash(data).to_bytes() != hold.pin_hash {
         return Err(ProgramError::Custom(WRONG_PIN));
     }
@@ -275,6 +316,8 @@ struct Hold {
     amount: u64,
     vault_bump: u8,
     pin_hash: [u8; 32],
+    release_after: i64,
+    flags: u8,
 }
 
 fn load_state(
@@ -298,6 +341,8 @@ fn load_state(
         amount: u64::from_le_bytes(data[AMOUNT..AMOUNT + 8].try_into().unwrap()),
         vault_bump: data[BUMP],
         pin_hash: data[PIN_HASH..PIN_HASH + 32].try_into().unwrap(),
+        release_after: i64::from_le_bytes(data[RELEASE_AFTER..RELEASE_AFTER + 8].try_into().unwrap()),
+        flags: data[FLAGS],
     };
     let vault_key = read_key(&data, VAULT);
     drop(data);
@@ -433,6 +478,9 @@ fn write_state(
     amount: u64,
     vault_bump: u8,
     pin_hash: &[u8; 32],
+    release_after: i64,
+    review_hash: &[u8; 32],
+    flags: u8,
 ) -> ProgramResult {
     let mut data = state.data.borrow_mut();
     if data.len() != STATE_SIZE {
@@ -448,6 +496,9 @@ fn write_state(
     data[AMOUNT..AMOUNT + 8].copy_from_slice(&amount.to_le_bytes());
     data[BUMP] = vault_bump;
     data[PIN_HASH..PIN_HASH + 32].copy_from_slice(pin_hash);
+    data[RELEASE_AFTER..RELEASE_AFTER + 8].copy_from_slice(&release_after.to_le_bytes());
+    data[REVIEW_HASH..REVIEW_HASH + 32].copy_from_slice(review_hash);
+    data[FLAGS] = flags;
     Ok(())
 }
 

@@ -5,10 +5,13 @@
  * Release pays the recipient only when the approver signs and the 6-digit PIN
  * matches. The token is a test mint, not Circle USDC.
  *
- *   node hold/hold.mjs demo             lock, test the refusals, refund, lock, release
- *   node hold/hold.mjs lock <amount>    lock <amount> test USDC and print the PIN
- *   node hold/hold.mjs refund           the sender cancels the current lock
- *   node hold/hold.mjs release <pin>    the approver releases it to the recipient
+ *   node hold/hold.mjs demo             lock, test the refusals, refund, lock, release, then a Safe Hold
+ *   node hold/hold.mjs lock <amount> [--hold-seconds N] [--review-hash HEX]
+ *                                       lock <amount> test USDC and print the PIN; with --hold-seconds
+ *                                       it is a Safe Hold (cooling-off, then sender + approver sign)
+ *   node hold/hold.mjs status           show the open hold, its release time and whether it is flagged
+ *   node hold/hold.mjs refund           the sender cancels the current lock, any time
+ *   node hold/hold.mjs release <pin>    the approver releases it (and the sender signs again on a Safe Hold)
  */
 import {
   Connection,
@@ -99,13 +102,54 @@ async function requireProgram(connection) {
   }
 }
 
-export async function deposit({ connection, feePayer, sender, approver, recipient, mint, amount, pin }) {
+// State layout from programs/family_hold/src/lib.rs.
+const STATE_SIZE = 243;
+const RELEASE_AFTER = 202;
+const REVIEW_HASH = 210;
+const FLAGS = 242;
+const FLAG_SAFE_HOLD = 1;
+const MAX_HOLD_SECONDS = 30 * 24 * 60 * 60;
+
+/** Reads a hold account. Returns null when no hold is open. */
+export async function readHold(connection, state) {
+  const info = await connection.getAccountInfo(state);
+  if (!info) return null;
+  const data = info.data;
+  if (data.length !== STATE_SIZE) throw new Error(`Unexpected hold size ${data.length}; redeploy the program and its client together.`);
+  const key = (at) => new PublicKey(data.subarray(at, at + 32)).toBase58();
+  const releaseAfter = Number(data.readBigInt64LE(RELEASE_AFTER));
+  const safeHold = (data[FLAGS] & FLAG_SAFE_HOLD) !== 0;
+  return {
+    state: state.toBase58(),
+    sender: key(1),
+    approver: key(33),
+    recipient: key(65),
+    mint: key(97),
+    amount: data.readBigUInt64LE(161).toString(),
+    safeHold,
+    releaseAfter: safeHold ? new Date(releaseAfter * 1000).toISOString() : null,
+    reviewHash: data.subarray(REVIEW_HASH, REVIEW_HASH + 32).toString("hex"),
+    needs: safeHold ? ["cooling-off over", "sender signature", "approver signature", "PIN"] : ["approver signature", "PIN"],
+  };
+}
+
+export async function deposit({ connection, feePayer, sender, approver, recipient, mint, amount, pin, holdSeconds = 0, reviewHash = null }) {
   await requireProgram(connection);
   const senderAta = getAssociatedTokenAddressSync(mint, sender.publicKey);
   const [state] = statePda(sender.publicKey, approver, recipient, mint);
   const [vault] = vaultPda(state);
   const amountBytes = Buffer.alloc(8);
   amountBytes.writeBigUInt64LE(BigInt(amount));
+  const seconds = Number(holdSeconds);
+  if (!Number.isInteger(seconds) || seconds < 0 || seconds > MAX_HOLD_SECONDS) throw new Error("Hold seconds must be 0 to 30 days");
+  const review = reviewHash ? Buffer.from(reviewHash, "hex") : Buffer.alloc(32);
+  if (review.length !== 32) throw new Error("Review hash must be 64 hex characters");
+  let extra = Buffer.alloc(0);
+  if (seconds > 0 || reviewHash) {
+    extra = Buffer.alloc(40);
+    extra.writeBigUInt64LE(BigInt(seconds), 0);
+    review.copy(extra, 8);
+  }
   const signature = await send(connection, feePayer, [sender], instruction(0, [
     { pubkey: feePayer.publicKey, isSigner: true, isWritable: true },
     { pubkey: sender.publicKey, isSigner: true, isWritable: false },
@@ -117,7 +161,7 @@ export async function deposit({ connection, feePayer, sender, approver, recipien
     { pubkey: state, isSigner: false, isWritable: true },
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-  ], Buffer.concat([amountBytes, pinHash(pin)])));
+  ], Buffer.concat([amountBytes, pinHash(pin), extra])));
   return { signature, state: state.toBase58() };
 }
 
@@ -135,12 +179,18 @@ export async function refund({ connection, feePayer, sender, state, vault, sende
   return signature;
 }
 
+/**
+ * Releases a hold to the recipient. `sender` is a public key, or the sender's Keypair when the
+ * sender confirms again: a Safe Hold needs both the sender's and the approver's signatures.
+ */
 export async function release({ connection, feePayer, sender, approver, state, vault, recipientAta, mint, pin }) {
   await requireProgram(connection);
   if (!/^\d{6}$/.test(pin)) throw new Error("PIN must be 6 digits");
-  const signature = await send(connection, feePayer, [approver], instruction(2, [
+  const senderSigns = typeof sender?.secretKey !== "undefined";
+  const senderKey = senderSigns ? sender.publicKey : sender;
+  const signature = await send(connection, feePayer, senderSigns ? [approver, sender] : [approver], instruction(2, [
     { pubkey: feePayer.publicKey, isSigner: true, isWritable: true },
-    { pubkey: sender, isSigner: false, isWritable: true },
+    { pubkey: senderKey, isSigner: senderSigns, isWritable: true },
     { pubkey: approver.publicKey, isSigner: true, isWritable: false },
     { pubkey: state, isSigner: false, isWritable: true },
     { pubkey: vault, isSigner: false, isWritable: true },
@@ -169,12 +219,12 @@ async function balance(connection, mint, owner) {
 }
 
 // Program error codes from programs/family_hold/src/lib.rs.
-const ERR = { WRONG_SENDER: 2, WRONG_PIN: 3, WRONG_APPROVER: 6 };
+const ERR = { WRONG_SENDER: 2, WRONG_PIN: 3, WRONG_APPROVER: 6, TOO_EARLY: 8 };
 
 // Passes only when the program refuses with this exact code, so an unrelated failure
 // (no SOL, a network error, a wrong account) cannot pass as a working check.
 function expectFail(promise, code) {
-  const wanted = `custom program error: 0x${code.toString(16)}`;
+  const wanted = code === "signature" ? "missing required signature" : `custom program error: 0x${code.toString(16)}`;
   return promise.then(
     () => {
       throw new Error("that transaction was accepted");
@@ -246,13 +296,15 @@ async function holdIsOpen(ctx) {
   return Boolean(await ctx.connection.getAccountInfo(ctx.state));
 }
 
-async function lock(ctx, amount) {
+async function lock(ctx, amount, { holdSeconds = 0, reviewHash = null } = {}) {
   if (await holdIsOpen(ctx)) {
     throw new Error("A hold between these family members is already open. Run refund or release first.");
   }
   await fundSender(ctx, amount);
   const pin = newPin();
   const result = await deposit({
+    holdSeconds,
+    reviewHash,
     connection: ctx.connection,
     feePayer: ctx.feePayer,
     sender: ctx.sender,
@@ -269,11 +321,11 @@ function refundArgs(ctx, sender = ctx.sender) {
   return { connection: ctx.connection, feePayer: ctx.feePayer, sender, state: ctx.state, vault: ctx.vault, senderAta: ctx.senderAta, mint: ctx.mint };
 }
 
-function releaseArgs(ctx, pin, approver = ctx.approver) {
+function releaseArgs(ctx, pin, approver = ctx.approver, senderConfirms = false) {
   return {
     connection: ctx.connection,
     feePayer: ctx.feePayer,
-    sender: ctx.sender.publicKey,
+    sender: senderConfirms ? ctx.sender : ctx.sender.publicKey,
     approver,
     state: ctx.state,
     vault: ctx.vault,
@@ -313,17 +365,50 @@ async function demo() {
   const received = (await balance(ctx.connection, ctx.mint, ctx.recipient.publicKey)) - before;
   console.log("recipient received", received.toString());
   if (received !== amount) throw new Error("recipient did not receive the locked amount");
+
+  // Safe Hold: a flagged transfer waits out a cooling-off (20 s here, 24 h in the app), then
+  // needs the sender and the approver to sign.
+  const coolOff = 20;
+  const safe = await lock(ctx, amount, { holdSeconds: coolOff, reviewHash: "ab".repeat(32) });
+  console.log("safe hold", JSON.stringify(await readHold(ctx.connection, ctx.state)));
+  const tooEarly = await expectFail(release(releaseArgs(ctx, safe.pin, ctx.approver, true)), ERR.TOO_EARLY);
+  console.log("release during the cooling-off", tooEarly);
+  await new Promise((resolve) => setTimeout(resolve, (coolOff + 5) * 1000));
+  const approverAlone = await expectFail(release(releaseArgs(ctx, safe.pin, ctx.approver, false)), "signature");
+  console.log("approver alone after the cooling-off", approverAlone);
+  const beforeSafe = await balance(ctx.connection, ctx.mint, ctx.recipient.publicKey);
+  await release(releaseArgs(ctx, safe.pin, ctx.approver, true));
+  const safeReceived = (await balance(ctx.connection, ctx.mint, ctx.recipient.publicKey)) - beforeSafe;
+  console.log("double-confirmed safe hold released", safeReceived.toString());
+  if (safeReceived !== amount) throw new Error("the safe hold did not release the locked amount");
+}
+
+function option(args, name) {
+  const at = args.indexOf(name);
+  return at === -1 ? null : args[at + 1];
 }
 
 const commands = {
   demo: () => demo(),
-  async lock(amountText) {
+  async lock(amountText, ...args) {
     const amount = toUnits(amountText);
+    const holdSeconds = Number(option(args, "--hold-seconds") ?? 0);
+    const reviewHash = option(args, "--review-hash");
+    if (reviewHash !== null && !/^[0-9a-f]{64}$/i.test(reviewHash)) throw new Error("--review-hash must be 64 hex characters");
     const ctx = await setup();
-    const { state, pin } = await lock(ctx, amount);
+    const { state, pin } = await lock(ctx, amount, { holdSeconds, reviewHash });
     console.log("locked", state);
+    if (holdSeconds > 0) {
+      const hold = await readHold(ctx.connection, ctx.state);
+      console.log(`SAFE HOLD until ${hold.releaseAfter}. Then the sender and the approver must both sign. The sender can cancel any time.`);
+    }
     console.log("Give this PIN to the approver. The sender does not need it to cancel.");
     console.log("PIN", pin);
+  },
+  async status() {
+    const ctx = await setup();
+    const hold = await readHold(ctx.connection, ctx.state);
+    console.log(hold ? JSON.stringify(hold, null, 2) : "No hold is open.");
   },
   async refund() {
     const ctx = await setup();
@@ -332,8 +417,13 @@ const commands = {
   },
   async release(pin) {
     const ctx = await setup();
-    if (!(await holdIsOpen(ctx))) throw new Error("No hold is open.");
-    console.log("released", await release(releaseArgs(ctx, String(pin ?? ""))));
+    const hold = await readHold(ctx.connection, ctx.state);
+    if (!hold) throw new Error("No hold is open.");
+    if (hold.safeHold && Date.now() < Date.parse(hold.releaseAfter)) {
+      throw new Error(`Safe Hold: the cooling-off ends at ${hold.releaseAfter}. The sender can cancel before then.`);
+    }
+    // On a Safe Hold the sender confirms again: this demo holds the sender's key, so it signs here.
+    console.log("released", await release(releaseArgs(ctx, String(pin ?? ""), ctx.approver, hold.safeHold)));
   },
 };
 
@@ -346,7 +436,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       process.exit(1);
     });
   } else {
-    console.error("Usage: node hold/hold.mjs demo | lock <amount> | refund | release <pin>");
+    console.error("Usage: node hold/hold.mjs demo | lock <amount> [--hold-seconds N] [--review-hash HEX] | status | refund | release <pin>");
     process.exit(1);
   }
 }

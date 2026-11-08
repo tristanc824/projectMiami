@@ -320,6 +320,85 @@ def prune_view(case: dict[str, Any], receipt: str | None) -> dict[str, Any]:
     }
 
 
+# --- Safe Hold status, read straight from Solana (no packages needed) -------------
+
+SOLANA_RPC = os.environ.get("SOLANA_RPC", "https://api.devnet.solana.com")
+HOLD_STATE_SIZE = 243  # programs/family_hold/src/lib.rs
+HOLD_PROGRAM_ID = os.environ.get("HOLD_PROGRAM_ID", "7NKeoXoNEgW11tgZKV18PPdktQyFHtYQ4CxJA2ffyC6g")
+
+
+class NotAHold(LookupError):
+    """The address holds some other account, not a family hold."""
+B58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+
+def b58encode(raw: bytes) -> str:
+    number = int.from_bytes(raw, "big")
+    out = ""
+    while number:
+        number, rest = divmod(number, 58)
+        out = B58_ALPHABET[rest] + out
+    return "1" * (len(raw) - len(raw.lstrip(b"\0"))) + out
+
+
+def b58decode(text: str) -> bytes:
+    number = 0
+    for char in text:
+        index = B58_ALPHABET.find(char)
+        if index < 0:
+            raise ValueError("not base58")
+        number = number * 58 + index
+    body = number.to_bytes((number.bit_length() + 7) // 8, "big") if number else b""
+    return b"\0" * (len(text) - len(text.lstrip("1"))) + body
+
+
+def decode_hold(state: str, data: bytes, now: float) -> dict[str, Any]:
+    """The hold account's fields, and what is still needed before it can be released."""
+    if len(data) != HOLD_STATE_SIZE or data[0] != 1:
+        raise NotAHold("not a family hold account")
+    key = lambda at: b58encode(data[at:at + 32])  # noqa: E731
+    release_after = int.from_bytes(data[202:210], "little", signed=True)
+    safe_hold = bool(data[242] & 1)
+    cooling_off_over = (not safe_hold) or now >= release_after
+    return {
+        "state": state,
+        "sender": key(1),
+        "approver": key(33),
+        "recipient": key(65),
+        "mint": key(97),
+        "amount_units": int.from_bytes(data[161:169], "little"),
+        "amount_usdc": f"{int.from_bytes(data[161:169], 'little') / 1_000_000:g}",
+        "safe_hold": safe_hold,
+        "release_after": release_after if safe_hold else None,
+        "seconds_left": max(0, int(release_after - now)) if safe_hold else 0,
+        "cooling_off_over": cooling_off_over,
+        "needs": (["sender signature", "approver signature", "PIN"] if safe_hold else ["approver signature", "PIN"]),
+        "can_release_now": cooling_off_over,
+        "sender_can_cancel": True,
+        "review_hash": data[210:242].hex(),
+    }
+
+
+def fetch_hold(state: str) -> dict[str, Any] | None:
+    """Reads one hold from Solana. None when no hold is open at that address."""
+    import base64
+    import time
+    import urllib.request
+
+    if len(b58decode(state)) != 32:
+        raise ValueError("not a Solana address")
+    body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "getAccountInfo",
+                       "params": [state, {"encoding": "base64", "commitment": "confirmed"}]}).encode("utf-8")
+    request = urllib.request.Request(SOLANA_RPC, data=body, headers={"Content-Type": "application/json"}, method="POST")
+    with urllib.request.urlopen(request, timeout=30) as response:
+        value = json.loads(response.read()).get("result", {}).get("value")
+    if not value:
+        return None
+    if value.get("owner") != HOLD_PROGRAM_ID:
+        raise NotAHold("the account is not owned by the family-hold program")
+    return decode_hold(state, base64.b64decode(value["data"][0]), time.time())
+
+
 def allowed_origins() -> set[str]:
     """Browser origins allowed to call this API, from REVIEW_ALLOWED_ORIGINS (comma separated)."""
     raw = os.environ.get("REVIEW_ALLOWED_ORIGINS", "")
@@ -351,10 +430,30 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
                 HTTPStatus.OK,
                 {
                     "service": "family-transfer-review",
-                    "endpoints": ["POST /api/review", "POST /api/reset", "GET /api/health"],
+                    "endpoints": ["POST /api/review", "POST /api/reset", "GET /api/health", "GET /api/hold/<state address>"],
                     "docs": "FAMILY_REVIEW.md",
                 },
             )
+            return
+        if path.startswith("/api/hold/"):
+            # For an approver screen: the countdown and who still has to sign. Read-only and public
+            # on-chain data, so the same access rules as the review are not needed to read it.
+            address = path.rsplit("/", 1)[-1]
+            try:
+                hold = fetch_hold(address)
+            except NotAHold:
+                self._json(HTTPStatus.NOT_FOUND, {"error": "not-a-hold", "state": address})
+                return
+            except ValueError:
+                self._json(HTTPStatus.BAD_REQUEST, {"error": "bad-address"})
+                return
+            except Exception:  # noqa: BLE001 - the RPC node failed or timed out
+                self._json(HTTPStatus.BAD_GATEWAY, {"error": "solana-rpc"})
+                return
+            if hold is None:
+                self._json(HTTPStatus.NOT_FOUND, {"error": "no-hold", "state": address})
+                return
+            self._json(HTTPStatus.OK, hold)
             return
         self._json(HTTPStatus.NOT_FOUND, {"error": "not-found"})
 
@@ -485,6 +584,7 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
             "outputs": review["outputs"],
             "verdict": review["verdict"],
             "prune": prune,
+            "hold_policy": review.get("hold_policy"),
             "credit_cost": review["credit_cost"],
             "attempts": review["attempts"],
             "offline": bool(review.get("offline")),

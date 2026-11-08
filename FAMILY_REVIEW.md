@@ -27,6 +27,8 @@ Only Python 3.10+ is needed: the standard library, no packages to install.
 | `PRUNE_API_KEY` | yes | Cleans the transcript and seals a confirmed sentence |
 | `SWARMS_MODEL` | no | The agents' model (default `gpt-5.4-mini`). `--check` says whether Swarms lists it. |
 | `SWARMS_BASE_URL` | no | Default `https://api.swarms.world` |
+| `SAFE_HOLD_SECONDS` | no | The Safe Hold's cooling-off (default 86400 = 24 hours). Shorten it for a live demo. |
+| `SOLANA_RPC`, `HOLD_PROGRAM_ID` | no | Where `GET /api/hold/...` reads holds (default devnet and the family-hold program) |
 | `PRUNE_URL`, `PRUNE_MODEL` | no | Default Prune Gemini proxy, `gemini-3.5-flash-lite` |
 | `REVIEW_API_TOKEN` | to listen on a network | Bearer token callers must send |
 | `REVIEW_ALLOWED_ORIGINS` | for browser callers | Comma-separated origins allowed with CORS |
@@ -43,13 +45,17 @@ Only Python 3.10+ is needed: the standard library, no packages to install.
    result stops the review with `blocked-in`. The raw transcript is not sent to Swarms.
 5. Four Swarms agents run in order:
    - **PlainSpeaker** explains the transfer in English and the chosen language.
-   - **Skeptic** checks for a wrong amount, the wrong person, or an impersonator.
+   - **Skeptic** checks for a wrong amount, the wrong person, or an impersonator, and ends with `flag: yes` or `flag: no`.
    - **Watchdog** turns each warning sign into a question, such as "Did you mean 80 or 800?".
    - **Judge** returns a JSON verdict.
 6. If any high warning sign was found, the server turns a "confirm" into "hold",
    whatever the model said.
 7. Prune stamps the sentence only when the final decision is `confirm`. The stamp is
    `prune.receipt`. Hold and stop come back with `prune.receipt` set to `null`.
+8. **Safe Hold.** If the Skeptic flags it, the Watchdog finds a high sign, or the Judge does
+   not confirm, `hold_policy.required` is `true`. The money is not refused. It goes into the
+   on-chain family hold for 24 hours, and then **both the sender and the approver** must sign
+   to release it. The sender can cancel at any time. See [Safe Hold](#safe-hold) below.
 
 It never signs or sends money. "confirm" means only that a person may now review the
 transfer and decide.
@@ -181,6 +187,48 @@ Show `signals[].text` as it is, high first. The server remembers the last review
 memory, so one server serves one person at a time. Each user needs their own session
 before this goes multi-user.
 
+## Safe Hold
+
+Scams run on urgency, so a flagged transfer is not blocked. It waits.
+
+| | Normal hold | Safe Hold (flagged) |
+|---|---|---|
+| When | `hold_policy.required` is `false` | `hold_policy.required` is `true` |
+| Release | approver signs + PIN | after 24 hours: **sender signs again + approver signs** + PIN |
+| Sender cancels | any time | any time |
+| On-chain | amount, parties, PIN hash | also the release time and the review's fingerprint (`review_hash`) |
+
+Every review response carries:
+
+```json
+"hold_policy": {
+  "required": true,
+  "hold_seconds": 86400, "hold_hours": 24,
+  "confirmations": ["sender", "approver"],
+  "reasons": ["skeptic_flag", "watchdog:extra_zero", "judge:hold"],
+  "review_hash": "d862107b...64 hex",
+  "sender_can_cancel": true
+}
+```
+
+- **Flagged when:** the Skeptic says `flag: yes` (`skeptic_flag`), or gives no flag line, which counts as flagged (`skeptic_unclear`); a high Watchdog sign (`watchdog:<code>`); or a Judge decision other than confirm (`judge:hold`, `judge:stop`). A model can add a flag but cannot remove one the local checks raised.
+- **The 24 hours are enforced by the Solana program, not the app.** A release before `release_after` fails with program error 8 (`TOO_EARLY`), and a release without the sender's signature fails as a missing signature.
+- **`review_hash`** is the sha256 of the safe facts plus the verdict. It is stored in the hold, so anyone can check later that the hold came from this review. It holds no names or phone numbers.
+- **Your app must follow `hold_policy`** when it builds the deposit: pass `hold_seconds` and `review_hash` (see `deposit()` in `hold/hold.mjs`). The program enforces the delay once it is in the deposit, but it cannot know about the AI review on its own. Closing that gap would mean the server co-signing deposits.
+
+### `GET /api/hold/<state address>`
+
+For the approver screen: the countdown and who still has to sign, read from Solana.
+
+```json
+{ "state": "...", "sender": "...", "approver": "...", "recipient": "...", "amount_usdc": "800",
+  "safe_hold": true, "release_after": 1794268800, "seconds_left": 85211, "cooling_off_over": false,
+  "needs": ["sender signature", "approver signature", "PIN"], "can_release_now": false,
+  "sender_can_cancel": true, "review_hash": "d862107b..." }
+```
+
+The response is 404 `no-hold` when nothing is locked there, 404 `not-a-hold` for another kind of account, and 400 `bad-address`.
+
 ## Calling it from the Nest app
 
 Call it from the Next server in `apps/api`, not from the phone, so no token ships in
@@ -206,7 +254,7 @@ The same route runs Prune and then Swarms. Do not call `swarm/prune_gate.py` fro
 python swarm/family_review.py --dry-run        # print the Swarms request
 python swarm/family_review.py                  # run the sample case
 python swarm/prune_gate.py --dry-run           # the Prune gate's two requests
-python swarm/open_hold.py --note "..." --deposit   # Prune, Watchdog checks, swarm, then lock the reviewed amount
+python swarm/open_hold.py --note "..." --deposit   # review, then lock the reviewed amount (a Safe Hold when flagged)
 ```
 
 ## Family hold (devnet test token)
@@ -216,21 +264,33 @@ refund alone. Release needs the approver's signature and the 6-digit PIN. The PI
 is public on-chain, so the signature is the real check.
 
 ```powershell
-node hold/hold.mjs demo            # lock, check the refusals, refund, lock, release
-node hold/hold.mjs lock 80         # lock 80 test USDC and print the PIN
-node hold/hold.mjs refund          # the sender cancels
-node hold/hold.mjs release 123456  # the approver releases to the recipient
+node hold/hold.mjs demo                                  # normal hold, refusals, refund, release, then a 20 s Safe Hold
+node hold/hold.mjs lock 80                               # lock 80 test USDC and print the PIN
+node hold/hold.mjs lock 800 --hold-seconds 86400 --review-hash <64 hex>   # a Safe Hold
+node hold/hold.mjs status                                # the open hold: release time, flags, review hash
+node hold/hold.mjs refund                                # the sender cancels, any time
+node hold/hold.mjs release 123456                        # approver releases (sender signs too on a Safe Hold)
 ```
 
-Release takes these accounts: `fee_payer, sender, approver (signer), state, vault,
-recipient_token, mint, token_program`. The program must be rebuilt and redeployed with
-the Solana toolchain before release works on devnet. Keys live in `hold/keys/`, which
-Git ignores.
+Release takes these accounts: `fee_payer, sender (signer on a Safe Hold), approver (signer),
+state, vault, recipient_token, mint, token_program`. A deposit's data is 40 bytes (amount and
+PIN hash), or 80 bytes for a Safe Hold (plus `hold_seconds` u64 and `review_hash`). The hold
+account is 243 bytes.
+
+**The program must be rebuilt and redeployed** with the Solana toolchain (`cargo build-sbf`,
+then `solana program deploy`) before any of this works on devnet. It has not been compiled
+yet: no Rust toolchain was available. Keys live in `hold/keys/`, which Git ignores.
 
 ## Still open
 
 - Tested live on Nov 7 with real Swarms and Prune keys: a clean request was confirmed and sealed with a Prune receipt,
   and "Send 800" was held, with the Watchdog asking "Did you mean 80 instead of 800?". Each review costs about
   0.046 Swarms credits and takes 30 to 60 seconds. `tests/` covers the same pipeline offline.
+- The Safe Hold was tested in the review API live (the real Skeptic flagged "Send 800, it's urgent", and the
+  policy came back 24 h with sender + approver), and in unit tests. The on-chain part, including
+  `node hold/hold.mjs demo` with its 20-second Safe Hold, has not run yet: the program first has to be
+  compiled and deployed.
+- In this demo `hold.mjs` holds the sender's key, so "the sender signs again" happens on the same machine.
+  In the app, the sender should confirm on their own phone after the 24 hours.
 - The last-review memory is per process, so one person at a time.
 - Amount and "verified" parsing understands English and Spanish. Other languages fall back to a single standalone number.
