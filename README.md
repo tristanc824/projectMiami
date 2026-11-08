@@ -40,3 +40,7 @@ The website proxies `/api` to the local API, so browser transfers do not depend 
 The build reads the public Privy app ID from `apps/api/.env.local` (falling back to the mobile public ID) and checks it matches mobile. Backend secrets remain in the API. After changing app screens, run `npm run build:web-app` and reload the website. Marketing changes still hot reload. `npm run build:website` builds both parts; `npm run website:preview` previews that build with the local API proxy.
 
 `npm run test:website` runs isolated browser login, signing, payment, failure, and request-link tests with mock authentication and mocked API responses. Its export is separate from the real website, and its fake token is never accepted by the real API. Real SMS verification and a user-approved devnet transfer still need a manual account check. Balances are shared through the wallet; activity and contact names remain local to each browser/device. Apple Cash and bank delivery remain simulated.
+
+## External code and assets
+
+See [EXTERNAL_CODE.md](EXTERNAL_CODE.md) for the libraries, services, assets and AI tools Nest uses, and what the team built itself.
