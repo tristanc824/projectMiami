@@ -17,7 +17,7 @@ export function Birds({ light = false }: { light?: boolean }) {
 }
 
 const DAY = 86_400_000;
-type Movement = { kind: 'send' | 'add' | 'withdraw' | 'receive'; amountCents: number; feeCents: number; createdAt: string };
+type Movement = { kind: 'send' | 'add' | 'withdraw' | 'receive' | 'hold'; amountCents: number; feeCents: number; createdAt: string };
 
 /** Balance at each change over the past `days`, rebuilt backwards from today's balance. */
 export function balanceSeries(balanceCents: number, activity: Movement[], now = Date.now(), days = 30) {

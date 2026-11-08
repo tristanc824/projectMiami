@@ -1,25 +1,17 @@
-'use client';
-
-import dynamic from 'next/dynamic';
-import { useEffect, useState } from 'react';
-
-// Privy and Stripe need the browser, so the live app never renders on the server.
-const LiveApp = dynamic(() => import('@/components/LiveApp'), { ssr: false });
-
+function websiteUrl() {
+  try {
+    const url = new URL(process.env.NEST_WEBSITE_URL || 'http://localhost:5175');
+    if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) throw new Error('Invalid URL');
+    return url.origin;
+  } catch { return 'http://localhost:5175'; }
+}
 export default function Page() {
-  const [secureContext, setSecureContext] = useState<boolean | null>(null);
-  useEffect(() => { setSecureContext(window.isSecureContext); }, []);
-
-  if (secureContext === null) return <div className="splash">Guard</div>;
-  if (!secureContext) return <main className="login">
-    <div className="login-mark">Guard</div>
-    <h1>Server connected.</h1>
-    <p className="login-sub">Your phone can reach the Guard server on this Mac.</p>
-    <div className="card">
-      <h2>Continue in the Guard app</h2>
-      <p>The browser wallet requires HTTPS. Use the installed Guard app to sign in and send test USDC, or open the web app at an HTTPS address.</p>
-      <a className="primary center" href="/api/health">Check server connection</a>
-    </div>
+  return <main style={{ maxWidth: 620, margin: '12vh auto', padding: 28 }}>
+    <p>Nest API · Solana devnet</p>
+    <h1>Start with Nest.</h1>
+    <p>This server powers sign-in, balances and test payments. Open the Nest website to use the app.</p>
+    <p><a href={`${websiteUrl()}/app/sign-in`}>Open Nest</a></p>
+    <p><a href="/api/health">Check API health</a></p>
+    <p>Test USDC only. No real money or bank payouts.</p>
   </main>;
-  return <LiveApp />;
 }

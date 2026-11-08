@@ -51,7 +51,7 @@ The server only co-signs an exact USDC transfer from the logged-in user's wallet
 
 ### `POST /api/deposit/test-card`
 
-Body `{ "amount": 10 }`, a whole number of dollars from 1 to `MAX_DEPOSIT_USD` (20 by default). It charges Stripe's test card, then `Treasury` sends that much devnet USDC. Returns `{ "signature": "..." }`. This is the backup when Apple Pay isn't available.
+Body `{ "amount": 10 }`, a whole number of dollars from 1 to `MAX_DEPOSIT_USD` (1000 by default). It charges Stripe's test card, then `Treasury` sends that much devnet USDC. Returns `{ "signature": "..." }`. This is the backup when Apple Pay isn't available.
 
 ### `POST /api/deposit/intent` and `POST /api/deposit/complete`
 
@@ -111,3 +111,47 @@ Five wrong PINs in a row turn text payments off.
 2. `node scripts/test-text-signing.mjs` checks, with a throwaway wallet, that the server can send and that the policy refuses an $11 payment. Then `npx tsx scripts/test-text-flow.mts` runs every command against a throwaway sender, prints the replies, and cleans up.
 3. Put the Android's number in `TEXT_PAYMENTS_NUMBER`. In httpSMS, add a webhook to `https://<server>/api/sms` for `message.phone.received` with a signing key, and save that key as `HTTPSMS_WEBHOOK_SIGNING_KEY` and the API key as `HTTPSMS_API_KEY`.
 4. To test without a phone, leave `HTTPSMS_API_KEY` empty, run `npm run dev`, then `node scripts/fake-text.mjs +13055550142 "BAL 4821"`. Replies print in the server window.
+
+
+## App PIN and funding availability
+
+After phone verification and wallet creation, `GET /api/account/pin` reports `{configured, sessionValid}`. `POST /api/account/pin` accepts `{action: "create"|"verify"|"change", pin, currentPin?}`. PINs must be six digits. Change requires the old PIN; create refuses to replace an existing PIN. The server stores salted scrypt hashes in Privy custom metadata, tracks wrong attempts, and locks PIN attempts for five minutes after five failures. Success returns a signed, wallet-bound, versioned 12-hour `{ticket, expiresAt}` grant. Transfer prepare/submit, deposit intent/test-card/complete, and hold mutations require this grant in `x-nest-pin` alongside the Privy bearer token. Changing the PIN invalidates older grants. The PIN itself never goes into device storage. Native grants use SecureStore; browser grants use sessionStorage. Lock/sign-out deletes the local grant. Existing text-payment and on-chain hold release PINs remain separate.
+
+`GET /api/deposit/status` requires bearer authentication and returns `{maxDepositDollars, availableDollars, fundingWallet}`. The UI blocks deposits above the available whole-dollar treasury funding. The test-card route creates an unconfirmed intent with a stable idempotency key, checks funding before confirming it, and resumes already-paid intents without another card charge; the client-secret route preflights funding before creation. supply can still change concurrently, so fulfillment also checks funding. Raising `MAX_DEPOSIT_USD` does not create test USDC. The demo uses Circle's devnet USDC mint; replenish the public treasury wallet using Circle's faucet or an existing devnet token source. RPC errors are surfaced as errors rather than zero balances.
+
+
+Payment retries reuse one operation reference per draft. The browser/native transfer adapter retains the prepared message and user signature across a failed submit, and the server checks the deterministic Solana transaction signature before rebroadcasting. Card deposits use Stripe idempotency keys for intent creation/confirmation. Fulfillment coalesces concurrent requests and checkpoints one signed funding transaction into intent metadata (450-character chunks) before sending. A lost chain response or failed final metadata write retries the same bytes, including after a backend restart. Confirmed transactions return their existing signature. An expired unresolved transaction needs manual investigation; the service does not replace it with another debit.
+
+The balance endpoint includes integer `balanceCents`, truncated from token base units so “use available balance” never rounds sub-cent dust into an unspendable cent. `/api/activity` retains incoming `payments` and adds `outgoing` as a separate field for compatibility. Both are based on confirmed token-account deltas and preserve the real chain signature; a balance drop alone is never labeled as an SMS payment.
+
+
+### Account security
+
+`GET /api/account/security` (bearer authentication) returns `frozen`, the user's saved `trustedContact` (`name`, `phone`, or null), and `recoveryAvailable: false`.
+
+`POST /api/account/security` requires bearer authentication and the current `x-nest-pin` grant. Actions:
+
+- `freeze`: persists `nest_frozen`; returns a random one-time `unlockToken` only on the transition into the frozen state. Its SHA-256 hash is stored server-side. The mobile app retains the token only in biometric-protected SecureStore when biometrics are enabled.
+- `unfreeze`: while frozen, additionally requires the matching `unlockToken`. It clears the token hash. The alternative is fresh app-PIN verification with `unlock: true` at `/api/account/pin`, which also clears the freeze and token hash.
+- `trusted-contact`: `name` (1–60 characters) and normalized `phone`; the contact must already have a different Nest account. Saves their stable Privy user ID alongside the display fields. Rejected while frozen.
+- `remove-trusted-contact`: clears the contact. Rejected while frozen.
+
+Payment authorization returns HTTP 423 with `code: NEST_LOCKED` for a frozen account, regardless of an existing valid PIN session. Both native/browser gates react to this code. SMS SEND also checks the freeze, including immediately before broadcast. Account recovery is not enabled by saving a contact.
+
+
+### Pending confirmation and status
+
+Transfer preparation includes `transactionSignature`, the prospective fee-payer signature for the exact prepared message. Submission verifies the owner's signature. Ambiguous confirmation returns HTTP 202 with `{ status: 'pending', signature, lastValidBlockHeight, message }`, preserving that same transaction reference. Never interpret this as a confirmed payment or create new signed bytes to retry. The shared broadcaster refuses a non-devnet genesis hash.
+
+`POST /api/transactions/status` requires bearer authentication, but no new payment approval. Its body is `{ transactions: [{ signature, kind, amountCents, lastValidBlockHeight }] }`, with at most 20 items and kind `send`, `withdraw` or `add`. It returns pending/confirmed/failed/expired states. Confirmed state requires the correct wallet's associated token account, mint and exact token delta. Missing parsed data remains pending. Expiry is checked against finalized block height and a history-enabled signature lookup. Requests coalesce in flight and cache for three seconds.
+
+`GET /api/activity` also returns `pendingPayments` for an unresolved SMS checkpoint. Settled SMS checkpoints are reconciled conditionally so an older read cannot erase a newer payment. Outgoing app authorization rejects an unresolved SMS payment with `PAYMENT_PENDING`.
+
+SMS gateway requests require a stable `message_id`. The laptop demo serializes work per sender and stores signed bytes before broadcast in a local persistent SQLite ledger, retaining processed message IDs. Atomic reservations enforce the daily allowance and one active payment per account. Unknown confirmation keeps reserved daily spending and the original signature. A retry uses the same signed bytes. A fresh command cannot start another SMS payment while the previous one is unresolved.
+
+
+### Persistent SMS ledger
+
+Node 24 is required by the API. `SMS_STORE_PATH` defaults to ignored `.data/nest-sms.sqlite`. SQLite uses owner-only file permissions, WAL journaling and synchronous durable commits. A stable owner/message ID is unique, and a partial unique index permits one preparing/pending payment per owner. Daily usage includes reserved and confirmed payments. Existing Privy daily usage is seeded once for compatibility. Failed or expired unsigned work frees its reservation; a stale preparation lease cannot save a checkpoint or reach broadcast.
+
+Do not run SMS payments on an ephemeral serverless filesystem. This implementation refuses SMS store creation under Vercel. Normal app transfers remain available without an SMS database. Moving SMS hosting requires a persistent disk/shared durable store design. Privy custom metadata has a [1 KB total limit](https://docs.privy.io/user-management/users/custom-metadata); it stores small account settings, not signed transaction payloads.

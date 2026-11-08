@@ -4,7 +4,7 @@ const appId = () => process.env.NEXT_PUBLIC_PRIVY_APP_ID as string;
 const API = 'https://api.privy.io/v1';
 
 type LinkedAccount = { type: string; chain_type?: string; connector_type?: string; address?: string };
-type PrivyUser = { id: string; linked_accounts: LinkedAccount[] };
+export type PrivyUser = { id: string; linked_accounts: LinkedAccount[]; custom_metadata?: Record<string, unknown> };
 
 async function privy(path: string, init?: RequestInit) {
   const auth = Buffer.from(`${appId()}:${process.env.PRIVY_APP_SECRET}`).toString('base64');

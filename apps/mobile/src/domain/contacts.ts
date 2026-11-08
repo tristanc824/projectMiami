@@ -30,7 +30,7 @@ export function recentRecipients(activity: Activity[], saved: SavedContact[]): R
   const names = new Map(saved.map(item => [item.phone, item.name]));
   const people = new Map<string, RecentRecipient>();
   for (const item of [...activity].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))) {
-    if (item.kind !== 'send') continue;
+    if (item.kind !== 'send' || item.status) continue;
     const phone = normalizePhone(item.recipientPhone ?? '');
     if (!phone) continue;
     const existing = people.get(phone);

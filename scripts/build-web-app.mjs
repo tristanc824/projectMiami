@@ -15,5 +15,6 @@ if (mobile.EXPO_PUBLIC_PRIVY_APP_ID && mobile.EXPO_PUBLIC_PRIVY_APP_ID !== appId
 const env = { ...process.env, EXPO_PUBLIC_PRIVY_APP_ID: appId, EXPO_PUBLIC_NEST_WEB_WALLET: 'true', EXPO_PUBLIC_DAT_API_URL: 'same-origin', NEST_WEB_BASE_PATH: '/app' };
 const output = process.env.NEST_WEB_EXPORT_DIR || 'dist-website';
 if (process.env.NEST_TEST_WEB_AUTH === 'true' && output !== 'dist-website-tests') throw new Error('Mock authentication builds must use dist-website-tests.');
-const result = spawnSync('npm', ['run', 'export:web', '--', '--output-dir', output], { cwd: path.join(root, 'apps/mobile'), env, stdio: 'inherit' });
+const result = spawnSync('npm', ['run', 'export:web', '--', '--output-dir', output], { cwd: path.join(root, 'apps/mobile'), env, stdio: 'inherit', shell: process.platform === 'win32' });
+if (result.error) console.error(`Could not start the Expo export: ${result.error.message}. Check that npm is installed and available on PATH.`);
 process.exit(result.status ?? 1);

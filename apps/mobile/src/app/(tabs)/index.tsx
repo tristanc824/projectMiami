@@ -25,7 +25,7 @@ export default function HomeScreen() {
   const { wallet, ready, storageWarning } = useWallet();
   const experience = useExperience();
   const live = useIsLive();
-  const { problem } = useLive();
+  const { problem, activityReady } = useLive();
   if (!experience.ready) return <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center' }}><ActivityIndicator color={colors.green} /></View>;
   if (!experience.hasEntered && !live) return <Redirect href="/sign-in" />;
   const [whole, fraction] = money(wallet.balanceCents).split('.');
@@ -49,6 +49,7 @@ export default function HomeScreen() {
   // An empty list next to a non-zero balance would look wrong, so it says where the money came from.
   const empty = <View style={{ paddingVertical: 22, gap: 8 }}><Text style={[t.heading, { fontSize: 18 }]}>{wallet.balanceCents > 0 ? 'Your payments will appear here.' : 'Your next chapter starts here.'}</Text><Text style={t.muted}>{wallet.balanceCents > 0 ? 'Money that arrived before you signed in may take a moment to show.' : live ? 'Your payments will appear here.' : 'Add a few demo dollars to try your first payment.'}</Text></View>;
   const activity = <View>
+    {live && !activityReady && !problem ? <Text testID="activity-loading" style={[t.muted, { marginBottom: 12 }]}>Loading recent payments…</Text> : null}
     <SectionHeader title="Activity" action="See all" onAction={() => router.push('/activity')} />
     <View style={[t.card, { paddingVertical: 4 }]}>{recent.length ? recent.map((item, i) => <View key={item.id}>{i ? <View style={t.divider} /> : null}<ActivityRow item={item} /></View>) : empty}</View>
   </View>;

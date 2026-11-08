@@ -1,0 +1,21 @@
+import test, { mock } from 'node:test';
+import assert from 'node:assert/strict';
+import { Connection, Keypair } from '@solana/web3.js';
+import bs58 from 'bs58';
+import nacl from 'tweetnacl';
+import { buildTransferMessage } from '../lib/tx.mjs';
+const payer = Keypair.generate(), sender = Keypair.generate(), recipient = Keypair.generate().publicKey;
+process.env.FEE_PAYER_SECRET_KEY = JSON.stringify([...payer.secretKey]);
+const { submitTransfer, USDC_MINT } = await import('../lib/server/solana.mjs');
+let sends = 0, confirmed = false;
+mock.method(Connection.prototype, 'getGenesisHash', async () => 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG');
+mock.method(Connection.prototype, 'getSignatureStatuses', async () => ({ context: { slot: 1 }, value: [confirmed ? { err: null, confirmationStatus: 'confirmed' } : null] }));
+mock.method(Connection.prototype, 'sendTransaction', async () => { sends++; confirmed = true; throw new Error('Response lost after broadcast'); });
+test('a lost RPC broadcast response and later client replays return the same confirmed signature without another send', async () => {
+  const message = buildTransferMessage({ feePayer: payer.publicKey, owner: sender.publicKey, recipient, mint: USDC_MINT, amount: 5_000_000n, blockhash: Keypair.generate().publicKey.toBase58() });
+  const bytes = message.serialize();
+  const signature = Buffer.from(nacl.sign.detached(bytes, sender.secretKey)).toString('base64');
+  const first = await submitTransfer(sender.publicKey, Buffer.from(bytes).toString('base64'), signature, 100);
+  const second = await submitTransfer(sender.publicKey, Buffer.from(bytes).toString('base64'), signature, 100);
+  assert.equal(first, second); assert.equal(bs58.decode(first).length, 64); assert.equal(sends, 1);
+});

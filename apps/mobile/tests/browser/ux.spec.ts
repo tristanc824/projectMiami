@@ -60,6 +60,7 @@ test('Apple Cash demo is reachable from You and completes from an empty demo bal
   await expect(page.getByRole('radio', { name: 'Withdraw to Bank account', exact: true })).toBeVisible();
   await expect(page.getByRole('radio', { name: 'Withdraw to Apple Cash', exact: true })).toBeVisible();
   await page.goto('/account');
+  await page.getByRole('button', { name: 'Demo tools', exact: true }).click();
   await page.getByRole('button', { name: 'Apple Cash demo', exact: true }).click();
   await expect(page.getByRole('radio', { name: 'Withdraw to Apple Cash', exact: true })).toHaveAttribute('aria-checked', 'true');
   await page.getByLabel('Amount in USDC', { exact: true }).fill('25');

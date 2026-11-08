@@ -1,0 +1,180 @@
+# Builds the family hold Solana program, runs the review tests, and (by hand only) deploys to devnet.
+#
+# Deploy: Actions tab -> "Family hold" -> Run workflow -> deploy = true. It needs two repository
+# secrets, added in Settings -> Secrets and variables -> Actions:
+#   SOLANA_DEPLOYER_KEYPAIR      a devnet keypair (the JSON array) with about 3 devnet SOL
+#   FAMILY_HOLD_PROGRAM_KEYPAIR  the contents of hold/keys/program.json (must match declare_id!)
+# Before deploying for real, set POLICY_AUTHORITY in programs/family_hold/src/lib.rs to your server's key.
+name: Family hold
+
+on:
+  push:
+    paths:
+      - "programs/family_hold/**"
+      - "hold/**"
+      - "swarm/**"
+      - "app.py"
+      - "tests/**"
+      - ".github/workflows/family-hold.yml"
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Deploy the program to devnet (needs the two secrets)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  SOLANA_VERSION: "1.18.26"
+  # Pick dependency versions that support the program's rust-version (1.75, what build-sbf uses).
+  CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
+
+jobs:
+  program:
+    name: Build the Solana program
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache cargo and the Solana tools
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.local/share/solana
+            ~/.cache/solana
+            programs/family_hold/target
+          key: family-hold-${{ env.SOLANA_VERSION }}-${{ hashFiles('programs/family_hold/Cargo.toml', 'programs/family_hold/Cargo.lock') }}
+
+      - name: Install the Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${SOLANA_VERSION}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - name: Lock dependencies that build with Rust 1.75
+        working-directory: programs/family_hold
+        run: |
+          if [ ! -f Cargo.lock ]; then
+            cargo generate-lockfile
+            # The fallback resolver cannot backtrack a parent: proc-macro-crate 3.2+ drags in
+            # toml_edit 0.23 (Rust 1.76+). 3.1.0 uses toml_edit 0.21, which builds on 1.75.
+            # name  major  version that builds on 1.75. `cargo update --precise` re-resolves the
+            # pinned crate's own dependencies to the newest, so pin those too.
+            pin() {
+              for v in $(awk -v n="$1" '$0 == "name = \"" n "\"" {getline; gsub(/version = |"/,""); print}' Cargo.lock); do
+                case "$v" in "$2".*) if [ "$v" != "$3" ]; then cargo update -p "$1@$v" --precise "$3"; fi ;; esac
+              done
+              return 0
+            }
+            pin proc-macro-crate 3 3.1.0
+            pin indexmap 2 2.2.6
+            # solana-program 1.18 uses blake3's `digest` feature; newer blake3 moved to digest 0.11,
+            # whose crypto-common 0.2 / hybrid-array 0.4 are edition 2024 (Cargo 1.75 cannot read them).
+            pin blake3 1 1.5.5
+            # getrandom 0.3.2+ adds a wasip2 backend (wasip2 needs Rust 1.87, wit-bindgen is edition 2024).
+            # It comes from jobserver 0.1.34 (cc's build helper); jobserver 0.1.32 has no getrandom.
+            pin jobserver 0.1 0.1.32
+            pin getrandom 0.3 0.3.1
+          fi
+          grep -A1 -E 'name = "(blake3|digest|crypto-common|proc-macro-crate|toml_edit|indexmap)"' Cargo.lock
+
+      - name: Every locked crate must build with Cargo/Rust 1.75
+        working-directory: programs/family_hold
+        run: |
+          cargo metadata --format-version 1 --locked > "$RUNNER_TEMP/meta.json"
+          # Edition 2024 needs Cargo 1.85; a rust-version above 1.75 fails in build-sbf.
+          bad=$(jq -r '.packages[]
+            | select(.edition == "2024"
+                or ((.rust_version // "0") | split(".") | map(tonumber) | (.[0] > 1 or (.[0] == 1 and .[1] > 75))))
+            | "\(.name)@\(.version) edition=\(.edition) rust-version=\(.rust_version)"' "$RUNNER_TEMP/meta.json")
+          if [ -n "$bad" ]; then
+            echo "These crates cannot build with Solana 1.18's Cargo/Rust 1.75:"
+            echo "$bad"
+            for spec in $(echo "$bad" | cut -d' ' -f1); do
+              echo "== $spec is pulled in by:"
+              cargo tree --locked -i "$spec" -e normal,build --target all 2>&1 | head -15 || true
+            done
+            exit 1
+          fi
+          echo "All $(jq '.packages | length' "$RUNNER_TEMP/meta.json") locked crates support Rust 1.75."
+
+      - name: Type-check on the host
+        working-directory: programs/family_hold
+        run: cargo check --all-targets
+
+      - name: Lint (report only)
+        working-directory: programs/family_hold
+        continue-on-error: true
+        run: cargo clippy --all-targets
+
+      - name: Build the on-chain program
+        working-directory: programs/family_hold
+        run: |
+          solana --version
+          cargo build-sbf
+          ls -l target/deploy/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: family_hold-program
+          path: |
+            programs/family_hold/target/deploy/family_hold.so
+            programs/family_hold/Cargo.lock
+
+  review:
+    name: Review API tests and scam scenarios
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Unit tests (stand-in Swarms and Prune, no keys)
+        run: python -m unittest discover tests -v
+      - name: Scam scenarios (local checks)
+        run: python -m swarm.scam_scenarios
+      - name: Hold client parses
+        run: node --check hold/hold.mjs
+
+  deploy:
+    name: Deploy to devnet
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy
+    needs: [program, review]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: family_hold-program
+          path: build
+      - name: Install the Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${SOLANA_VERSION}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - name: Deploy
+        env:
+          DEPLOYER: ${{ secrets.SOLANA_DEPLOYER_KEYPAIR }}
+          PROGRAM: ${{ secrets.FAMILY_HOLD_PROGRAM_KEYPAIR }}
+        run: |
+          if [ -z "$DEPLOYER" ] || [ -z "$PROGRAM" ]; then
+            echo "Add SOLANA_DEPLOYER_KEYPAIR and FAMILY_HOLD_PROGRAM_KEYPAIR as repository secrets first."
+            exit 1
+          fi
+          umask 077
+          printf '%s' "$DEPLOYER" > deployer.json
+          printf '%s' "$PROGRAM" > program.json
+          solana config set --url https://api.devnet.solana.com --keypair deployer.json
+          echo "Deployer balance: $(solana balance)"
+          solana program deploy build/target/deploy/family_hold.so --program-id program.json
+          echo "Program id: $(solana address -k program.json)"
+          rm -f deployer.json program.json

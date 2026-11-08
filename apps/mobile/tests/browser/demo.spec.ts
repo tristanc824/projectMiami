@@ -95,6 +95,7 @@ test.skip('funding, family-goal contribution, filtering, and reset remain cohere
   await page.getByRole('button', { name: 'Your people', exact: true }).click();
   await expect(page.getByText('Goal reached', { exact: true })).toBeVisible();
   await page.goto('/account');
+  await page.getByRole('button', { name: 'Demo tools', exact: true }).click();
   await page.getByRole('button', { name: 'Reset demo', exact: true }).click();
   await page.getByRole('button', { name: 'Reset demo data', exact: true }).click();
   await page.getByRole('tab', { name: 'Home', exact: true }).click();
@@ -223,8 +224,13 @@ test('there is no Save tab, old goal links go home, and protection previews are 
   await page.goto('/goal?id=rainy-day');
   await expect(page.getByTestId('home-balance')).toBeVisible();
   await page.getByRole('tab', { name: 'Security', exact: true }).click();
-  await page.getByRole('button', { name: '24-hour undo, Preview', exact: true }).click();
-  await expect(page.getByText('The mockups include a 24-hour hold', { exact: false })).toBeVisible();
-  await page.getByRole('button', { name: 'Got it', exact: true }).click();
+  await page.getByRole('button', { name: /^Safe Holds,/ }).click();
+  await expect(page.getByText('Sign in with your phone number to manage on-chain Safe Holds.', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Go back', exact: true }).click();
+  await page.getByRole('button', { name: /^Trusted contact,/ }).click();
+  await expect(page.getByText('Contact-only account recovery is not available yet. Saving someone here does not let them restore your wallet or sign in for you.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save trusted contact', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(page.getByText('Family safe word', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('tab', { name: 'Security', exact: true })).toHaveAttribute('aria-selected', 'true');
 });

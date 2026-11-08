@@ -1,8 +1,10 @@
 import crypto from 'node:crypto';
 import nacl from 'tweetnacl';
+import bs58 from 'bs58';
 import { VersionedTransaction } from '@solana/web3.js';
 import { assertSponsorable, buildTransferMessage } from '../tx.mjs';
-import { connection, feePayer, USDC_MINT } from './solana.mjs';
+import { connection, feePayer, USDC_MINT, sendConfirmed } from './solana.mjs';
+import { smsStore } from './textStore.mjs';
 
 // Text payments: the user grants Nest's server a limited Privy signer in the app (USDC transfers only,
 // capped per payment by a Privy policy). The server can then sign for them when they text a command.
@@ -13,8 +15,10 @@ export const signerConfig = () => ({
   signerId: process.env.PRIVY_SIGNER_ID || '',
   policyId: process.env.PRIVY_POLICY_ID || '',
 });
-export const textPaymentsReady = () =>
-  !!(process.env.PRIVY_AUTHORIZATION_KEY && process.env.PRIVY_SIGNER_ID && process.env.PRIVY_POLICY_ID);
+export function textPaymentsReady() {
+  if (!process.env.PRIVY_AUTHORIZATION_KEY || !process.env.PRIVY_SIGNER_ID || !process.env.PRIVY_POLICY_ID || process.env.VERCEL) return false;
+  try { return !!smsStore(); } catch { return false; }
+}
 
 /** RFC 8785 canonical JSON, enough for the plain objects Privy requests contain. */
 export function canonicalJson(value) {
@@ -64,37 +68,56 @@ export function embeddedSolanaWallet(user) {
 /**
  * Sends USDC from a user's wallet, signed by Nest's server signer, with Nest's fee payer covering fees.
  * The same check as app sends runs on what Privy returns, so only the exact USDC transfer can go out.
+ * @param {{ userId: string, walletId: string, owner: import('@solana/web3.js').PublicKey, recipient: import('@solana/web3.js').PublicKey, amount: bigint, checkpoint?: { transaction: string, signature: string, blockhash: string, lastValidBlockHeight: number }, onPrepared?: (value: { transaction: string, signature: string, blockhash: string, lastValidBlockHeight: number }) => Promise<void> }} options
  */
-export async function sendWithServerSigner({ walletId, owner, recipient, amount }) {
+export async function sendWithServerSigner({ userId, walletId, owner, recipient, amount, checkpoint = undefined, onPrepared = undefined }) {
+  if (!userId) throw new Error('A Nest account is required for text payments');
   const payer = feePayer();
-  const { blockhash, lastValidBlockHeight } = await connection().getLatestBlockhash();
-  const message = buildTransferMessage({ feePayer: payer.publicKey, owner, recipient, mint: USDC_MINT, amount, blockhash });
-  const unsigned = Buffer.from(new VersionedTransaction(message).serialize()).toString('base64');
-
-  const { data } = await privyApi(`/wallets/${encodeURIComponent(walletId)}/rpc`, {
-    method: 'POST',
-    sign: true,
-    body: { method: 'signTransaction', params: { transaction: unsigned, encoding: 'base64' } },
-  });
-  const tx = VersionedTransaction.deserialize(Buffer.from(data.signed_transaction, 'base64'));
+  let tx, blockhash, lastValidBlockHeight;
+  if (checkpoint) {
+    ({ blockhash, lastValidBlockHeight } = checkpoint);
+    tx = VersionedTransaction.deserialize(Buffer.from(checkpoint.transaction, 'base64'));
+  } else {
+    ({ blockhash, lastValidBlockHeight } = await connection().getLatestBlockhash());
+    const message = buildTransferMessage({ feePayer: payer.publicKey, owner, recipient, mint: USDC_MINT, amount, blockhash });
+    const unsigned = Buffer.from(new VersionedTransaction(message).serialize()).toString('base64');
+    const { data } = await privyApi(`/wallets/${encodeURIComponent(walletId)}/rpc`, {
+      method: 'POST', sign: true,
+      body: { method: 'signTransaction', params: { transaction: unsigned, encoding: 'base64' } },
+    });
+    tx = VersionedTransaction.deserialize(Buffer.from(data.signed_transaction, 'base64'));
+  }
+  const expected = buildTransferMessage({ feePayer: payer.publicKey, owner, recipient, mint: USDC_MINT, amount, blockhash });
   const bytes = tx.message.serialize();
-  if (!Buffer.from(bytes).equals(Buffer.from(message.serialize()))) throw new Error('Privy returned a different transaction');
+  if (!Buffer.from(bytes).equals(Buffer.from(expected.serialize()))) throw new Error('Saved text payment details do not match');
   assertSponsorable(bytes, { feePayer: payer.publicKey, owner, mint: USDC_MINT });
   if (!nacl.sign.detached.verify(bytes, tx.signatures[1], owner.toBytes())) throw new Error('Missing the owner signature');
-
   tx.sign([payer]);
-  const signature = await connection().sendTransaction(tx);
-  const { value } = await connection().confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
-  if (value.err) throw new Error('Transaction failed on the network');
-  return signature;
+  const signature = bs58.encode(tx.signatures[0]);
+  if (checkpoint && checkpoint.signature !== signature) throw new Error('Saved text payment signature does not match');
+  // Save the signed bytes durably before the first broadcast. Retries use exactly these bytes.
+  if (!checkpoint && onPrepared) await onPrepared({ transaction: Buffer.from(tx.serialize()).toString('base64'), signature, blockhash, lastValidBlockHeight });
+  const user = await privyApi(`/users/${encodeURIComponent(userId)}`);
+  if (user.custom_metadata?.nest_frozen === true) throw new Error('Nest is locked');
+  return sendConfirmed(tx, blockhash, lastValidBlockHeight);
 }
 
 /** Text payment settings live in the user's Privy custom metadata, so no database is needed. */
+const metadataWrites = new Map();
 export async function setTextSettings(user, changes) {
-  const custom_metadata = { ...(user.custom_metadata ?? {}), ...changes };
-  await privyApi(`/users/${encodeURIComponent(user.id)}/custom_metadata`, { method: 'POST', body: { custom_metadata } });
-  user.custom_metadata = custom_metadata;
-  return custom_metadata;
+  const work = (metadataWrites.get(user.id) ?? Promise.resolve()).catch(() => undefined).then(async () => {
+    // Merge against fresh server state: a text-payment/PIN update must not erase a wallet freeze.
+    const fresh = await privyApi(`/users/${encodeURIComponent(user.id)}`);
+    const patch = typeof changes === 'function' ? changes(fresh.custom_metadata ?? {}) : changes;
+    if (!patch || !Object.keys(patch).length) { user.custom_metadata = fresh.custom_metadata ?? {}; return user.custom_metadata; }
+    const custom_metadata = { ...(fresh.custom_metadata ?? {}), ...patch };
+    await privyApi(`/users/${encodeURIComponent(user.id)}/custom_metadata`, { method: 'POST', body: { custom_metadata } });
+    user.custom_metadata = custom_metadata;
+    return custom_metadata;
+  });
+  metadataWrites.set(user.id, work);
+  try { return await work; }
+  finally { if (metadataWrites.get(user.id) === work) metadataWrites.delete(user.id); }
 }
 
 export function hashPin(pin) {

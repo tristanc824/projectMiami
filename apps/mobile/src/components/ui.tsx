@@ -1,13 +1,15 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { useState, type ComponentProps, type ReactNode } from 'react';
-import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions, type ColorValue, type StyleProp, type ViewStyle } from 'react-native';
+import { useState, useSyncExternalStore, type ComponentProps, type ReactNode } from 'react';
+import { onSecurityGate, securityGateVisible } from '../services/presentation';
+import { ActivityIndicator, Image, Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions, type ColorValue, type StyleProp, type ViewStyle } from 'react-native';
 import { Text } from './Text';
 import { KeyboardFrame, KeyboardScroll, useKeyboardVisible } from './KeyboardForm';
 import { NestMark } from './NestArtwork';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { themedStyles, useColors } from '../theme';
-import { contacts, money, type Activity, type Contact } from '../domain/wallet';
+import { contacts, demoPhones, money, type Activity, type Contact } from '../domain/wallet';
+import { useProfile } from '../state/ProfileProvider';
 import { useContacts } from '../state/ContactsProvider';
 import { useIsLive } from '../state/live';
 
@@ -43,11 +45,14 @@ export function IconButton({ icon, label, onPress }: { icon: IconName; label: st
   const s = useS();
   return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [s.iconButton, { opacity: pressed ? 0.6 : 1 }]}><Icon name={icon} size={21} /></Pressable>;
 }
-/** People are shown by their initials, never a photo. With no initials (the signed-in user without a name), a plain person icon. */
-export function Avatar({ contact, size = 52 }: { contact: Pick<Contact, 'initials'>; size?: number }) {
+/** People are shown by their initials, or a photo the user chose themselves. With neither, a plain person icon. */
+export function Avatar({ contact, size = 52 }: { contact: Partial<Pick<Contact, 'id' | 'initials'>>; size?: number }) {
   const { colors } = useColors();
-  return <View style={{ height: size, width: size, borderRadius: size / 2, overflow: 'hidden', backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center' }}>
-    {contact.initials ? <Text style={{ color: colors.green, fontSize: size * .34, fontWeight: '600' }}>{contact.initials}</Text> : <Icon name="person" size={size * .48} color={colors.green} />}
+  const { photos } = useProfile();
+  const [failed, setFailed] = useState('');
+  const photo = contact.id ? photos[demoPhones[contact.id] ?? contact.id] : undefined;
+  return <View testID={contact.id ? `avatar-${contact.id}` : undefined} style={{ height: size, width: size, borderRadius: size / 2, overflow: 'hidden', backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center' }}>
+    {photo && failed !== photo ? <Image accessible={false} source={{ uri: photo }} onError={() => setFailed(photo)} resizeMode="cover" style={{ width: size, height: size }} /> : contact.initials ? <Text style={{ color: colors.green, fontSize: size * .34, fontWeight: '600' }}>{contact.initials}</Text> : <Icon name="person" size={size * .48} color={colors.green} />}
   </View>;
 }
 /** Initials from a real name, or '' so Avatar shows the person icon. */
@@ -66,7 +71,7 @@ export function DemoNote({ compact = false }: { compact?: boolean }) {
 }
 /** Height of the floating tab dock; scroll content must clear it plus the home indicator. */
 export const DOCK_HEIGHT = 72;
-export function Screen({ children, title, subtitle, back = false, scroll = true, trailing, footer, wide = false }: { children?: ReactNode; title?: string; subtitle?: string; back?: boolean; scroll?: boolean; trailing?: ReactNode; footer?: ReactNode; /** Desktop only: the wider home grid instead of the form column. */ wide?: boolean }) {
+export function Screen({ children, title, subtitle, back = false, scroll = true, trailing, footer, wide = false, scrollResetKey }: { children?: ReactNode; title?: string; subtitle?: string; back?: boolean; scroll?: boolean; trailing?: ReactNode; footer?: ReactNode; /** Desktop only: the wider home grid instead of the form column. */ wide?: boolean; scrollResetKey?: string }) {
   const { colors, styles: t } = useColors();
   const s = useS();
   const insets = useSafeAreaInsets();
@@ -79,7 +84,7 @@ export function Screen({ children, title, subtitle, back = false, scroll = true,
     {children}
   </View>;
   return <SafeAreaView edges={['top', 'left', 'right']} style={s.screen}><KeyboardFrame offset={insets.top}>
-    {scroll ? <KeyboardScroll contentContainerStyle={{ paddingBottom: footer || keyboardVisible ? 16 : desktop ? 56 : back ? Math.max(insets.bottom, 16) + 24 : DOCK_HEIGHT + Math.max(insets.bottom, 16) + 24 }} showsVerticalScrollIndicator={false}>{content}</KeyboardScroll> : content}
+    {scroll ? <KeyboardScroll key={scrollResetKey} contentContainerStyle={{ paddingBottom: footer || keyboardVisible ? 16 : desktop ? 56 : back ? Math.max(insets.bottom, 16) + 24 : DOCK_HEIGHT + Math.max(insets.bottom, 16) + 24 }} showsVerticalScrollIndicator={false}>{content}</KeyboardScroll> : content}
     {footer ? <View style={{ width: '100%', maxWidth, alignSelf: 'center', paddingHorizontal: desktop ? 48 : 24, paddingTop: 12, paddingBottom: keyboardVisible ? 8 : Math.max(insets.bottom, 12), backgroundColor: colors.background }}>{footer}</View> : null}
   </KeyboardFrame></SafeAreaView>;
 }
@@ -94,10 +99,11 @@ export function ActivityRow({ item }: { item: Activity }) {
   const { nameFor } = useContacts();
   const displayName = nameFor(item.recipientPhone, contact?.name ?? item.name);
   const incoming = item.kind === 'add' || item.kind === 'receive';
-  return <Pressable onPress={() => router.push({ pathname: '/receipt', params: { id: item.id } })} accessibilityRole="button" accessibilityLabel={`${displayName}, ${incoming ? 'received' : 'sent'} ${money(item.amountCents)}, view receipt`} style={({ pressed }) => [s.activityRow, { opacity: pressed ? 0.65 : 1 }]}>
+  const status = item.status === 'pending' ? 'pending' : item.status === 'failed' ? 'failed' : item.status === 'expired' ? 'expired' : null;
+  return <Pressable onPress={() => item.kind === 'hold' && item.holdState ? router.push({ pathname: '/hold', params: { state: item.holdState } }) : router.push({ pathname: '/receipt', params: { id: item.id } })} accessibilityRole="button" accessibilityLabel={`${displayName}, ${status || (item.kind === 'hold' ? 'held' : incoming ? 'received' : 'sent')} ${money(item.amountCents)}, view receipt`} style={({ pressed }) => [s.activityRow, { opacity: pressed ? 0.65 : 1 }]}>
     {contact ? <Avatar contact={contact} size={44} /> : <View style={[s.activityIcon, { backgroundColor: incoming ? colors.mintLight : colors.blue }]}><Icon name={incoming ? 'add' : 'arrow-up-right-box-outline'} size={20} color={colors.green} /></View>}
     <View style={{ flex: 1, gap: 4 }}><Text style={{ color: colors.ink, fontWeight: '600', fontSize: 14 }}>{displayName}</Text><Text numberOfLines={1} style={{ color: colors.muted, fontSize: 13 }}>{item.note}</Text></View>
-    <View style={{ alignItems: 'flex-end', gap: 5 }}><Text style={{ color: incoming ? colors.green : colors.ink, fontWeight: '700', fontSize: 14 }}>{incoming ? '+' : '−'}{money(item.amountCents)}</Text><Text style={{ color: colors.muted, fontSize: 13 }}>{item.live ? 'Devnet' : 'Demo'} · {new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text></View>
+    <View style={{ alignItems: 'flex-end', gap: 5 }}><Text style={{ color: incoming ? colors.green : colors.ink, fontWeight: '700', fontSize: 14 }}>{status ? '' : incoming ? '+' : '−'}{money(item.amountCents)}</Text><Text style={{ color: colors.muted, fontSize: 13 }}>{status ? status[0].toUpperCase() + status.slice(1) : item.live ? 'Devnet' : 'Demo'} · {new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text></View>
   </Pressable>;
 }
 export function Notice({ children, error = false }: { children: ReactNode; error?: boolean }) {
@@ -127,8 +133,9 @@ export function Sheet({ visible, title, onClose, children }: { visible: boolean;
   const { colors, styles: t } = useColors();
   const insets = useSafeAreaInsets();
   const desktop = useDesktop();
+  const suspended = useSyncExternalStore(onSecurityGate, securityGateVisible, () => false);
   // On a laptop the sheet becomes a centered dialog, the way web banking apps confirm a payment.
-  return <Modal visible={visible} transparent animationType={desktop ? 'fade' : 'slide'} onRequestClose={onClose}>
+  return <Modal visible={visible && !suspended} transparent animationType={suspended ? 'none' : desktop ? 'fade' : 'slide'} onRequestClose={onClose}>
     <KeyboardFrame style={{ justifyContent: desktop ? 'center' : 'flex-end', backgroundColor: '#17201A66' }}>
       <Pressable accessibilityRole="button" accessibilityLabel="Close sheet" onPress={onClose} style={StyleSheet.absoluteFill} />
       <View accessibilityViewIsModal style={[{ width: '100%', maxWidth: 620, maxHeight: '90%', alignSelf: 'center', backgroundColor: colors.background, borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: Math.max(insets.bottom, 24) }, desktop && { maxWidth: 520, borderRadius: 28, padding: 32, paddingBottom: 32 }]}>

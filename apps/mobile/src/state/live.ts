@@ -1,6 +1,8 @@
 import { createContext, useContext } from 'react';
+import type { FamilyReview, ReviewFacts } from '../services/review';
+import type { HoldsResult, SafeHold } from '../services/holds';
 import type { Activity, WithdrawalDestination } from '../domain/wallet';
-import type { Recipient, TextPayments } from '../services/dat';
+import type { Recipient, TextPayments, FundingStatus, TokenSource } from '../services/dat';
 
 /**
  * Live mode: Privy SMS login, a self-custody Solana wallet, and real devnet USDC through the DAT backend.
@@ -19,14 +21,21 @@ export type LiveContextValue = {
   /** Devnet USDC in cents, or null until the first balance arrives. */
   balanceCents: number | null;
   activity: Activity[];
+  activityReady: boolean;
+  getAccessToken: TokenSource;
+  getFundingStatus: () => Promise<FundingStatus>;
   sendCode: (phone: string) => Promise<void>;
   verifyCode: (phone: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
   findRecipient: (phone: string) => Promise<Recipient>;
   /** Each returns the new activity id, for the receipt screen. */
-  send: (recipient: Recipient, cents: number, note: string) => Promise<string>;
-  deposit: (dollars: number) => Promise<string>;
-  cashOut: (cents: number, destination?: WithdrawalDestination) => Promise<string>;
+  send: (recipient: Recipient, cents: number, note: string, requestId?: string) => Promise<string>;
+  reviewPayment: (facts: ReviewFacts, fresh: boolean) => Promise<FamilyReview>;
+  createHold: (recipient: Recipient, cents: number, ticket: string, pin: string) => Promise<string>;
+  getHolds: () => Promise<HoldsResult>;
+  manageHold: (hold: SafeHold, action: 'refund' | 'release' | 'release-early', pin?: string, verified?: boolean) => Promise<void>;
+  deposit: (dollars: number, requestId?: string) => Promise<string>;
+  cashOut: (cents: number, destination?: WithdrawalDestination, requestId?: string) => Promise<string>;
   /** Text payments settings, or null until they load. */
   textPayments: TextPayments | null;
   /** Grants Nest's limited server signer, then saves the PIN. */
@@ -38,8 +47,10 @@ export type LiveContextValue = {
 const unavailable = async (): Promise<never> => { throw new Error('Live mode is not available in this build.'); };
 
 export const liveOff: LiveContextValue = {
-  status: 'off', problem: '', phone: '', address: '', balanceCents: null, activity: [],
+  status: 'off', problem: '', phone: '', address: '', balanceCents: null, activity: [], activityReady: false,
+  getAccessToken: unavailable, getFundingStatus: unavailable,
   sendCode: unavailable, verifyCode: unavailable, logout: async () => {}, findRecipient: unavailable,
+  reviewPayment: unavailable, createHold: unavailable, getHolds: unavailable, manageHold: unavailable,
   send: unavailable, deposit: unavailable, cashOut: unavailable,
   textPayments: null, enableTextPayments: unavailable, disableTextPayments: unavailable,
 };

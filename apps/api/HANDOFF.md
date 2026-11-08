@@ -1,87 +1,40 @@
-# DAT handoff
+# Nest API handoff
 
-Context for continuing this project in a new chat. Secrets live in `.env.local`: never print them, paste them into chat, or commit them.
+The current app starts from the repository root with `npm run website`, then opens **http://localhost:5175**. Follow the [Website setup](../../README.md#website-and-browser-sending), including all three dependency installs. Port 5184 serves the Nest API and a plain landing page; it is not a second consumer app.
 
-**Team setup:** run `npm install`, copy `.env.example` to `.env.local`, and get the values privately from the project owner. A Git-ignored `.env.team` holds a copy on the owner's machine: don't read it aloud to an AI chat, commit it, or upload it. Then run `npm run dev`.
+Credentials belong in ignored `.env.local` files. Never print, paste, commit or publish their values. `.env.example` lists the required names. Provider RPC URLs with keys also stay server-only.
 
-**Newer decisions** on text payments, offline use, cards, the pitch and competitors are in `docs/BRIEF.md`, which supersedes anything here that conflicts. The backend API for the mobile app is in `docs/API.md`.
+## Current behavior
 
-## The idea
+- Privy SMS login creates or reuses an embedded Solana devnet wallet. Native and browser accounts use the same Privy app ID.
+- A six-digit app PIN protects account access. Native devices can enable fingerprint/face approval with PIN fallback. App sends require a fresh approval; this is not a claim that provider-level wallet MFA is configured.
+- Stripe test-card funding transfers test USDC from the treasury after a test payment. The default deposit cap is $1,000, subject to actual available treasury supply. No real card charge is permitted.
+- Phone-number sends are fee-sponsored devnet transactions. Unfamiliar recipients use the Swarms/Prune review API when enabled. Saved contacts and successful prior recipients bypass review after confirmation.
+- Lock Nest blocks outgoing app and SMS payments. Fresh PIN verification can unlock; biometric unfreeze uses protected device storage.
+- Trusted contacts can be saved and called/texted. Contact-only recovery is **not implemented**; it requires provider configuration, prior account linking and native SDK work.
+- Bank/Apple Cash payouts, card spending and Apple Pay are not part of the connected demo. Retained withdrawal screens are simulations that return test USDC to the treasury.
+- Safe Hold is deployed on devnet; deposit/refund/override proofs are recorded. The physical-phone flow still needs rehearsal. See [the deployment status](../../FAMILY_REVIEW.md).
 
-DAT (placeholder name) is a beginner-friendly crypto neobank, pitched as a worldwide Zelle: people deposit fiat, hold USDC in their own wallet, send it to any phone number, and convert back to fiat or spend it.
+## Running it
 
-- **Pitch:** help people in emerging markets protect savings from inflation and from institutions failing. Call Ueno Bank in Paraguay (November 2026) a bank failure, not a hack.
-- **Claims to avoid:** "nobody can freeze it" (Circle can freeze USDC) and "every transaction is private".
-- **Hackathon:** live 3-minute demo due around 2026-11-08, entered in a Solana category. Devnet is allowed, and code doesn't have to be written during the event.
-- **Tests run in the US.** Nigeria and Kenya were only examples. Licensing is out of scope for this test.
+Use Node.js 24.12 and the dependency installs in the root README. Configure Privy, Stripe **test** credentials, the treasury, fee payer and a devnet RPC. `USDC_MINT` defaults to Circle's devnet mint; `MAX_DEPOSIT_USD` defaults to 1000. All broadcasts must remain on devnet.
 
-## Decisions
+`npm run dev` here starts the API on port 5184. `npm run website` at the root starts/uses that API and serves the actual app on port 5175. `npm run review` at the root starts the Python review service using the configured local port. Browser wallet login requires localhost or HTTPS, not an HTTP LAN address.
 
-- Self-custody with Privy embedded wallets, on Solana devnet.
-- Send and log in by phone number (SMS), not email. External wallets stay off in Privy.
-- No token, and no yield in v1.
-- No Zcash. Private send is a roadmap item or a stretch goal, for example MagicBlock if it works on devnet.
-- Relay is only for later cross-chain deposits, not fiat conversion.
-- Real-money options for later: Coinbase Onramp (US), MoonPay or Transak (global), TransFi (local payment methods).
+The public website URL is not configured yet. Until it is, demo on the laptop. A native phone needs the correct LAN API address on the same network and a rebuilt development app for biometric/contacts modules.
 
-## What's real in the demo
+## Important files
 
-| Step | Status |
-| --- | --- |
-| Wallets and USDC transfers | Real on devnet |
-| Deposit | Stripe test mode, then `Treasury` sends real devnet USDC |
-| Bank payout on cash-out | Simulated, though its USDC transfer is real |
-| Card payment | Simulated, though its USDC transfer is real |
+- `lib/server/solana.mjs`: balances, devnet checks, exact signed-byte submission, confirmation and pending receipts.
+- `lib/transaction-status.mjs`: verifies pending payments against the correct wallet's actual token deltas.
+- `lib/server/stripe.ts`: persistent delivery checkpoints prevent duplicate funding.
+- `lib/server/signer.mjs`, `lib/server/textPayments.ts`: limited SMS signing and freeze enforcement; `textStore.mjs` provides the persistent SQLite checkpoint/usage ledger.
+- `lib/server/paymentAuth.ts`, `app/api/account/`: PIN grants, freeze controls and saved contacts.
+- `lib/server/holds.ts`: review-bound hold actions and deployment availability.
+- [API reference](./docs/API.md), [review handoff](../../FAMILY_REVIEW.md), [mobile audit](../mobile/UX_AUDIT.md).
 
-The app labels the simulated parts, and judges should be told too.
+## Rehearsal and verification
 
-## How it's built
+Run `npm run demo:check` at the root for read-only readiness. Use `npm test` and `npm run test:holds` here, plus `npm run test:review` and `npm run test:website` at the root. Browser tests mock authentication and chain responses; a real two-phone SMS/signing rehearsal remains a separate check. Never turn a timeout into a claim that no money moved. Pending payments retain their original signature; inspect Activity/Explorer before starting a new payment.
 
-Next.js 15 app. Run `npm run dev` for port 5184. `/preview` shows the screens with fake data in development.
-
-- `lib/tx.mjs`: builds transfers and validates what the fee payer will co-sign.
-- `lib/server/solana.mjs`: balances, treasury sends, prepare and submit transfers.
-- `lib/server/privy.ts`: token checks, phone lookup, and wallets pre-created for numbers not yet signed up. Uses Privy's REST API because `@privy-io/node` fails to load on the local Node 20.15.
-- `lib/server/stripe.ts`: refuses non-test keys and prevents double delivery of a deposit.
-- `app/api/*`: balance, recipient, transfer prepare and submit, deposit intent, complete and test-card.
-- `components/LiveApp.tsx`: Privy setup and session logic. `components/Home.tsx`: the main screens.
-
-**Wallets:** `Treasury` is `67JSUvCsmtPz5phtFSobtGnmiN8zcwJUDCrJEZxRJRsu` and stands in for the deposit and payout provider. `Fee Payer` is `77m7HCt9N6VBCRiJi3WUUeL2QFbMtKmt9mdv6KbyYCCb` and pays network fees. Devnet USDC mint: `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`.
-
-**Package notes:** `.npmrc` sets `legacy-peer-deps`, and `package.json` overrides `uuid` for `rpc-websockets`. Both are needed.
-
-## Verified so far
-
-- `npm test`: 8 of 8 pass.
-- `node scripts/e2e-devnet.mjs`: deposit, sponsored send and return to treasury work on devnet from wallets holding zero SOL.
-- Privy phone lookup and wallet pre-creation work through the API. This left a fake user, `+1 555 555 0142`.
-- A Stripe test payment succeeds through the API, outside the app.
-- Login and send screens render correctly in `/preview`, using fake data.
-
-## Not verified yet
-
-- SMS login. The user still needs to turn on SMS in the Privy dashboard, and SMS versus WhatsApp can't be changed later.
-- Signing a transfer with a real Privy wallet in the browser.
-- Whether someone who gets a pre-created wallet can use it after logging in by SMS. This matters for the demo.
-- Deposit, cash-out and card screens against a real account.
-- Apple Pay, which needs a deployed HTTPS site, its domain registered with Stripe, and an iPhone with a card in Wallet.
-- Passkey support for Solana wallets. Privy's docs don't confirm it.
-
-## Next steps
-
-1. Turn on SMS in Privy and log in at http://localhost:5184.
-2. Test the full flow on two phones, including sending to a number that hasn't signed up.
-3. Deploy to Vercel with the root directory set to this app, copy the `.env.local` values into Vercel's settings, and add the deployed domain to Privy's allowed domains if login requires it.
-4. Register the domain with Stripe and test Apple Pay on an iPhone.
-5. Top up devnet USDC at https://faucet.circle.com. `Treasury` had about $20 at last check, and deposits are capped at $20 by `MAX_DEPOSIT_USD`.
-6. Rehearse, record a backup video, and bring a phone hotspot.
-
-## Demo script
-
-1. The problem: savings melting in a falling currency.
-2. A judge signs up on their own phone with no seed phrase.
-3. Add money with Apple Pay, or the test card as a backup.
-4. Send to the judge's phone number. Their screen updates live, and this is the moment that has to work.
-5. Open Solana Explorer: confirmed in seconds, with no SOL held and no fee paid by the user.
-6. Cash out and make a card payment, labeled as simulated.
-7. The vision: new countries plug in through local partners.
+SMS requires Node 24 and persistent writable storage at `SMS_STORE_PATH` (default `.data/nest-sms.sqlite`, ignored and owner-only). Do not deploy the SMS signer on ephemeral serverless storage. Privy account custom metadata is limited to 1 KB total; the signed transactions and daily SMS reservations are stored in SQLite instead. The database never stores wallet private keys.
