@@ -6,6 +6,7 @@ async function mockPayments(page: Page, rejectSubmit = false) {
   await page.route('**/api/**', async route => {
     const request = route.request(), path = new URL(request.url()).pathname;
     if (path === '/api/balance') { await route.fulfill({ json: { balance } }); return; }
+    if (path === '/api/history') { await route.fulfill({ json: { items: [] } }); return; }
     if (request.headers().authorization !== 'Bearer test-session-token') { await route.fulfill({ status: 401, json: { error: 'Sign in required.' } }); return; }
     const body = request.postDataJSON() as Record<string, unknown>;
     calls.push({ path, body });

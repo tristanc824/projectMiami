@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import { Image, View } from 'react-native';
 import { useColors } from '../theme';
 
@@ -15,14 +16,45 @@ export function Birds({ light = false }: { light?: boolean }) {
   </View>;
 }
 
-export function DollarComparison() {
+const DAY = 86_400_000;
+type Movement = { kind: 'send' | 'add' | 'withdraw' | 'receive'; amountCents: number; feeCents: number; createdAt: string };
+
+/** Balance at each change over the past `days`, rebuilt backwards from today's balance. */
+export function balanceSeries(balanceCents: number, activity: Movement[], now = Date.now(), days = 30) {
+  const start = now - days * DAY;
+  const recent = activity.filter(item => Date.parse(item.createdAt) > start).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  const points = [{ t: now, cents: balanceCents }];
+  let cents = balanceCents;
+  for (const item of recent) {
+    const t = Date.parse(item.createdAt);
+    const incoming = item.kind === 'add' || item.kind === 'receive';
+    points.push({ t, cents });
+    cents -= incoming ? item.amountCents : -(item.amountCents + item.feeCents);
+    cents = Math.max(0, cents);
+    points.push({ t, cents });
+  }
+  points.push({ t: start, cents });
+  return points.reverse();
+}
+
+/** One line: the balance over the past month, in dollars only. Drawn as steps, because a balance changes in steps. */
+export function BalanceLine({ balanceCents, activity, height = 72 }: { balanceCents: number; activity: Movement[]; height?: number }) {
   const { colors } = useColors();
-  return <View accessible accessibilityLabel="Illustration: dollars remain flat while peso purchasing power declines. Not your account performance." style={{ height: 64, marginTop: 14, marginBottom: 10 }}>
-    <View style={{ position: 'absolute', top: 10, left: 0, right: 4, height: 2, backgroundColor: colors.green }} />
-    <View style={{ position: 'absolute', top: 6, right: 0, width: 10, height: 10, borderRadius: 5, backgroundColor: colors.green, borderWidth: 2, borderColor: colors.surface }} />
-    <View style={{ position: 'absolute', left: 0, right: 4, top: 10, height: 47, flexDirection: 'row', alignItems: 'flex-start' }}>
-      {Array.from({ length: 24 }, (_, i) => <View key={i} style={{ flex: 1, height: 2, backgroundColor: '#5FA8D6', marginRight: 4, marginTop: i * 1.85, transform: [{ rotate: '10deg' }] }} />)}
-    </View>
-    <View style={{ position: 'absolute', bottom: 0, right: 0, width: 9, height: 9, borderRadius: 5, backgroundColor: '#5FA8D6', borderWidth: 2, borderColor: colors.surface }} />
+  const [width, setWidth] = useState(0);
+  const now = useMemo(() => Date.now(), []);
+  const points = useMemo(() => balanceSeries(balanceCents, activity, now), [balanceCents, activity, now]);
+  const max = Math.max(...points.map(p => p.cents), 1);
+  const start = points[0].t, span = Math.max(1, now - start);
+  const x = (t: number) => (t - start) / span * width;
+  const y = (cents: number) => height - 3 - cents / max * (height - 8);
+  const segments: { left: number; top: number; w: number; h: number }[] = [];
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1], b = points[i];
+    if (a.cents === b.cents) segments.push({ left: x(a.t), top: y(a.cents) - 1, w: Math.max(0, x(b.t) - x(a.t)), h: 2.5 });
+    else segments.push({ left: x(b.t) - 1, top: Math.min(y(a.cents), y(b.cents)) - 1, w: 2.5, h: Math.abs(y(a.cents) - y(b.cents)) + 2.5 });
+  }
+  return <View accessible accessibilityLabel="Your balance over the past month" onLayout={event => setWidth(event.nativeEvent.layout.width)} style={{ height, marginTop: 18 }}>
+    {width ? segments.map((seg, i) => <View key={i} style={{ position: 'absolute', left: seg.left, top: seg.top, width: seg.w, height: seg.h, borderRadius: 2, backgroundColor: colors.green }} />) : null}
+    {width ? <View style={{ position: 'absolute', left: width - 5, top: y(balanceCents) - 4, width: 9, height: 9, borderRadius: 5, backgroundColor: colors.green }} /> : null}
   </View>;
 }

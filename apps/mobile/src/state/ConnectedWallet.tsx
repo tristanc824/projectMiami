@@ -21,7 +21,17 @@ export function ConnectedWallet({ children, status, problem, phone, address, sen
   const [balance, setBalance] = useState<{ address: string; cents: number } | null>(null);
   const [stored, setStored] = useState<{ address: string; items: Activity[] }>({ address: '', items: [] });
   const balanceCents = balance && balance.address === address ? balance.cents : null;
-  const activity = useMemo(() => stored.address === address ? stored.items : [], [stored, address]);
+  // Activity is this device's own records plus what the chain shows, so money that arrived before
+  // sign-up (or from another device) is listed too. Records are matched by Solana signature.
+  const [chain, setChain] = useState<{ address: string; items: dat.ChainMovement[] }>({ address: '', items: [] });
+  const activity = useMemo(() => {
+    const local = stored.address === address ? stored.items : [];
+    const onChain = chain.address === address ? chain.items : [];
+    const known = new Set(local.map(item => item.signature).filter((value): value is string => !!value));
+    return [...local, ...dat.chainActivity(onChain, known)]
+      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).slice(0, MAX_ACTIVITY);
+  }, [stored, chain, address]);
+  const historyReads = useRef(0);
   const last = useRef<{ address: string; cents: number } | null>(null);
   const busy = useRef(0);
   const storeKey = (owner: string) => `guard.live.${owner}.activity`;
@@ -53,17 +63,19 @@ export function ConnectedWallet({ children, status, problem, phone, address, sen
     let next: number;
     try { next = await dat.fetchBalanceCents(address); } catch { return; }
     const previous = last.current?.address === address ? last.current.cents : null;
-    // The user's own actions record themselves; any other increase is money received.
-    if (busy.current === 0 && previous !== null && next > previous) {
-      addActivity({ kind: 'receive', name: 'Money received', amountCents: next - previous, feeCents: 0, note: 'Arrived in your wallet' });
-    }
-    // Outside the app, money only leaves through text payments.
-    if (busy.current === 0 && previous !== null && next < previous) {
-      addActivity({ kind: 'send', name: 'Sent by text message', amountCents: previous - next, feeCents: 0, note: 'Sent with no data, by SMS' });
-    }
     last.current = { address, cents: next };
     setBalance({ address, cents: next });
-  }, [address, addActivity]);
+    // Read the chain's history on first load and whenever the balance moves, then once more
+    // on the next poll in case the newest transaction wasn't indexed yet.
+    if (previous === null || next !== previous) historyReads.current = 2;
+    if (historyReads.current > 0) {
+      historyReads.current -= 1;
+      try {
+        const items = await dat.fetchHistory(address);
+        setChain({ address, items });
+      } catch { historyReads.current += 1; }
+    }
+  }, [address]);
 
   useEffect(() => {
     if (!address) return;

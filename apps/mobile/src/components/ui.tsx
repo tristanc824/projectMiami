@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useState, type ComponentProps, type ReactNode } from 'react';
-import { ActivityIndicator, Image, Modal, Platform, Pressable, StyleSheet, View, type ColorValue, type StyleProp, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions, type ColorValue, type StyleProp, type ViewStyle } from 'react-native';
 import { Text } from './Text';
 import { KeyboardFrame, KeyboardScroll, useKeyboardVisible } from './KeyboardForm';
 import { NestMark } from './NestArtwork';
@@ -11,6 +11,13 @@ import { contacts, money, type Activity, type Contact } from '../domain/wallet';
 import { useContacts } from '../state/ContactsProvider';
 import { useIsLive } from '../state/live';
 
+/** Laptop and desktop browsers get the website layout (sidebar, wider columns). Phones are unchanged. */
+export const DESKTOP_MIN_WIDTH = 1024;
+export const SIDEBAR_WIDTH = 240;
+export function useDesktop() {
+  const { width } = useWindowDimensions();
+  return Platform.OS === 'web' && width >= DESKTOP_MIN_WIDTH;
+}
 export type IconName = ComponentProps<typeof Ionicons>['name'];
 export function Icon({ name, size = 22, color }: { name: IconName; size?: number; color?: ColorValue }) {
   const { colors } = useColors();
@@ -36,18 +43,17 @@ export function IconButton({ icon, label, onPress }: { icon: IconName; label: st
   const s = useS();
   return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [s.iconButton, { opacity: pressed ? 0.6 : 1 }]}><Icon name={icon} size={21} /></Pressable>;
 }
-const portraits: Record<string, number> = {
-  mama: require('../../assets/nest/avatar-mama.jpg'),
-  diego: require('../../assets/nest/avatar-luis.jpg'),
-  camila: require('../../assets/nest/avatar-daniela.jpg'),
-  ana: require('../../assets/nest/avatar-ana.jpg'),
-};
-export function Avatar({ contact, size = 52 }: { contact: Contact; size?: number }) {
+/** People are shown by their initials, never a photo. With no initials (the signed-in user without a name), a plain person icon. */
+export function Avatar({ contact, size = 52 }: { contact: Pick<Contact, 'initials'>; size?: number }) {
   const { colors } = useColors();
-  const portrait = portraits[contact.id];
   return <View style={{ height: size, width: size, borderRadius: size / 2, overflow: 'hidden', backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center' }}>
-    {portrait ? <Image accessible={false} source={portrait} resizeMode="cover" style={{ width: size, height: size }} /> : <Text style={{ color: colors.green, fontSize: size * .3, fontWeight: '600' }}>{contact.initials}</Text>}
+    {contact.initials ? <Text style={{ color: colors.green, fontSize: size * .34, fontWeight: '600' }}>{contact.initials}</Text> : <Icon name="person" size={size * .48} color={colors.green} />}
   </View>;
+}
+/** Initials from a real name, or '' so Avatar shows the person icon. */
+export function initialsFor(name?: string | null) {
+  const words = (name ?? '').trim().split(/\s+/).filter(word => /^\p{L}/u.test(word));
+  return words.length ? (words[0][0] + (words.length > 1 ? words[words.length - 1][0] : '')).toUpperCase() : '';
 }
 export function Pill({ children, dark = false }: { children: ReactNode; dark?: boolean }) {
   const { colors } = useColors();
@@ -60,19 +66,21 @@ export function DemoNote({ compact = false }: { compact?: boolean }) {
 }
 /** Height of the floating tab dock; scroll content must clear it plus the home indicator. */
 export const DOCK_HEIGHT = 72;
-export function Screen({ children, title, subtitle, back = false, scroll = true, trailing, footer }: { children?: ReactNode; title?: string; subtitle?: string; back?: boolean; scroll?: boolean; trailing?: ReactNode; footer?: ReactNode }) {
+export function Screen({ children, title, subtitle, back = false, scroll = true, trailing, footer, wide = false }: { children?: ReactNode; title?: string; subtitle?: string; back?: boolean; scroll?: boolean; trailing?: ReactNode; footer?: ReactNode; /** Desktop only: the wider home grid instead of the form column. */ wide?: boolean }) {
   const { colors, styles: t } = useColors();
   const s = useS();
   const insets = useSafeAreaInsets();
   const keyboardVisible = useKeyboardVisible();
-  const content = <View style={s.content}>
+  const desktop = useDesktop();
+  const maxWidth = desktop ? wide ? 1100 : 760 : 620;
+  const content = <View style={[s.content, desktop && { maxWidth, paddingHorizontal: 48, paddingTop: back ? 32 : 48 }]}>
     {back ? <View style={[t.between, { marginBottom: 18 }]}><IconButton icon="arrow-back" label="Go back" onPress={() => router.canGoBack() ? router.back() : router.replace('/')} /><Brand small /><View style={{ width: 44 }} /></View> : null}
     {title ? <View style={[t.between, { marginBottom: 22 }]}><View style={{ flex: 1 }}><Text accessibilityRole="header" style={t.title}>{title}</Text>{subtitle ? <Text style={[t.muted, { marginTop: 5 }]}>{subtitle}</Text> : null}</View>{trailing}</View> : null}
     {children}
   </View>;
   return <SafeAreaView edges={['top', 'left', 'right']} style={s.screen}><KeyboardFrame offset={insets.top}>
-    {scroll ? <KeyboardScroll contentContainerStyle={{ paddingBottom: footer || keyboardVisible ? 16 : back ? Math.max(insets.bottom, 16) + 24 : DOCK_HEIGHT + Math.max(insets.bottom, 16) + 24 }} showsVerticalScrollIndicator={false}>{content}</KeyboardScroll> : content}
-    {footer ? <View style={{ width: '100%', maxWidth: 620, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 12, paddingBottom: keyboardVisible ? 8 : Math.max(insets.bottom, 12), backgroundColor: colors.background }}>{footer}</View> : null}
+    {scroll ? <KeyboardScroll contentContainerStyle={{ paddingBottom: footer || keyboardVisible ? 16 : desktop ? 56 : back ? Math.max(insets.bottom, 16) + 24 : DOCK_HEIGHT + Math.max(insets.bottom, 16) + 24 }} showsVerticalScrollIndicator={false}>{content}</KeyboardScroll> : content}
+    {footer ? <View style={{ width: '100%', maxWidth, alignSelf: 'center', paddingHorizontal: desktop ? 48 : 24, paddingTop: 12, paddingBottom: keyboardVisible ? 8 : Math.max(insets.bottom, 12), backgroundColor: colors.background }}>{footer}</View> : null}
   </KeyboardFrame></SafeAreaView>;
 }
 export function SectionHeader({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
@@ -118,11 +126,13 @@ const useS = themedStyles(colors => ({
 export function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: ReactNode }) {
   const { colors, styles: t } = useColors();
   const insets = useSafeAreaInsets();
-  return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-    <KeyboardFrame style={{ justifyContent: 'flex-end', backgroundColor: '#17201A66' }}>
+  const desktop = useDesktop();
+  // On a laptop the sheet becomes a centered dialog, the way web banking apps confirm a payment.
+  return <Modal visible={visible} transparent animationType={desktop ? 'fade' : 'slide'} onRequestClose={onClose}>
+    <KeyboardFrame style={{ justifyContent: desktop ? 'center' : 'flex-end', backgroundColor: '#17201A66' }}>
       <Pressable accessibilityRole="button" accessibilityLabel="Close sheet" onPress={onClose} style={StyleSheet.absoluteFill} />
-      <View accessibilityViewIsModal style={{ width: '100%', maxWidth: 620, maxHeight: '90%', alignSelf: 'center', backgroundColor: colors.background, borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: Math.max(insets.bottom, 24) }}>
-        <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.line, alignSelf: 'center', marginBottom: 24 }} />
+      <View accessibilityViewIsModal style={[{ width: '100%', maxWidth: 620, maxHeight: '90%', alignSelf: 'center', backgroundColor: colors.background, borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: Math.max(insets.bottom, 24) }, desktop && { maxWidth: 520, borderRadius: 28, padding: 32, paddingBottom: 32 }]}>
+        {desktop ? null : <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.line, alignSelf: 'center', marginBottom: 24 }} />}
         <View style={[t.between, { marginBottom: 20 }]}><Text accessibilityRole="header" style={[t.heading, { flex: 1 }]}>{title}</Text><IconButton icon="close" label="Dismiss" onPress={onClose} /></View>
         <KeyboardScroll showsVerticalScrollIndicator={false}>{children}</KeyboardScroll>
       </View>

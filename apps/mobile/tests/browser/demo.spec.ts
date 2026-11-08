@@ -73,7 +73,8 @@ test('send, receipt, and persistent activity work together without a real transa
   await expect(page.getByRole('button', { name: 'Carlos Torres, received $75.00, view receipt', exact: true })).toHaveCount(0);
 });
 
-test('funding, family-goal contribution, filtering, and reset remain coherent', async ({ page }) => {
+// Savings and family goals were removed from the app (Nov 7). Kept for reference.
+test.skip('funding, family-goal contribution, filtering, and reset remain coherent', async ({ page }) => {
   await page.getByRole('button', { name: 'Add money', exact: true }).click();
   await page.getByLabel('Amount in USDC', { exact: true }).fill('100');
   await page.getByRole('button', { name: 'Review details', exact: true }).click();
@@ -192,7 +193,8 @@ test('phone entry rejects incomplete numbers and accepts international recipient
 });
 
 
-test('savings reserve available funds, survive reload, and can be released', async ({ page }) => {
+// Savings and family goals were removed from the app (Nov 7). Kept for reference.
+test.skip('savings reserve available funds, survive reload, and can be released', async ({ page }) => {
   await addMoney(page, '100');
   await page.getByRole('tab', { name: 'Save', exact: true }).click();
   await page.getByRole('button', { name: 'Open Rainy day', exact: true }).click();
@@ -216,13 +218,10 @@ test('savings reserve available funds, survive reload, and can be released', asy
   await expect(page.getByTestId('home-balance')).toHaveText('$100.00');
 });
 
-test('new goals and protection previews are usable and honestly labeled', async ({ page }) => {
-  await page.getByRole('tab', { name: 'Save', exact: true }).click();
-  await page.getByRole('button', { name: 'New goal', exact: true }).last().click();
-  await page.getByLabel('Goal name', { exact: true }).fill('A little adventure');
-  await page.getByLabel('Goal target', { exact: true }).fill('500');
-  await page.getByRole('button', { name: 'Create goal', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Open A little adventure', exact: true })).toBeVisible();
+test('there is no Save tab, old goal links go home, and protection previews are honestly labeled', async ({ page }) => {
+  await expect(page.getByRole('tab', { name: 'Save', exact: true })).toHaveCount(0);
+  await page.goto('/goal?id=rainy-day');
+  await expect(page.getByTestId('home-balance')).toBeVisible();
   await page.getByRole('tab', { name: 'Security', exact: true }).click();
   await page.getByRole('button', { name: '24-hour undo, Preview', exact: true }).click();
   await expect(page.getByText('The mockups include a 24-hour hold', { exact: false })).toBeVisible();

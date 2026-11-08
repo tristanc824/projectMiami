@@ -21,6 +21,10 @@ Errors always come back as `{ "error": "Readable message" }`, with a 4xx or 5xx 
 
 No login needed. Returns `{ "balance": 19.98 }` in dollars of devnet USDC. The app polls this every 4 seconds and shows "You received" when the balance rises outside the user's own actions.
 
+### `GET /api/history?address=<solana address>`
+
+No login needed. Returns the wallet's recent USDC movements from the chain, newest first: `{ "items": [{ "signature": "...", "time": "2026-11-07T04:00:41.000Z", "direction": "in", "amount": 5, "nest": false }] }`. `nest: true` means the other side was Nest's treasury (a test-card deposit or a cash-out). Other wallets are not returned. The app merges this with its own records, so money sent to a number before its owner signed up shows as received.
+
 ### `POST /api/recipient`
 
 Body `{ "phone": "+15555550142" }`. US numbers can be sent as 10 digits.

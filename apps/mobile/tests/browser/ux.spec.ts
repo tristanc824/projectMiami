@@ -156,7 +156,8 @@ test('Apple Cash animation respects reduced motion and never replays or debits o
   await expect(page.getByTestId('home-balance')).toHaveText('$89.50');
 });
 
-test('withdraw available balance accounts for savings and the example fee', async ({ page }) => {
+// Savings and family goals were removed from the app (Nov 7). Kept for reference.
+test.skip('withdraw available balance accounts for savings and the example fee', async ({ page }) => {
   await fund(page);
   await page.goto('/goal?id=rainy-day');
   await page.getByRole('button', { name: 'Add money', exact: true }).click();
@@ -174,7 +175,8 @@ test('withdraw available balance accounts for savings and the example fee', asyn
   await expect(page.getByRole('button', { name: 'Review details', exact: true })).toBeDisabled();
 });
 
-test('Apple Cash uses the account balance after sends, protects savings, and updates bank availability', async ({ page }) => {
+// Savings and family goals were removed from the app (Nov 7). Kept for reference.
+test.skip('Apple Cash uses the account balance after sends, protects savings, and updates bank availability', async ({ page }) => {
   await fund(page, '123.45');
   await page.goto('/goal?id=rainy-day');
   await page.getByRole('button', { name: 'Add money', exact: true }).click();

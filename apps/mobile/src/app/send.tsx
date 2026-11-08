@@ -9,7 +9,7 @@ import { AmountInput } from '../components/AmountInput';
 import { RecipientPicker, demoPhones } from '../components/RecipientPicker';
 import { Avatar, Button, DemoNote, Detail, Icon, Notice, Pill, Screen, Sheet } from '../components/ui';
 import { reservedCents } from '../domain/savings';
-import { contacts, DEMO_ARS_RATE, money, parseAmount } from '../domain/wallet';
+import { contacts, money, parseAmount } from '../domain/wallet';
 import { formatPhone, normalizePhone, type Recipient } from '../services/dat';
 import { useLive } from '../state/live';
 import { useWallet } from '../state/WalletProvider';
@@ -75,8 +75,7 @@ function SendFlow({ connected }: { connected: boolean }) {
       {contact ? <Avatar contact={contact} size={38} /> : <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center' }}><Icon name="person-outline" color={colors.green} size={20} /></View>}<Text style={{ color: colors.ink, fontSize: 17, fontWeight: '500' }}>{recipientName}</Text><Icon name="chevron-down" size={15} color={colors.muted} />
     </Pressable>
     <AmountInput value={amount} onChange={setAmount} showKeypad={!editingText} detail={<>
-      <Text style={[t.muted, { textAlign: 'center', marginTop: 8 }]}>≈ ARS {new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Number(amount || 0) * DEMO_ARS_RATE)} · example rate</Text>
-      <Text style={[t.muted, { textAlign: 'center', marginTop: 4 }]}>{money(available)} available</Text>
+      <Text style={[t.muted, { textAlign: 'center', marginTop: 8 }]}>{money(available)} available</Text>
       <View style={[t.row, { justifyContent: 'center', gap: 8, marginTop: 18 }]}><Pill>No fee</Pill><Pill>{connected ? 'Solana devnet' : 'Demo payment'}</Pill></View>
     </>} />
     <TextInput accessibilityLabel="Recipient phone number" placeholder="Their phone number" placeholderTextColor={colors.muted} value={phone} onChangeText={value => { setPhone(value.slice(0, 24)); setError(''); }} onFocus={() => setEditingText(true)} onBlur={() => setEditingText(false)} keyboardType="phone-pad" textContentType="telephoneNumber" style={[t.body, { padding: 17, backgroundColor: colors.surface, borderRadius: 28 }]} />

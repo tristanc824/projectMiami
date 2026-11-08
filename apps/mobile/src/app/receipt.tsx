@@ -42,7 +42,7 @@ export default function ReceiptScreen() {
     <View style={{ alignItems: 'center', paddingTop: 8, paddingBottom: 28 }}>
       <Birds />
       <View style={{ marginTop: 8, marginBottom: 28 }}>
-        {contact ? <Avatar contact={contact} size={96} /> : <View style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center' }}><Icon name={item.kind === 'add' ? 'add' : item.kind === 'withdraw' ? item.withdrawalDestination === 'apple-cash' ? 'logo-apple' : 'business-outline' : 'paper-plane-outline'} size={38} color={colors.green} /></View>}
+        {contact ? <Avatar contact={contact} size={96} /> : <View style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center' }}><Icon name={item.kind === 'add' ? 'add' : item.kind === 'withdraw' ? item.withdrawalDestination === 'apple-cash' ? 'logo-apple' : 'business-outline' : item.kind === 'receive' ? 'arrow-down' : 'paper-plane-outline'} size={38} color={colors.green} /></View>}
         <View style={{ position: 'absolute', bottom: -4, right: -4, width: 34, height: 34, borderRadius: 17, backgroundColor: colors.green, alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: colors.background }}><Icon name="checkmark" size={18} color={colors.background} /></View>
       </View>
       <Text accessibilityRole="header" style={[t.title, { fontSize: 34, lineHeight: 37, textAlign: 'center' }]}>{headline}</Text>

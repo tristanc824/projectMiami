@@ -3,6 +3,8 @@
  * Money here is real devnet USDC on Solana; deposits use Stripe test mode only.
  */
 
+import type { Activity } from '../domain/wallet';
+
 const configuredUrl = process.env.EXPO_PUBLIC_DAT_API_URL?.trim() || '';
 const baseUrl = configuredUrl === 'same-origin' ? '' : configuredUrl.replace(/\/+$/, '');
 export const datConfigured = configuredUrl === 'same-origin' || /^https?:\/\/\S+$/.test(baseUrl);
@@ -38,6 +40,29 @@ async function post<T>(getToken: TokenSource, path: string, body: unknown): Prom
 export async function fetchBalanceCents(address: string): Promise<number> {
   const { balance } = await call<{ balance: number }>(`/api/balance?address=${encodeURIComponent(address)}`, { method: 'GET', headers: { 'cache-control': 'no-store' } });
   return Math.round(balance * 100);
+}
+
+/** A USDC movement read from the chain. `nest` means the other side was Nest's treasury (test-card deposit or cash-out). */
+export type ChainMovement = { signature: string; time: string | null; direction: 'in' | 'out'; amount: number; nest: boolean };
+
+/** Recent on-chain USDC movements for a wallet, newest first, including money that arrived before sign-up. */
+export async function fetchHistory(address: string): Promise<ChainMovement[]> {
+  const { items } = await call<{ items: ChainMovement[] }>(`/api/history?address=${encodeURIComponent(address)}`, { method: 'GET', headers: { 'cache-control': 'no-store' } });
+  return Array.isArray(items) ? items : [];
+}
+
+/** Chain movements the app didn't record itself (matched by signature) become activity rows. */
+export function chainActivity(movements: ChainMovement[], known: Set<string>): Activity[] {
+  return movements.filter(m => m.signature && !known.has(m.signature) && m.amount > 0).map(m => {
+    const incoming = m.direction === 'in';
+    return {
+      id: `live-chain-${m.signature}`, live: true, signature: m.signature, feeCents: 0,
+      amountCents: Math.round(m.amount * 100), createdAt: m.time ?? new Date(0).toISOString(),
+      kind: incoming ? (m.nest ? 'add' : 'receive') : 'send',
+      name: incoming ? (m.nest ? 'Money added' : 'Money received') : (m.nest ? 'Sent to Nest' : 'Money sent'),
+      note: incoming ? 'Arrived in your wallet' : 'Sent from your wallet',
+    } satisfies Activity;
+  });
 }
 
 export const findRecipient = (getToken: TokenSource, phone: string) => post<Recipient>(getToken, '/api/recipient', { phone });

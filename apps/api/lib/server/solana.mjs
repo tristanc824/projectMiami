@@ -7,6 +7,7 @@ import {
 import bs58 from 'bs58';
 import { USDC_DECIMALS } from '../money.mjs';
 import { assertSponsorable, buildTransferMessage } from '../tx.mjs';
+import { summarizeUsdcChange } from '../history.mjs';
 
 export const USDC_MINT = new PublicKey(process.env.USDC_MINT || '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU');
 
@@ -32,6 +33,18 @@ export async function usdcBalance(owner) {
   } catch {
     return 0n;
   }
+}
+
+// Recent USDC movements for a wallet, read from the chain, newest first.
+// This includes money that arrived before the owner signed up (a wallet waiting for a phone number).
+export async function usdcHistory(owner, limit = 25) {
+  const ata = getAssociatedTokenAddressSync(USDC_MINT, owner);
+  const signatures = (await connection().getSignaturesForAddress(ata, { limit })).filter((s) => !s.err);
+  if (!signatures.length) return [];
+  const txs = await connection().getParsedTransactions(signatures.map((s) => s.signature), { maxSupportedTransactionVersion: 0, commitment: 'confirmed' });
+  return signatures
+    .map((s, i) => summarizeUsdcChange(txs[i], owner.toBase58(), USDC_MINT.toBase58(), s.signature))
+    .filter(Boolean);
 }
 
 async function confirm(signature, blockhash, lastValidBlockHeight) {

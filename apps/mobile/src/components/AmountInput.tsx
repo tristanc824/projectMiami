@@ -4,7 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { Keyboard, Pressable, View, useWindowDimensions } from 'react-native';
 import { Text, TextInput } from './Text';
 import { themedStyles, useColors } from '../theme';
-import { Icon } from './ui';
+import { Icon, useDesktop } from './ui';
 
 export function AmountInput({ value, onChange, currency = 'USDC', detail, showKeypad = true, compact = false, demo = false }: { value: string; onChange: (value: string) => void; currency?: string; detail?: ReactNode; showKeypad?: boolean; compact?: boolean; demo?: boolean }) {
   const live = useIsLive() && !demo;
@@ -21,9 +21,10 @@ export function AmountInput({ value, onChange, currency = 'USDC', detail, showKe
     if (digit === '.') return value.includes('.') ? undefined : update(`${value || '0'}.`);
     update(value === '0' ? digit : value + digit);
   };
+  const desktop = useDesktop();
   return <View>
     <View style={{ alignItems: 'center', marginTop: compact ? 4 : 10, marginBottom: compact ? 12 : 18 }}><Text style={[t.muted, { fontSize: 13 }]}>{live ? 'Test dollars' : 'Demo dollars'}</Text><View style={[t.row, { marginTop: 9, justifyContent: 'center', minHeight: compact ? 92 : 112 }]}><Text style={[s.symbol, { fontSize: amountFontSize }]}>$</Text><TextInput testID="amount-input" accessibilityLabel={`Amount in ${currency}`} inputMode="decimal" keyboardType="decimal-pad" showSoftInputOnFocus={false} value={value} onChangeText={update} selectTextOnFocus onFocus={Keyboard.dismiss} style={[s.input, { width: inputWidth, fontSize: amountFontSize, minHeight: compact ? 92 : 112 }]} /></View>{detail}</View>
-    {showKeypad ? <View style={s.pad}>{['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'delete'].map(digit => <Pressable key={digit} accessibilityRole="button" accessibilityLabel={digit === 'delete' ? 'Delete digit' : digit === '.' ? 'Decimal point' : `Digit ${digit}`} onPress={() => key(digit)} style={({ pressed }) => [s.key, compact && { minHeight: 52 }, { backgroundColor: pressed ? colors.line : 'transparent' }]}>{digit === 'delete' ? <Icon name="backspace-outline" size={24} /> : <Text style={s.digit}>{digit}</Text>}</Pressable>)}</View> : null}
+    {showKeypad ? <View style={[s.pad, desktop && { width: 360, alignSelf: 'center' }]}>{['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'delete'].map(digit => <Pressable key={digit} accessibilityRole="button" accessibilityLabel={digit === 'delete' ? 'Delete digit' : digit === '.' ? 'Decimal point' : `Digit ${digit}`} onPress={() => key(digit)} style={({ pressed }) => [s.key, compact && { minHeight: 52 }, { backgroundColor: pressed ? colors.line : 'transparent' }]}>{digit === 'delete' ? <Icon name="backspace-outline" size={24} /> : <Text style={s.digit}>{digit}</Text>}</Pressable>)}</View> : null}
   </View>;
 }
 const useS = themedStyles(colors => ({
