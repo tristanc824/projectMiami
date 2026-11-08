@@ -80,6 +80,8 @@ jobs:
             # whose crypto-common 0.2 / hybrid-array 0.4 are edition 2024 (Cargo 1.75 cannot read them).
             pin blake3 1 1.5.5
             # getrandom 0.3.2+ adds a wasip2 backend (wasip2 needs Rust 1.87, wit-bindgen is edition 2024).
+            # It comes from jobserver 0.1.34 (cc's build helper); jobserver 0.1.32 has no getrandom.
+            pin jobserver 0.1 0.1.32
             pin getrandom 0.3 0.3.1
           fi
           grep -A1 -E 'name = "(blake3|digest|crypto-common|proc-macro-crate|toml_edit|indexmap)"' Cargo.lock
