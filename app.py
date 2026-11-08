@@ -1,27 +1,28 @@
-"""Local voice-controlled demo for the Project Miami family review swarm.
+"""JSON API for the Project Miami family transfer review. It has no UI.
 
-The browser handles speech recognition. This server receives the transcript,
-keeps only a small allowlist of transfer facts, and sends those facts through
-the existing Swarms review. It never signs or sends funds.
+An app sends a transcript (typed or from speech) and the facts it has. This
+server keeps only a small allowlist of transfer facts, runs the Watchdog's
+local typo and tamper checks, and sends those facts through the
+PlainSpeaker -> Skeptic -> Watchdog -> Judge Swarms review. It never signs or
+sends funds. See FAMILY_REVIEW.md for the contract.
 """
 
 from __future__ import annotations
 
 import argparse
+import hmac
 import json
 import os
 import re
+import sys
 import threading
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
 from swarm import family_review
 
-ROOT = Path(__file__).resolve().parent
-WEB_DIR = ROOT / "voice"
 MAX_BODY_BYTES = 32_000
 MAX_TRANSCRIPT_CHARS = 2_000
 DEFAULT_LOCALE = "es-US"
@@ -258,32 +259,49 @@ def apply_voice_facts(case: dict[str, Any], transcript: str) -> dict[str, Any]:
     return updated
 
 
+def allowed_origins() -> set[str]:
+    """Browser origins allowed to call this API, from REVIEW_ALLOWED_ORIGINS (comma separated)."""
+    raw = os.environ.get("REVIEW_ALLOWED_ORIGINS", "")
+    return {origin.strip().rstrip("/") for origin in raw.split(",") if origin.strip()}
+
+
+def api_token() -> str:
+    return os.environ.get("REVIEW_API_TOKEN", "").strip()
+
+
 class VoiceReviewHandler(BaseHTTPRequestHandler):
-    server_version = "ProjectMiamiVoice/0.1"
+    server_version = "ProjectMiamiReview/0.2"
 
     def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
         path = urlparse(self.path).path
-        files = {
-            "/": ("index.html", "text/html; charset=utf-8"),
-            "/app.js": ("app.js", "text/javascript; charset=utf-8"),
-            "/styles.css": ("styles.css", "text/css; charset=utf-8"),
-        }
-        entry = files.get(path)
-        if entry is None:
-            self.send_error(HTTPStatus.NOT_FOUND)
+        if path == "/api/health":
+            self._json(HTTPStatus.OK, {"ok": True, "offline": bool(getattr(self.server, "offline", False))})
             return
-        filename, content_type = entry
-        try:
-            data = (WEB_DIR / filename).read_bytes()
-        except OSError:
-            self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR)
+        if path == "/":
+            self._json(
+                HTTPStatus.OK,
+                {
+                    "service": "family-transfer-review",
+                    "endpoints": ["POST /api/review", "POST /api/reset", "GET /api/health"],
+                    "docs": "FAMILY_REVIEW.md",
+                },
+            )
             return
-        self.send_response(HTTPStatus.OK)
-        self.send_header("Content-Type", content_type)
-        self.send_header("Content-Length", str(len(data)))
-        self.send_header("Cache-Control", "no-store")
+        self._json(HTTPStatus.NOT_FOUND, {"error": "not-found"})
+
+    def do_OPTIONS(self) -> None:  # noqa: N802 - stdlib handler API
+        # CORS preflight, answered only for origins listed in REVIEW_ALLOWED_ORIGINS.
+        origin = self.headers.get("Origin")
+        if origin is None or origin.rstrip("/") not in allowed_origins():
+            self._json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
+            return
+        self.send_response(HTTPStatus.NO_CONTENT)
+        self._cors_headers()
+        self.send_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        self.send_header("Access-Control-Max-Age", "600")
+        self.send_header("Content-Length", "0")
         self.end_headers()
-        self.wfile.write(data)
 
     def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
         path = urlparse(self.path).path
@@ -291,12 +309,12 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
             self.send_error(HTTPStatus.NOT_FOUND)
             return
         if not self._trusted_request():
-            # Another website open in the same browser could otherwise POST here
+            # A random website, or another machine, could otherwise POST here
             # and spend the Swarms credits behind SWARMS_API_KEY.
             self._json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
             return
         if path == "/api/reset":
-            # "Clear" in the UI starts a new request, so the next one is not compared with the old one.
+            # Starting a new request: the next one is not compared with the last review.
             remember(None)
             self._json(HTTPStatus.OK, {"ok": True})
             return
@@ -367,20 +385,33 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
         }
 
     def _trusted_request(self) -> bool:
-        """Accept only same-origin JSON posts, and only loopback Host names on a loopback bind."""
+        """JSON posts only. A browser must come from REVIEW_ALLOWED_ORIGINS, a bearer token is
+        required when REVIEW_API_TOKEN is set, and a loopback bind accepts only loopback Host names."""
         host = self.headers.get("Host", "")
         host_name = host.rsplit(":", 1)[0] if not host.endswith("]") else host
         if self.server.server_address[0] in LOOPBACK_HOSTS and host_name not in LOOPBACK_HOSTS:
             return False  # DNS rebinding: a foreign name that resolves to this machine
         origin = self.headers.get("Origin")
-        if origin is not None and origin != f"http://{host}":
-            return False
+        if origin is not None and origin.rstrip("/") not in allowed_origins():
+            return False  # server-to-server calls send no Origin; browsers must be allowlisted
+        token = api_token()
+        if token:
+            sent = self.headers.get("Authorization", "")
+            if not hmac.compare_digest(sent.encode(), f"Bearer {token}".encode()):
+                return False
         content_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
         return content_type == "application/json"
+
+    def _cors_headers(self) -> None:
+        origin = self.headers.get("Origin")
+        if origin is not None and origin.rstrip("/") in allowed_origins():
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
 
     def _json(self, status: HTTPStatus, payload: dict[str, Any]) -> None:
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
+        self._cors_headers()
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-store")
@@ -389,21 +420,26 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run the local Project Miami voice demo.")
+    parser = argparse.ArgumentParser(description="Run the Project Miami family review API (JSON only, no UI).")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument(
         "--offline",
         action="store_true",
-        help="Try the UI without SWARMS_API_KEY: the local checks run, and the agents' text is canned and labeled.",
+        help="Build against the API without SWARMS_API_KEY: the Watchdog's checks run, and the agents' text is canned and labeled.",
     )
     args = parser.parse_args()
+    if args.host not in LOOPBACK_HOSTS and not api_token():
+        sys.exit(
+            "Set REVIEW_API_TOKEN before binding to a non-loopback address, "
+            "or anyone on the network can spend your Swarms credits."
+        )
     server = ThreadingHTTPServer((args.host, args.port), VoiceReviewHandler)
     server.offline = args.offline  # type: ignore[attr-defined]
-    print(f"Project Miami voice demo: http://{args.host}:{args.port}")
+    print(f"Project Miami family review API: http://{args.host}:{args.port}  (JSON only, see FAMILY_REVIEW.md)")
     if args.offline:
         print("Offline mode: the Watchdog's local checks are real; the agents' text is canned. No Swarms calls.")
-    print("Voice can prepare and explain a review; it cannot sign or send funds.")
+    print("It prepares and explains a review; it cannot sign or send funds.")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

@@ -4,8 +4,8 @@
 
 ## Family transfer review and hold
 
-The voice review (`python app.py`), the Swarms review and Prune gate (`swarm/`), and the
-devnet family hold (`node hold/hold.mjs`) are documented in [FAMILY_REVIEW.md](./FAMILY_REVIEW.md).
+The review API with the Watchdog's typo checks (`python app.py`, JSON only), the Swarms review and
+Prune gate (`swarm/`), and the devnet family hold (`node hold/hold.mjs`): see [FAMILY_REVIEW.md](./FAMILY_REVIEW.md).
 
 ## Run the iPhone / web preview
 
