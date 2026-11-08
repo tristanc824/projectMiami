@@ -62,8 +62,15 @@ jobs:
       - name: Lock dependencies that build with Rust 1.75
         working-directory: programs/family_hold
         run: |
-          if [ ! -f Cargo.lock ]; then cargo generate-lockfile; fi
-          grep -A1 -E 'name = "(borsh|hashbrown|indexmap|cfg-if)"' Cargo.lock
+          if [ ! -f Cargo.lock ]; then
+            cargo generate-lockfile
+            # The fallback resolver cannot backtrack a parent: proc-macro-crate 3.2+ drags in
+            # toml_edit 0.23 (Rust 1.76+). 3.1.0 uses toml_edit 0.21, which builds on 1.75.
+            for v in $(awk '/^name = "proc-macro-crate"$/{getline; gsub(/version = |"/,""); print}' Cargo.lock); do
+              case "$v" in 3.*) cargo update -p "proc-macro-crate@$v" --precise 3.1.0 ;; esac
+            done
+          fi
+          grep -A1 -E 'name = "(borsh|proc-macro-crate|toml_edit|hashbrown|indexmap)"' Cargo.lock
 
       - name: Type-check on the host
         working-directory: programs/family_hold
