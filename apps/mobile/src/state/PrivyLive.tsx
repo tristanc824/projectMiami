@@ -1,4 +1,4 @@
-import { PrivyProvider, useEmbeddedSolanaWallet, useLoginWithSMS, usePrivy } from '@privy-io/expo';
+import { PrivyProvider, useEmbeddedSolanaWallet, useLoginWithSMS, usePrivy, useSigners } from '@privy-io/expo';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import * as dat from '../services/dat';
 import { ConnectedWallet } from './ConnectedWallet';
@@ -43,7 +43,14 @@ function Session({ children }: { children: ReactNode }) {
     return signature;
   }, [wallet]);
 
-  return <ConnectedWallet status={!isReady ? 'loading' : !user ? 'signed-out' : !address ? 'setting-up' : 'ready'} problem={problem} phone={phone} address={address} sign={sign} getAccessToken={getAccessToken}
+  const { addSigners, removeSigners } = useSigners();
+  const addSigner = useCallback(async (settings: dat.TextPayments) => {
+    if (!address) throw new Error('Your wallet is still being set up.');
+    await addSigners({ address, signers: [{ signerId: settings.signerId, policyIds: [settings.policyId] }] });
+  }, [address, addSigners]);
+  const removeSigner = useCallback(async () => { if (address) await removeSigners({ address }); }, [address, removeSigners]);
+
+  return <ConnectedWallet addSigner={addSigner} removeSigner={removeSigner} status={!isReady ? 'loading' : !user ? 'signed-out' : !address ? 'setting-up' : 'ready'} problem={problem} phone={phone} address={address} sign={sign} getAccessToken={getAccessToken}
     sendCode={async input => { await privySendCode({ phone: input }); }}
     verifyCode={async (input, code) => { await loginWithCode({ phone: input, code }); }}
     logout={async () => { await privyLogout(); creating.current = false; setWalletProblem(''); }}>{children}</ConnectedWallet>;

@@ -7,10 +7,15 @@ import { LiveContext, type LiveContextValue } from './live';
 const POLL_MS = 4000;
 const MAX_ACTIVITY = 50;
 const newId = () => `live-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-type Props = Pick<LiveContextValue, 'status' | 'problem' | 'phone' | 'address' | 'sendCode' | 'verifyCode' | 'logout'> & { getAccessToken: dat.TokenSource; sign: dat.Signer; children: ReactNode };
+type Props = Pick<LiveContextValue, 'status' | 'problem' | 'phone' | 'address' | 'sendCode' | 'verifyCode' | 'logout'> & {
+  getAccessToken: dat.TokenSource; sign: dat.Signer; children: ReactNode;
+  /** Grants and revokes Nest's limited server signer for text payments. Omitted where the SDK can't (the browser). */
+  addSigner?: (settings: dat.TextPayments) => Promise<void>;
+  removeSigner?: () => Promise<void>;
+};
 
 /** Shared account and transfer behavior for the native and browser wallet adapters. */
-export function ConnectedWallet({ children, status, problem, phone, address, sendCode, verifyCode, logout, getAccessToken, sign }: Props) {
+export function ConnectedWallet({ children, status, problem, phone, address, sendCode, verifyCode, logout, getAccessToken, sign, addSigner, removeSigner }: Props) {
   // Balance, activity and incoming-payment detection, scoped to the signed-in wallet.
   // Both are tagged with their wallet, so switching accounts never shows the previous user's data.
   const [balance, setBalance] = useState<{ address: string; cents: number } | null>(null);
@@ -52,6 +57,10 @@ export function ConnectedWallet({ children, status, problem, phone, address, sen
     if (busy.current === 0 && previous !== null && next > previous) {
       addActivity({ kind: 'receive', name: 'Money received', amountCents: next - previous, feeCents: 0, note: 'Arrived in your wallet' });
     }
+    // Outside the app, money only leaves through text payments.
+    if (busy.current === 0 && previous !== null && next < previous) {
+      addActivity({ kind: 'send', name: 'Sent by text message', amountCents: previous - next, feeCents: 0, note: 'Sent with no data, by SMS' });
+    }
     last.current = { address, cents: next };
     setBalance({ address, cents: next });
   }, [address, addActivity]);
@@ -68,6 +77,42 @@ export function ConnectedWallet({ children, status, problem, phone, address, sen
     try { const result = await work(); await refresh(); return result; }
     finally { busy.current -= 1; }
   }, [refresh]);
+
+  // Text payments: sending by SMS with no data. Turning them on grants Nest's server a signer that a Privy
+  // policy limits to USDC transfers of $10 or less. Tagged by wallet, like the balance.
+  const [text, setText] = useState<{ address: string; settings: dat.TextPayments } | null>(null);
+  const textPayments = text && text.address === address ? text.settings : null;
+  useEffect(() => {
+    if (!address) return;
+    let active = true;
+    dat.fetchTextPayments(getAccessToken).then(settings => { if (active) setText({ address, settings }); }).catch(() => undefined);
+    return () => { active = false; };
+  }, [address, getAccessToken]);
+
+  const enableTextPayments = useCallback(async (pin: string) => {
+    if (!/^\d{4}$/.test(pin)) throw new Error('Choose a 4-digit PIN.');
+    if (!address) throw new Error('Your wallet is still being set up.');
+    if (!addSigner) throw new Error('Turn on text payments in the Nest iPhone app.');
+    const settings = textPayments ?? await dat.fetchTextPayments(getAccessToken);
+    if (!settings.available) throw new Error('Text payments are not available yet.');
+    try {
+      await addSigner(settings);
+    } catch (failure) {
+      // Turning on again after turning off from a text (STOP) finds the signer still there.
+      if (!(failure instanceof Error && /already/i.test(failure.message))) throw failure;
+    }
+    await dat.setTextPayments(getAccessToken, { on: true, pin });
+    setText({ address, settings: { ...settings, on: true } });
+  }, [address, textPayments, getAccessToken, addSigner]);
+
+  const disableTextPayments = useCallback(async () => {
+    if (!address) return;
+    await dat.setTextPayments(getAccessToken, { on: false });
+    setText(current => current && current.address === address ? { address, settings: { ...current.settings, on: false } } : current);
+    if (!removeSigner) return;
+    try { await removeSigner(); }
+    catch { throw new Error("Text payments are off, but Nest's access to your wallet wasn't removed. Try again."); }
+  }, [address, getAccessToken, removeSigner]);
 
   const value = useMemo<LiveContextValue>(() => ({
     status,
@@ -101,7 +146,8 @@ export function ConnectedWallet({ children, status, problem, phone, address, sen
       const signature = await dat.transfer(getAccessToken, sign, { toTreasury: true }, cents);
       return addActivity({ kind: 'withdraw', withdrawalDestination: destination, name: destination === 'apple-cash' ? 'Apple Cash withdrawal' : 'Bank withdrawal', amountCents: cents, feeCents: 0, note: `${destination === 'apple-cash' ? 'Apple Cash' : 'Bank'} payout simulated · USDC returned on devnet`, signature });
     }),
-  }), [status, address, problem, phone, balanceCents, activity, sendCode, verifyCode, logout, getAccessToken, during, sign, addActivity]);
+    textPayments, enableTextPayments, disableTextPayments,
+  }), [status, address, problem, phone, balanceCents, activity, sendCode, verifyCode, logout, getAccessToken, during, sign, addActivity, textPayments, enableTextPayments, disableTextPayments]);
 
   return <LiveContext.Provider value={value}>{children}</LiveContext.Provider>;
 }

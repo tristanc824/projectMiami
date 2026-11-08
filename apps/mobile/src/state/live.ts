@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { Activity, WithdrawalDestination } from '../domain/wallet';
-import type { Recipient } from '../services/dat';
+import type { Recipient, TextPayments } from '../services/dat';
 
 /**
  * Live mode: Privy SMS login, a self-custody Solana wallet, and real devnet USDC through the DAT backend.
@@ -27,6 +27,12 @@ export type LiveContextValue = {
   send: (recipient: Recipient, cents: number, note: string) => Promise<string>;
   deposit: (dollars: number) => Promise<string>;
   cashOut: (cents: number, destination?: WithdrawalDestination) => Promise<string>;
+  /** Text payments settings, or null until they load. */
+  textPayments: TextPayments | null;
+  /** Grants Nest's limited server signer, then saves the PIN. */
+  enableTextPayments: (pin: string) => Promise<void>;
+  /** Turns text payments off and removes the server signer. */
+  disableTextPayments: () => Promise<void>;
 };
 
 const unavailable = async (): Promise<never> => { throw new Error('Live mode is not available in this build.'); };
@@ -35,6 +41,7 @@ export const liveOff: LiveContextValue = {
   status: 'off', problem: '', phone: '', address: '', balanceCents: null, activity: [],
   sendCode: unavailable, verifyCode: unavailable, logout: async () => {}, findRecipient: unavailable,
   send: unavailable, deposit: unavailable, cashOut: unavailable,
+  textPayments: null, enableTextPayments: unavailable, disableTextPayments: unavailable,
 };
 
 export const LiveContext = createContext<LiveContextValue>(liveOff);
