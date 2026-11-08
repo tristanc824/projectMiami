@@ -335,7 +335,7 @@ export const ConfirmScreen = ({ slide = 0 }: { slide?: number }) => (
         <Kv k="Undo" v="Off. You've paid her before." last />
       </div>
       <SlideToSend progress={slide} />
-      <Label style={{ textAlign: "center", marginTop: -6 }}>Face ID confirms when you let go</Label>
+      <Label style={{ textAlign: "center", marginTop: -6 }}>Your fingerprint confirms when you let go</Label>
     </div>
   </div>
 );

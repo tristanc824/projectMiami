@@ -56,7 +56,7 @@ export function Stories() {
           <button onClick={() => nudge(1)} aria-label="More stories" className="grid h-12 w-12 place-items-center rounded-2xl bg-ink text-white transition-colors hover:bg-moss-900"><ArrowRight size={18} /></button>
         </div>
       </div>
-      <div ref={row} className="mt-10 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth scroll-px-5 px-5 pb-4 [scrollbar-width:none] sm:gap-5 sm:scroll-px-[max(32px,calc((100%-1200px)/2+32px))] sm:px-[max(32px,calc((100%-1200px)/2+32px))] [&::-webkit-scrollbar]:hidden">
+      <div ref={row} className="mt-10 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth scroll-px-3 px-3 pb-4 [scrollbar-width:none] sm:gap-5 sm:scroll-px-6 sm:px-6 [&::-webkit-scrollbar]:hidden">
         {STORIES.map((s) => (
           <article key={s.title} className="round-clip relative aspect-[3/4] w-[78vw] max-w-[360px] shrink-0 snap-start overflow-hidden rounded-[36px] sm:w-[min(360px,calc((100svh-260px)*0.75))] sm:min-w-[280px]">
             <img src={s.img} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-700 hover:scale-[1.03]" style={{ objectPosition: s.pos }} />
@@ -77,8 +77,8 @@ type Moment = { img: string; alt: string; tag: string; title: string; shape: key
 const MOMENTS: Moment[] = [
   { img: "/photos/hero.jpg", alt: "A couple laughing together in a sunlit field.", tag: "24/7", title: "Send money on a Sunday night.", shape: "egg", pos: "50% 30%", orbit: "left" },
   { img: "/photos/market.jpg", alt: "A woman at a market stall holding bananas.", tag: "No transaction fees", title: "Every dollar you send gets there.", shape: "pebble", pos: "50% 30%" },
-  { img: "/photos/laugh.jpg", alt: "A woman laughing with friends outdoors.", tag: "Independent", title: "Your savings aren't tied to one country's banks.", shape: "pebble", pos: "50% 25%" },
-  { img: "/photos/dinner.jpg", alt: "Friends laughing over dinner.", tag: "Undo", title: "Pay someone new and you have a day to undo it.", shape: "egg", pos: "55% 50%", orbit: "right" },
+  { img: "/photos/laugh.jpg", alt: "A woman laughing with friends outdoors.", tag: "Independent", title: "Not tied to one country's banks.", shape: "pebble", pos: "50% 25%" },
+  { img: "/photos/dinner.jpg", alt: "Friends laughing over dinner.", tag: "Undo", title: "Undo a payment after sending.", shape: "egg", pos: "55% 50%", orbit: "right" },
 ];
 
 function MomentCard({ m, className }: { m: Moment; className?: string }) {
@@ -139,12 +139,12 @@ export function Keep() {
         <img src="/photos/together.jpg" alt="A father and his daughter laughing among autumn leaves." loading="lazy" className="absolute inset-0 -z-10 h-full w-full object-cover object-[50%_30%] md:object-[50%_18%]" />
         <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(14,20,16,0.6),rgba(14,20,16,0.1)_60%)]" />
         <div className="keep-h mx-auto flex max-w-[1392px] flex-col justify-center px-7 py-24 sm:px-16">
-          <Label light>Dollar savings</Label>
+          <Label light>Inflation</Label>
           <h2 className="mt-5 max-w-[12ch] text-[clamp(44px,6.4vw,96px)] font-medium leading-[1] tracking-[-0.035em] text-white">
-            Keep her college fund in dollars.
+            When your currency falls, your dollars don't.
           </h2>
           <a href="#join" className="mt-10 inline-flex h-14 w-fit items-center gap-2 rounded-full bg-white px-7 text-[16px] font-medium text-ink transition-colors hover:bg-page">
-            Start saving <ArrowRight size={18} />
+            Open an account <ArrowRight size={18} />
           </a>
         </div>
       </div>
