@@ -32,7 +32,7 @@ export default function ReceiptScreen() {
   const live = !!item.live;
   const recipientName = nameFor(item.recipientPhone, contact?.name ?? item.name);
   const payoutName = item.withdrawalDestination === 'apple-cash' ? 'Apple Cash' : 'Bank account';
-  const headline = item.kind === 'send' ? live ? 'On its way.' : 'A little closer.' : item.kind === 'add' ? 'A little more possibility.' : item.kind === 'withdraw' ? item.withdrawalDestination === 'apple-cash' ? 'Demo withdrawal complete.' : 'Ready for what’s next.' : 'A little something for you.';
+  const headline = item.kind === 'send' ? live ? 'On its way.' : 'A little closer.' : item.kind === 'add' ? 'Money added.' : item.kind === 'withdraw' ? item.withdrawalDestination === 'apple-cash' ? 'Demo withdrawal complete.' : 'Ready for what’s next.' : 'A little something for you.';
   const share = async () => {
     try { await Share.share({ message: `Nest ${live ? 'devnet' : 'DEMO'} receipt\n${recipientName}: ${money(item.amountCents)}\nReference: ${item.id}\n${live ? `Test USDC on Solana devnet. ${item.signature ? explorerUrl(item.signature) : ''}` : 'No real funds moved. No Solana transaction or bank payout occurred.'}` }); }
     catch { setError('Could not open sharing on this device.'); }

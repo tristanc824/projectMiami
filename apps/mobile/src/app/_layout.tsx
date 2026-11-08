@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { LiveProvider } from '../state/LiveProvider';
@@ -20,9 +20,14 @@ export default function RootLayout() {
   return <ThemeProvider><SafeAreaProvider><LiveProvider><WalletProvider><ExperienceProvider><ContactsProvider><ThemedStack /></ContactsProvider></ExperienceProvider></WalletProvider></LiveProvider></SafeAreaProvider></ThemeProvider>;
 }
 
+// In a browser, pages switch in place: no slide or modal transitions. A transition caught mid-way
+// (a slow payment confirming while the tab is in the background) can leave a page offset or cut off.
+const web = Platform.OS === 'web';
+const sheet = web ? {} : { presentation: 'modal' as const };
+
 function ThemedStack() {
   const { colors, scheme } = useColors();
-  return <><StatusBar style={scheme === 'dark' ? 'light' : 'dark'} /><Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background }, animation: 'slide_from_right' }}>
-    <Stack.Screen name="(tabs)" /><Stack.Screen name="sign-in" options={{ animation: 'fade' }} /><Stack.Screen name="send" /><Stack.Screen name="money" options={{ presentation: 'modal' }} /><Stack.Screen name="receipt" /><Stack.Screen name="request" options={{ presentation: 'modal' }} /><Stack.Screen name="pay" /><Stack.Screen name="activity" /><Stack.Screen name="family" /><Stack.Screen name="goal" /><Stack.Screen name="contacts" /><Stack.Screen name="contact" /><Stack.Screen name="text-payments" />
+  return <><StatusBar style={scheme === 'dark' ? 'light' : 'dark'} /><Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background }, animation: web ? 'none' : 'slide_from_right' }}>
+    <Stack.Screen name="(tabs)" /><Stack.Screen name="sign-in" options={{ animation: web ? 'none' : 'fade' }} /><Stack.Screen name="send" /><Stack.Screen name="money" options={sheet} /><Stack.Screen name="receipt" /><Stack.Screen name="request" options={sheet} /><Stack.Screen name="pay" /><Stack.Screen name="activity" /><Stack.Screen name="family" /><Stack.Screen name="goal" /><Stack.Screen name="contacts" /><Stack.Screen name="contact" /><Stack.Screen name="text-payments" />
   </Stack></>;
 }
