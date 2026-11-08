@@ -14,3 +14,8 @@ playwright-report/
 test-results/
 *.ipa
 *.xcarchive
+__pycache__/
+*.pyc
+hold/keys/
+target/
+*.so
