@@ -17,6 +17,7 @@ import os
 import re
 import sys
 import threading
+import unicodedata
 import uuid
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -121,6 +122,228 @@ AMOUNT_PATTERNS = {
         re.IGNORECASE,
     ),
 }
+
+# Common speech-to-text commands. These phrases are deliberately narrow: a number is
+# treated as money only when it follows a transfer phrase. This gives the voice agent
+# useful multilingual coverage without turning a year, address, or phone number into
+# a payment. Prune still supplies short relationship and purpose labels in live mode.
+VOICE_TERMS: dict[str, dict[str, tuple[str, ...]]] = {
+    "en-US": {
+        "amount_usdc": ("send", "transfer", "contribute", "pay", "sending", "amount"),
+        "requested_usdc": ("request total", "total request", "total requested"),
+        "other_contributions_usdc": ("other contributions", "already contributed", "already paid"),
+        "verified": ("relationship is verified", "relationship verified", "relative is verified"),
+        "unverified": ("relationship is not verified", "relationship unverified", "relative is not verified"),
+    },
+    "es-US": {
+        "amount_usdc": ("enviar", "envía", "envíe", "transferir", "transfiere", "pagar", "paga", "mandar"),
+        "requested_usdc": ("total solicitado", "solicitud total", "total de la solicitud"),
+        "other_contributions_usdc": ("otras contribuciones", "ya contribuyeron", "ya pagaron"),
+        "verified": ("relación verificada", "familiar verificado", "familiar verificada"),
+        "unverified": ("relación no verificada", "familiar no verificado", "familiar no verificada"),
+    },
+    "pt-BR": {
+        "amount_usdc": ("enviar", "envie", "transferir", "transfira", "pagar", "pague", "mandar"),
+        "requested_usdc": ("total solicitado", "pedido total", "total do pedido"),
+        "other_contributions_usdc": ("outras contribuições", "já contribuído", "já pagaram"),
+        "verified": ("relação verificada", "relacionamento verificado", "familiar verificado"),
+        "unverified": ("relação não verificada", "relacionamento não verificado", "familiar não verificado"),
+    },
+    "fr-FR": {
+        "amount_usdc": ("envoyer", "envoyez", "transférer", "transférez", "payer", "payez"),
+        "requested_usdc": ("total demandé", "demande totale", "montant demandé"),
+        "other_contributions_usdc": ("autres contributions", "déjà contribué", "déjà payé"),
+        "verified": ("relation vérifiée", "lien familial vérifié"),
+        "unverified": ("relation non vérifiée", "relation pas vérifiée", "lien familial non vérifié"),
+    },
+    "ht-HT": {
+        "amount_usdc": ("voye", "transfere", "peye"),
+        "requested_usdc": ("total yo mande", "kantite yo mande"),
+        "other_contributions_usdc": ("lòt kontribisyon", "deja kontribye", "deja peye"),
+        "verified": ("relasyon verifye", "fanmi verifye"),
+        "unverified": ("relasyon pa verifye", "fanmi pa verifye"),
+    },
+    "ar-SA": {
+        "amount_usdc": ("أرسل", "ارسل", "حوّل", "حول", "ادفع"),
+        "requested_usdc": ("إجمالي الطلب", "المبلغ المطلوب"),
+        "other_contributions_usdc": ("مساهمات أخرى", "تم دفعه"),
+        "verified": ("العلاقة مؤكدة", "القرابة مؤكدة"),
+        "unverified": ("العلاقة غير مؤكدة", "القرابة غير مؤكدة"),
+    },
+    "fa-IR": {
+        "amount_usdc": ("بفرست", "ارسال کن", "انتقال بده", "پرداخت کن"),
+        "requested_usdc": ("مبلغ درخواستی", "مجموع درخواست"),
+        "other_contributions_usdc": ("کمک های دیگر", "پرداخت شده"),
+        "verified": ("رابطه تایید شده", "نسبت تایید شده"),
+        "unverified": ("رابطه تایید نشده", "نسبت تایید نشده"),
+    },
+    "hi-IN": {
+        "amount_usdc": ("भेजो", "भेजें", "ट्रांसफर करो", "ट्रांसफर करें", "भुगतान करो"),
+        "requested_usdc": ("कुल अनुरोध", "कुल मांग"),
+        "other_contributions_usdc": ("अन्य योगदान", "पहले दिया"),
+        "verified": ("रिश्ता सत्यापित है", "रिश्तेदार सत्यापित है"),
+        "unverified": ("रिश्ता सत्यापित नहीं है", "रिश्तेदार सत्यापित नहीं है"),
+    },
+    "bn-BD": {
+        "amount_usdc": ("পাঠান", "টাকা পাঠান", "স্থানান্তর করুন", "পরিশোধ করুন"),
+        "requested_usdc": ("মোট অনুরোধ", "মোট চাওয়া"),
+        "other_contributions_usdc": ("অন্যান্য অবদান", "আগেই দেওয়া"),
+        "verified": ("সম্পর্ক যাচাই করা হয়েছে",),
+        "unverified": ("সম্পর্ক যাচাই করা হয়নি",),
+    },
+    "ur-PK": {
+        "amount_usdc": ("بھیجیں", "منتقل کریں", "ادائیگی کریں"),
+        "requested_usdc": ("کل درخواست", "مانگی گئی رقم"),
+        "other_contributions_usdc": ("دیگر تعاون", "پہلے ادا شدہ"),
+        "verified": ("رشتہ تصدیق شدہ ہے",),
+        "unverified": ("رشتہ تصدیق نہیں ہے",),
+    },
+    "tr-TR": {
+        "amount_usdc": ("gönder", "gönderin", "transfer et", "transfer edin", "öde", "ödeyin"),
+        "requested_usdc": ("toplam istek", "istenen toplam", "talep edilen tutar"),
+        "other_contributions_usdc": ("diğer katkılar", "zaten ödendi", "önceden katkı"),
+        "verified": ("ilişki doğrulandı", "akrabalık doğrulandı"),
+        "unverified": ("ilişki doğrulanmadı", "akrabalık doğrulanmadı"),
+    },
+    "sw-KE": {
+        "amount_usdc": ("tuma", "hamisha", "lipa"),
+        "requested_usdc": ("jumla iliyoombwa", "ombi lote"),
+        "other_contributions_usdc": ("michango mingine", "tayari imelipwa"),
+        "verified": ("uhusiano umethibitishwa", "undugu umethibitishwa"),
+        "unverified": ("uhusiano haujathibitishwa", "undugu haujathibitishwa"),
+    },
+    "id-ID": {
+        "amount_usdc": ("kirim", "transfer", "bayar"),
+        "requested_usdc": ("total permintaan", "jumlah yang diminta"),
+        "other_contributions_usdc": ("kontribusi lain", "sudah dibayar"),
+        "verified": ("hubungan terverifikasi", "keluarga terverifikasi"),
+        "unverified": ("hubungan belum terverifikasi", "keluarga belum terverifikasi"),
+    },
+    "fil-PH": {
+        "amount_usdc": ("magpadala", "ipadala", "ilipat", "bayaran"),
+        "requested_usdc": ("kabuuang hiling", "halagang hiniling"),
+        "other_contributions_usdc": ("ibang ambag", "nabayaran na"),
+        "verified": ("napatunayan ang relasyon", "beripikado ang kamag-anak"),
+        "unverified": ("hindi napatunayan ang relasyon", "hindi beripikado ang kamag-anak"),
+    },
+    "vi-VN": {
+        "amount_usdc": ("gửi", "chuyển", "thanh toán"),
+        "requested_usdc": ("tổng yêu cầu", "số tiền yêu cầu"),
+        "other_contributions_usdc": ("đóng góp khác", "đã thanh toán"),
+        "verified": ("mối quan hệ đã xác minh", "người thân đã xác minh"),
+        "unverified": ("mối quan hệ chưa xác minh", "người thân chưa xác minh"),
+    },
+    "zh-CN": {
+        "amount_usdc": ("发送", "转账", "付款"),
+        "requested_usdc": ("请求总额", "申请总额"),
+        "other_contributions_usdc": ("其他贡献", "已经支付"),
+        "verified": ("关系已验证", "亲属已验证"),
+        "unverified": ("关系未验证", "亲属未验证"),
+    },
+}
+
+VOICE_CONNECTOR = r"(?:is|are|was|es|son|são|est|sont|se|ni|là|adalah|是|为|هو|هي)?"
+VOICE_CANCEL_PHRASES = (
+    "do not send", "don't send", "never send",
+    "no enviar", "no envíes", "nunca enviar",
+    "não envie", "não enviar", "nunca envie",
+    "ne pas envoyer", "n'envoyez pas",
+    "pa voye", "ne voye pa",
+    "لا ترسل", "لا تحول",
+    "نفرست", "ارسال نکن",
+    "मत भेजो", "नहीं भेजें",
+    "পাঠাবেন না", "পাঠিয়েন না",
+    "نہ بھیجیں", "مت بھیجیں",
+    "gönderme", "göndermeyin",
+    "usitume", "tuma usitume",
+    "jangan kirim", "jangan transfer",
+    "huwag ipadala", "huwag magpadala",
+    "đừng gửi", "không gửi",
+    "不要发送", "不要转账",
+)
+
+
+def _ascii_digits(text: str) -> str:
+    """Turn any Unicode decimal digits into ASCII while leaving all words intact."""
+    out = []
+    for char in text:
+        try:
+            out.append(str(unicodedata.decimal(char)))
+        except (TypeError, ValueError):
+            out.append(char)
+    return "".join(out)
+
+
+def _phrase_pattern(phrase: str) -> str:
+    return re.escape(phrase).replace(r"\ ", r"\s+")
+
+
+def _field_amounts(transcript: str, field: str) -> list[str]:
+    """All distinct amounts explicitly tied to one supported form field."""
+    text = PHONE_LIKE.sub(" ", _ascii_digits(transcript.strip()))
+    found: list[str] = []
+
+    legacy = AMOUNT_PATTERNS[field]
+    for match in legacy.finditer(text):
+        captured = next((group for group in match.groups() if group is not None), None)
+        amount = _safe_amount(captured)
+        if amount is not None and amount not in found:
+            found.append(amount)
+
+    phrases = tuple(
+        phrase
+        for fields in VOICE_TERMS.values()
+        for phrase in fields.get(field, ())
+    )
+    if not phrases:
+        return found
+    terms = "|".join(sorted((_phrase_pattern(phrase) for phrase in phrases), key=len, reverse=True))
+    pattern = re.compile(
+        rf"(?<!\w)(?:{terms})(?=$|[^\w]|\d)\s*{VOICE_CONNECTOR}\s*(?:\$|USD\s*)?{MONEY}",
+        re.IGNORECASE,
+    )
+    for match in pattern.finditer(text):
+        captured = next((group for group in match.groups() if group is not None), None)
+        amount = _safe_amount(captured)
+        if amount is not None and amount not in found:
+            found.append(amount)
+    return found
+
+
+def _phrase_present(text: str, phrase: str) -> bool:
+    return bool(re.search(rf"(?<!\w){_phrase_pattern(phrase)}(?=$|[^\w]|\d)", text, re.IGNORECASE))
+
+
+def detect_spoken_locale(transcript: str) -> str | None:
+    """Infer a locale only when its command vocabulary clearly wins."""
+    text = _ascii_digits(transcript)
+    scores: dict[str, int] = {}
+    for locale, fields in VOICE_TERMS.items():
+        score = sum(
+            2 if field in {"verified", "unverified"} else 1
+            for field, phrases in fields.items()
+            for phrase in phrases
+            if _phrase_present(text, phrase)
+        )
+        if score:
+            scores[locale] = score
+    if not scores:
+        return None
+    best = max(scores.values())
+    winners = [locale for locale, score in scores.items() if score == best]
+    return winners[0] if len(winners) == 1 else None
+
+
+def spoken_relationship_verified(transcript: str) -> bool | None:
+    """Return the explicitly spoken relationship status; negative always wins."""
+    text = _ascii_digits(transcript)
+    for fields in VOICE_TERMS.values():
+        if any(_phrase_present(text, phrase) for phrase in fields.get("unverified", ())):
+            return False
+    for fields in VOICE_TERMS.values():
+        if any(_phrase_present(text, phrase) for phrase in fields.get("verified", ())):
+            return True
+    return None
 
 RELATIONSHIP_WORDS = r"relationship|relative|recipient|person|relación|familiar|destinatario|persona"
 SELF_CORRECTION = re.compile(
@@ -280,29 +503,18 @@ def safe_case(source: Any) -> dict[str, Any]:
 
 def spoken_amounts(transcript: str) -> list[str]:
     """The distinct amounts to send that the words themselves state, as safe amount strings."""
-    found: list[str] = []
-    for match in AMOUNT_PATTERNS["amount_usdc"].finditer(PHONE_LIKE.sub(" ", transcript.strip())):
-        captured = next((group for group in match.groups() if group is not None), None)
-        amount = _safe_amount(captured)
-        if amount is not None and all(float(amount) != float(seen) for seen in found):
-            found.append(amount)
-    return found
+    return _field_amounts(transcript, "amount_usdc")
 
 
 def transcript_notes(transcript: str) -> dict[str, Any]:
     """What the words themselves show: distinct amounts to send, a stated verification, corrections, pressure."""
     text = transcript.strip()
-    number_text = PHONE_LIKE.sub(" ", text)
-    amounts = set()
-    for match in AMOUNT_PATTERNS["amount_usdc"].finditer(number_text):
-        captured = next((group for group in match.groups() if group is not None), None)
-        amount = _safe_amount(captured)
-        if amount is not None:
-            amounts.add(float(amount))
-    stated = False
+    amounts = {Decimal(amount) for amount in spoken_amounts(text)}
+    spoken_verified = spoken_relationship_verified(text)
+    stated = spoken_verified is True
     negated = False
     for sentence in re.split(r"[.!?;\n]+", text):
-        if NEGATED_COMMAND.search(sentence):
+        if NEGATED_COMMAND.search(sentence) or any(_phrase_present(sentence, phrase) for phrase in VOICE_CANCEL_PHRASES):
             negated = True
         if re.search(
             rf"\b(?:{RELATIONSHIP_WORDS})\b.{{0,40}}?(?:\bverified\b|\bverificad[oa]\b)", sentence, re.IGNORECASE
@@ -345,17 +557,25 @@ def apply_voice_facts(case: dict[str, Any], transcript: str) -> dict[str, Any]:
     """Apply a narrow set of voice commands without retaining personal details."""
     updated = safe_case(case)
     text = transcript.strip()
+    # When the caller did not choose a language, use the spoken command vocabulary.
+    # An explicit valid output_locale always wins.
+    supplied_locale = isinstance(case, dict) and case.get("output_locale") in LANGUAGES
+    if not supplied_locale:
+        detected_locale = detect_spoken_locale(text)
+        # Preserve the established English-input/Spanish-output default. Other
+        # clearly detected languages follow the speaker unless the app chose one.
+        if detected_locale and detected_locale != "en-US":
+            updated["output_locale"] = detected_locale
+            updated["output_language"] = LANGUAGES[detected_locale]
+
     # Remove phone-like digit runs first so "send 305-555-0142" is never an amount.
-    number_text = PHONE_LIKE.sub(" ", text)
+    number_text = PHONE_LIKE.sub(" ", _ascii_digits(text))
     matched_fields: set[str] = set()
-    for field, pattern in AMOUNT_PATTERNS.items():
-        match = pattern.search(number_text)
-        if match:
-            captured = next((group for group in match.groups() if group is not None), None)
-            amount = _safe_amount(captured)
-            if amount is not None:
-                updated[field] = amount
-                matched_fields.add(field)
+    for field in AMOUNT_PATTERNS:
+        amounts = _field_amounts(number_text, field)
+        if amounts:
+            updated[field] = amounts[0]
+            matched_fields.add(field)
     if "amount_usdc" in matched_fields:
         updated["_amount_source"] = "spoken"
     if {"requested_usdc", "other_contributions_usdc"} <= matched_fields:
@@ -372,7 +592,12 @@ def apply_voice_facts(case: dict[str, Any], transcript: str) -> dict[str, Any]:
                 updated["amount_usdc"] = amount
                 updated["_amount_source"] = "guessed"
 
-    # Fail closed: a sentence that mentions verification with any negation
+    # Fail closed: an explicit multilingual negative phrase always wins.
+    spoken_verified = spoken_relationship_verified(text)
+    if spoken_verified is not None:
+        updated["relationship_verified"] = spoken_verified
+
+    # Keep support for broader English/Spanish wording: a sentence that mentions verification with any negation
     # ("not yet verified", "never been verified") marks it unverified. Only a
     # plain statement with no negation marks it verified.
     for sentence in re.split(r"[.!?;\n]+", text):
@@ -434,6 +659,89 @@ def prune_view(case: dict[str, Any], receipt: str | None) -> dict[str, Any]:
         "relationship": case.get("relationship") or "unknown",
         "purpose": case.get("purpose") or "unknown",
         "receipt": receipt,
+    }
+
+
+PLAIN_REPLACEMENTS = (
+    (r"\bUSDC\b", "dollars"),
+    (r"\bSolana(?:\s+devnet)?\b", "the payment system"),
+    (r"\bblockchain\b", "payment record"),
+    (r"\bon[- ]chain\b", "in the payment record"),
+    (r"\bcrypto(?:currency)?\b", "digital money"),
+    (r"\btokens?\b", "money"),
+    (r"\bfiat\b", "local money"),
+)
+
+
+def _without_jargon(value: Any) -> str:
+    """Keep model-written display text useful even if it leaks implementation terms."""
+    text = " ".join(str(value or "").split())
+    for pattern, replacement in PLAIN_REPLACEMENTS:
+        text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+    return text
+
+
+def plain_language_summary(
+    case: dict[str, Any], review: dict[str, Any], policy: dict[str, Any]
+) -> dict[str, Any]:
+    """A ready-to-render response for the voice UI, with no crypto vocabulary."""
+    verdict = review.get("verdict") if isinstance(review.get("verdict"), dict) else {}
+    decision = verdict.get("decision")
+    amount = _safe_amount(case.get("amount_usdc")) or "unknown"
+    money = f"${amount}" if amount != "unknown" else "not provided"
+    stopped = decision == "stop"
+    held = bool(policy.get("required"))
+    if stopped:
+        status = "Do not continue"
+        explanation = "This payment should not continue. Nothing has been sent."
+        next_step = "Check the person and the amount before starting a new request."
+    elif held:
+        status = "Needs another look"
+        explanation = f"The {money} payment needs another review. Nothing has been sent."
+        next_step = "Check the highlighted details. If you continue, both the sender and a family approver must confirm."
+    else:
+        status = "Ready for your review"
+        explanation = f"The details for the {money} payment are filled in. Nothing has been sent yet."
+        next_step = "Review the amount and the person, then choose whether to continue."
+
+    translated = _without_jargon(verdict.get("sentence_es"))
+    if not translated or translated.startswith("[Offline demo:"):
+        translated = explanation
+
+    contacts = {True: "yes", False: "no"}.get(case.get("recipient_in_contacts"), "not checked")
+    verified = "yes" if case.get("relationship_verified") is True else "no"
+    filled = {
+        "amount": money,
+        "request_total": f"${case.get('requested_usdc')}",
+        "already_contributed": f"${case.get('other_contributions_usdc')}",
+        "family_connection_verified": verified,
+        "recipient_is_saved": contacts,
+        "family_connection": case.get("relationship") or "not provided",
+        "reason": case.get("purpose") or "not provided",
+    }
+    needs: list[str] = []
+    codes = set(family_review.signal_codes(case))
+    if "amount_not_stated" in codes or "amount_guessed" in codes:
+        needs.append("Say the amount after a word such as send, transfer, or pay.")
+    if "request_facts_assumed" in codes:
+        needs.append("Say the request total and how much others have already contributed.")
+    if case.get("recipient_in_contacts") is None:
+        needs.append("Check whether the person is saved in the sender's contacts.")
+    if case.get("relationship_verified") is not True:
+        needs.append("Confirm that the person is really the family member they claim to be.")
+    if not case.get("relationship"):
+        needs.append("Say how the person is related to you.")
+    if not case.get("purpose"):
+        needs.append("Say what the money is for.")
+
+    return {
+        "status": status,
+        "explanation": explanation,
+        "in_your_language": translated,
+        "language": case.get("output_language") or LANGUAGES[DEFAULT_LOCALE],
+        "filled": filled,
+        "needs": needs,
+        "next_step": next_step,
     }
 
 
@@ -646,6 +954,12 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/reset":
             # Starting a new request: the next one is not compared with the last review.
+            # Read the (ignored) body first: closing a socket with unread data resets the
+            # connection on Windows, and the client sees "connection aborted".
+            try:
+                self.rfile.read(min(max(int(self.headers.get("Content-Length", "0")), 0), MAX_BODY_BYTES))
+            except ValueError:
+                pass
             remember(None)
             self._json(HTTPStatus.OK, {"ok": True})
             return
@@ -756,6 +1070,7 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
             case, review.get("outputs") or {}, review.get("verdict") or {}, offline=bool(review.get("offline"))
         )
         return {
+            "assistant": plain_language_summary(case, review, review["hold_policy"]),
             "case": case,
             "signals": signals,
             "outputs": review["outputs"],

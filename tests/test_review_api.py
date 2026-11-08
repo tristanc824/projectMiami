@@ -428,6 +428,63 @@ class ReviewApiTest(unittest.TestCase):
         ]})
         self.assertEqual(outputs, {"PlainSpeaker": "a", "Skeptic": "b", "Watchdog": "c", "Judge": "{}"})
 
+    # --- Multilingual voice form and plain-language response ---------------------------
+
+    def test_portuguese_voice_command_fills_the_form_and_language(self) -> None:
+        spoken = (
+            "Envie 80. Total solicitado 200. Outras contribuições 120. "
+            "Relação verificada."
+        )
+        case = app.apply_voice_facts({}, spoken)
+        self.assertEqual(case["amount_usdc"], "80")
+        self.assertEqual(case["requested_usdc"], "200")
+        self.assertEqual(case["other_contributions_usdc"], "120")
+        self.assertIs(case["relationship_verified"], True)
+        self.assertEqual(case["output_locale"], "pt-BR")
+
+    def test_hindi_voice_command_accepts_native_digits(self) -> None:
+        spoken = "भेजें ८०। कुल अनुरोध २००। अन्य योगदान १२०। रिश्ता सत्यापित है।"
+        case = app.apply_voice_facts({}, spoken)
+        self.assertEqual(
+            (case["amount_usdc"], case["requested_usdc"], case["other_contributions_usdc"]),
+            ("80", "200", "120"),
+        )
+        self.assertIs(case["relationship_verified"], True)
+        self.assertEqual(case["output_locale"], "hi-IN")
+
+    def test_explicit_output_language_wins_over_detected_language(self) -> None:
+        case = app.apply_voice_facts(
+            {"output_locale": "fr-FR"},
+            "Envie 80. Relação verificada.",
+        )
+        self.assertEqual(case["output_locale"], "fr-FR")
+
+    def test_unicode_prune_labels_are_kept_but_numbers_are_rejected(self) -> None:
+        self.assertEqual(family_review._safe_label("学校 用品"), "学校 用品")
+        self.assertEqual(family_review._safe_label("मेरी भतीजी"), "मेरी भतीजी")
+        self.assertEqual(family_review._safe_label("姑姑 3055550142"), "")
+
+    def test_response_has_a_jargon_free_ready_to_render_assistant(self) -> None:
+        status, body = self.post("/api/review", {
+            "transcript": "Send 80 dollars. The relationship is verified.",
+            "case": {
+                "requested_usdc": "200",
+                "other_contributions_usdc": "120",
+                "recipient_in_contacts": True,
+                "output_locale": "en-US",
+            },
+        })
+        self.assertEqual(status, 200, body)
+        assistant = body["assistant"]
+        self.assertEqual(assistant["filled"]["amount"], "$80")
+        self.assertEqual(assistant["filled"]["request_total"], "$200")
+        self.assertEqual(assistant["filled"]["family_connection"], "niece")
+        self.assertEqual(assistant["filled"]["reason"], "school supplies")
+        self.assertIn("Nothing has been sent", assistant["explanation"])
+        display = json.dumps(assistant).lower()
+        for jargon in ("usdc", "solana", "blockchain", "on-chain", "fiat", "token"):
+            self.assertNotIn(jargon, display)
+
 
 if __name__ == "__main__":
     unittest.main()

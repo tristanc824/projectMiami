@@ -105,8 +105,10 @@ or another machine from spending the Swarms credits.
 }
 ```
 
-- `transcript` is required: 1 to 2000 characters. The server reads amounts and
-  "verified / not verified" from it, in English and Spanish, and those override `case`.
+- `transcript` is required: 1 to 2000 characters. The server reads the payment amount,
+  request total, earlier contributions, and "verified / not verified" from supported
+  multilingual commands, and those override `case`. It recognizes native decimal digits
+  as well as 0-9. A number without a payment word is treated only as a guess and is held.
 - `recipient_in_contacts` is `true` or `false`, worked out **on the phone** from the sender's contacts.
   Only this yes/no is sent, never the contact list or phone numbers. `false` puts the transfer in a Safe Hold.
   Leave it out and the review only notes that contacts were not checked.
@@ -133,6 +135,23 @@ or another machine from spending the Swarms credits.
 
 ```json
 {
+  "assistant": {
+    "status": "Needs another look",
+    "explanation": "The $800 payment needs another review. Nothing has been sent.",
+    "in_your_language": "...",
+    "language": "Spanish (Latin America)",
+    "filled": {
+      "amount": "$800",
+      "request_total": "$200",
+      "already_contributed": "$120",
+      "family_connection_verified": "no",
+      "recipient_is_saved": "yes",
+      "family_connection": "aunt",
+      "reason": "school expenses"
+    },
+    "needs": ["Confirm that the person is really the family member they claim to be."],
+    "next_step": "Check the highlighted details. If you continue, both the sender and a family approver must confirm."
+  },
   "case": { "amount_usdc": "800", "requested_usdc": "200", "other_contributions_usdc": "120",
             "relationship_verified": false, "fiat_leg": "simulated",
             "output_locale": "es-US", "output_language": "Spanish (Latin America)",
@@ -162,7 +181,11 @@ or another machine from spending the Swarms credits.
 - `decision` is `confirm`, `hold` or `stop`, and `suspicion` is `none`, `low` or `high`.
 - `held_by_checks: true` means the model said "confirm" but the Watchdog's checks overruled it.
 - `sentence_es` holds the chosen language even when it is not Spanish. The name is legacy.
-- `prune.relationship` and `prune.purpose` are short letter-only labels from Prune. A name or a number is dropped.
+- `assistant` is the preferred UI contract. It is ready to render, tells the person what
+  was filled and what is still needed, and replaces crypto implementation terms with
+  ordinary payment language. `in_your_language` carries the selected-language explanation.
+- `prune.relationship` and `prune.purpose` are short labels of at most three words from
+  Prune. Unicode letters are allowed; a name with a number is still dropped.
 - `prune.receipt` is Prune's signature over the model call. It is present only for a final `confirm`. It is not a Solana signature, and it does not belong on the chain.
 
 **Errors** come back as `{"error": "<code>"}`. Where facts were already prepared, they also include `case` and `signals`:
@@ -449,4 +472,8 @@ yet: no Rust toolchain was available. Keys live in `hold/keys/`, which Git ignor
   Watchdog's other checks (extra zero against what is still needed) still apply.
 - "Relationship verified" is what the person says, not something proven.
 - The last-review memory is per process, so one person at a time.
-- Amount and "verified" parsing understands English and Spanish. Other languages fall back to a single standalone number.
+- Deterministic form filling currently recognizes command vocabulary in English, Spanish,
+  Portuguese, French, Haitian Creole, Arabic, Persian, Hindi, Bengali, Urdu, Turkish,
+  Swahili, Indonesian, Filipino, Vietnamese, and Mandarin Chinese. The full output-language
+  list remains available through `output_locale`; unrecognized wording fails closed instead
+  of inventing a value.

@@ -13,6 +13,7 @@ import json
 import os
 import re
 import sys
+import unicodedata
 import urllib.error
 import urllib.request
 from decimal import Decimal, InvalidOperation
@@ -223,10 +224,24 @@ def _safe_label(value: Any) -> str:
 
     Digits are rejected so a phone number cannot sneak in, and the word limit
     keeps a model-extracted label from carrying a sentence of instructions.
+    Unicode letters are accepted so the form can be filled in the speaker's
+    language instead of silently dropping Arabic, Hindi, Chinese, and others.
     """
     text = " ".join(str(value or "").split())
-    if not re.fullmatch(r"[A-Za-z]+(?: [A-Za-z]+){0,2}", text) or len(text) > 32:
+    if not text or len(text) > 32:
         return ""
+    words = text.split(" ")
+    if len(words) > 3:
+        return ""
+    for word in words:
+        pieces = re.split(r"[-'’]", word)
+        if not pieces or any(
+            not piece
+            or not any(char.isalpha() for char in piece)
+            or any(not unicodedata.category(char).startswith(("L", "M")) for char in piece)
+            for piece in pieces
+        ):
+            return ""
     return text
 
 
