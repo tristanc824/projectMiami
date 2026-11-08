@@ -6,6 +6,7 @@ import { formatPhone, normalizePhone } from '../lib/phone.mjs';
 import { toBaseUnits } from '../lib/money.mjs';
 import { assertSponsorable, buildTransferMessage } from '../lib/tx.mjs';
 import { assertSoftwareKeysAllowed, decodeTransferSubmission, validateLastValidBlockHeight } from '../lib/server/transactionSecurity.mjs';
+import { normalizeReviewPayload, reviewApiEndpoint } from '../lib/review.mjs';
 
 const feePayer = Keypair.generate().publicKey;
 const owner = Keypair.generate().publicKey;
@@ -95,4 +96,36 @@ test('raw environment signing keys are devnet/localnet only', () => {
   assert.throws(() => assertSoftwareKeysAllowed('https://api.mainnet-beta.solana.com'));
   assert.throws(() => assertSoftwareKeysAllowed('https://custom-rpc.example'));
   assert.throws(() => assertSoftwareKeysAllowed('https://custom-rpc.example', 'mainnet-beta'));
+});
+
+test('review proxy forwards only allowlisted non-identity facts', () => {
+  const payload = normalizeReviewPayload({
+    transcript: 'Send 35 dollars to Mamá', locale: 'es-AR', mode: 'voice_send', user_id: 'do-not-forward',
+    case: { recipient_in_contacts: true, phone: '+15555550142', contact_name: 'Mamá', signals: ['forged'] },
+  });
+  assert.deepEqual(payload, {
+    transcript: 'Send 35 dollars to Mamá', incoming_message: '',
+    case: { recipient_in_contacts: true, output_locale: 'es-US', standalone_transfer: true },
+  });
+  assert.equal(JSON.stringify(payload).includes('+15555550142'), false);
+});
+
+test('review proxy requires HTTPS except on loopback', () => {
+  assert.equal(reviewApiEndpoint('http://127.0.0.1:8000'), 'http://127.0.0.1:8000/api/review');
+  assert.equal(reviewApiEndpoint('https://review.example/api/review'), 'https://review.example/api/review');
+  assert.throws(() => reviewApiEndpoint('http://review.example'));
+  assert.throws(() => reviewApiEndpoint('not a URL'));
+});
+
+test('review proxy rejects phone and account numbers before forwarding', () => {
+  assert.throws(() => normalizeReviewPayload({ transcript: 'Send 20 dollars to +1 (555) 555-0142' }));
+  assert.throws(() => normalizeReviewPayload({ transcript: 'Use account GB82WEST12345698765432' }));
+  assert.throws(() => normalizeReviewPayload({ transcript: 'Send 20 dollars to ３０５５５５０１４２' }), /phone or account/);
+  assert.throws(() => normalizeReviewPayload({ transcript: 'Envía 80 a la cuenta 012 180 0012 3456 7890' }));
+});
+
+test('review proxy keeps money and dates that look like long numbers', () => {
+  for (const transcript of ['Send $10000.00 now', 'Send 100000.50 dollars', 'Send 80 dollars on 2026-11-08', 'Send 1,000 dollars to recipient']) {
+    assert.equal(normalizeReviewPayload({ transcript }).transcript, transcript);
+  }
 });

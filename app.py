@@ -25,7 +25,7 @@ from decimal import Decimal
 from typing import Any
 from urllib.parse import urlparse
 
-from swarm import family_review
+from swarm import family_review, prune_gate
 from swarm.prune_gate import GateStop, clean_request, seal_sentence
 
 MAX_BODY_BYTES = 32_000
@@ -526,6 +526,10 @@ def safe_case(source: Any) -> dict[str, Any]:
     relationship = source.get("relationship_verified")
     if relationship is True or relationship is False:
         result["relationship_verified"] = relationship
+    # Voice/typed sends that are not paying down a shared request should not
+    # inherit the family-request sample totals. The app opts into this mode.
+    if source.get("standalone_transfer") is True:
+        result["standalone_transfer"] = True
     locale = source.get("output_locale")
     if locale in LANGUAGES:
         result["output_locale"] = locale
@@ -612,6 +616,10 @@ def apply_voice_facts(case: dict[str, Any], transcript: str) -> dict[str, Any]:
             matched_fields.add(field)
     if "amount_usdc" in matched_fields:
         updated["_amount_source"] = "spoken"
+        if updated.get("standalone_transfer") is True:
+            updated["requested_usdc"] = updated["amount_usdc"]
+            updated["other_contributions_usdc"] = "0"
+            updated["_request_defaulted"] = False
     if {"requested_usdc", "other_contributions_usdc"} <= matched_fields:
         updated["_request_defaulted"] = False
 
@@ -678,6 +686,14 @@ def apply_prune_fields(case: dict[str, Any], fields: dict[str, str], transcript:
                 updated["prune_amount_disagrees"] = True
         elif not spoken:
             updated["amount_usdc"] = amount
+            # Prune can normalize a safely shaped amount spoken in words. It is
+            # kept as a low warning so the app reads the digits back before the
+            # normal confirmation path; the review service still cannot send it.
+            updated["_amount_source"] = "prune"
+            if updated.get("standalone_transfer") is True:
+                updated["requested_usdc"] = amount
+                updated["other_contributions_usdc"] = "0"
+                updated["_request_defaulted"] = False
     role = family_review._safe_label(fields.get("relationship"))
     purpose = family_review._safe_label(fields.get("purpose"))
     if role:
@@ -1029,6 +1045,17 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
         incoming = payload.get("incoming_message", "")
         if not isinstance(incoming, str) or len(incoming) > MAX_TRANSCRIPT_CHARS:
             self._json(HTTPStatus.BAD_REQUEST, {"error": "bad-incoming-message"})
+            return
+
+        # Prune API and Swarms API boundary: a phone or account number in the words is refused here,
+        # before the transcript reaches Prune (Swarms never receives the transcript at all). The app
+        # resolves the recipient from the phone's own contacts, so the words never need a number.
+        if prune_gate.personal_number_reason(transcript):
+            self._json(HTTPStatus.UNPROCESSABLE_ENTITY, {
+                "error": "personal-number",
+                "message": "Do not say a phone or account number. Choose a saved contact instead. Nothing was sent.",
+                "hold_policy": family_review.failed_policy(safe_case(None), "personal-number"),
+            })
             return
 
         prepared = apply_voice_facts(payload.get("case"), transcript)

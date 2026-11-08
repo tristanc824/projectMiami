@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import app  # noqa: E402
 import test_review_api as base  # noqa: E402
+from swarm import prune_gate  # noqa: E402
 
 GOOD = {"transcript": "Send 80 dollars to my niece for school supplies. The relationship is verified.",
         "case": {"recipient_in_contacts": True, "requested_usdc": "200", "other_contributions_usdc": "120"}}
@@ -274,6 +275,31 @@ def scammer_text_exfiltration(port):
     return not leaked, "scammer's text and numbers stayed on the server" if not leaked else f"leaked {leaked}"
 
 
+def seed_phrase_exfiltration(port):
+    # A deliberately fake phrase with the same shape as a recovery phrase. It must be
+    # rejected before the Prune HTTP call, not merely removed by the model afterward.
+    secret = "seed phrase is alpha bravo cedar delta ember forest garden harbor ivory jungle kingdom lemon"
+    before_prune = len(base.FakeUpstream.prune_bodies)
+    before_swarms = len(base.FakeUpstream.swarm_bodies)
+    status, _, raw = review(port, {**GOOD, "transcript": f"Send 80 dollars. My {secret}."})
+    no_upstream = (len(base.FakeUpstream.prune_bodies) == before_prune
+                   and len(base.FakeUpstream.swarm_bodies) == before_swarms)
+    ok = status == 422 and error_of(raw) == "blocked-in" and no_upstream
+    return ok, ("blocked locally; Prune and Swarms received zero requests" if ok
+                else f"HTTP {status}, error={error_of(raw)}, no_upstream={no_upstream}")
+
+
+def phone_number_exfiltration(port):
+    # A phone or bank account number spoken into the transcript would otherwise reach Prune's model.
+    leaks = ["Send 80 dollars to 305-555-0142.", "Envía 80 dólares a la cuenta 012 180 0012 3456 7890.",
+             "Send 80 dollars to ３０５５５５０１４２."]
+    results = [review(port, {**GOOD, "transcript": text}) for text in leaks]
+    no_upstream = not base.FakeUpstream.prune_bodies and not base.FakeUpstream.swarm_bodies
+    ok = all(status == 422 and error_of(raw) == "personal-number" for status, _, raw in results) and no_upstream
+    return ok, ("refused locally; Prune and Swarms received zero requests" if ok
+                else f"{[(s, error_of(r)) for s, _, r in results]}, no_upstream={no_upstream}")
+
+
 def key_in_errors(port):
     os.environ["SWARMS_API_KEY"] = "sk-leak-me-4815162342"
     try:
@@ -318,6 +344,8 @@ ATTACKS: list[tuple[str, str, str, Callable[[int], tuple[bool, str]]]] = [
     ("review", "Smuggled amounts (1e9, NaN, -80, SQL, hex)", "Strict amount format", amount_smuggling),
     ("review", "Scam words disguised to dodge the filter", "Text folded before scanning", disguised_scam_words),
     ("privacy", "Exfiltrate the scammer's message through the AI providers", "Only codes leave the server", scammer_text_exfiltration),
+    ("privacy", "Exfiltrate a seed phrase through the voice transcript", "Local secret gate before Prune", seed_phrase_exfiltration),
+    ("privacy", "Leak a phone or bank account number through Prune", "Local number gate before the Prune API", phone_number_exfiltration),
     ("privacy", "Make an error message echo the Swarms key", "Fixed error codes", key_in_errors),
     ("privacy", "Read API responses from another site", "No wildcard CORS", wildcard_cors),
 ]
@@ -366,6 +394,27 @@ class AttackSuite(unittest.TestCase):
                      "Send 4 dollars for the bus, 3 for lunch", "Envía 50 dólares a mi tía, número de cuenta de siempre."):
             with self.subTest(text):
                 self.assertEqual(app.scam_patterns(text), [])
+
+    def test_secret_gate_catches_key_shapes_without_blocking_safety_advice(self) -> None:
+        private_b58 = "1" * 88
+        private_hex = "a" * 64
+        cases = {
+            "seed phrase is alpha bravo cedar delta ember forest garden harbor ivory jungle kingdom lemon": "seed",
+            f"private key: {private_b58}": "private key",
+            f"secret key = {private_hex}": "private key",
+            "-----BEGIN PRIVATE KEY-----\nnot-a-real-key": "private key",
+            "sk_test_1234567890abcdefghijkl": "API credential",
+        }
+        for text, expected in cases.items():
+            with self.subTest(expected):
+                self.assertIn(expected, prune_gate.sensitive_secret_reason(text) or "")
+        for advice in (
+            "Never share your seed phrase with anyone.",
+            "Guard does not ask for a private key.",
+            "I need 80 dollars for school supplies.",
+        ):
+            with self.subTest(advice):
+                self.assertIsNone(prune_gate.sensitive_secret_reason(advice))
 
 
 def report() -> int:

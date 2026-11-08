@@ -64,6 +64,7 @@ SIGNALS: dict[str, tuple[str, str]] = {
     "negated_instruction": ("high", "The request says not to send (\"don't send 80\"). Ask whether to send anything at all."),
     "amount_not_stated": ("high", "No amount to send was stated or supplied, so the amount shown is only a placeholder."),
     "amount_guessed": ("high", "The amount was guessed from a lone number, not from words like \"send 80\". Confirm it."),
+    "amount_read_from_words": ("low", "The amount was spoken in words and converted to digits. Read it back before continuing."),
     "invalid_amount_facts": ("high", "An amount, the total requested, or the other contributions is missing or invalid."),
     "request_facts_assumed": ("low", "The total requested and other contributions were not supplied; sample values were used."),
     "self_correction": ("medium", "The speaker corrected themselves while giving the request."),
@@ -420,6 +421,8 @@ def detect_signals(
         found.add("amount_not_stated")
     elif amount_source == "guessed":
         found.add("amount_guessed")
+    elif amount_source == "prune":
+        found.add("amount_read_from_words")
     if negated_instruction:
         found.add("negated_instruction")
     if recipient_in_contacts is False:

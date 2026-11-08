@@ -8,10 +8,13 @@ this file signs or submits a transaction.
 
 Two calls, both through Prune:
 
-1. clean_request(raw_note) turns a relative's free-text note into four
-   fields: amount, relationship, purpose, fiat_leg. It stops with
+1. clean_request(raw_note) first blocks credential-shaped text and phone or
+   account numbers locally, before any network call (the phone matches
+   contacts on its own, so the words never need a number; the app replaces
+   the matched contact's name with "recipient"), then turns a relative's free-text note into
+   four fields: amount, relationship, purpose, fiat_leg. It stops with
    "blocked-in" if the call fails, Prune's metadata is missing, or the
-   model's reply still holds a phone or account number.
+   model's reply still holds a secret, phone, or account number.
 2. seal_sentence(sentence) sends one sentence and returns it with Prune's
    receipt. It stops with "no-receipt" if receipt_signature is missing.
 
@@ -30,6 +33,7 @@ import json
 import os
 import re
 import sys
+import unicodedata
 import urllib.error
 import urllib.request
 import uuid
@@ -47,8 +51,94 @@ FIELDS = ("amount", "relationship", "purpose", "fiat_leg")
 DIGIT_RUN = re.compile(r"(?<!\d)\+?\d(?:[\s\-.()]*\d){6,}(?!\d)")
 IBAN_LIKE = re.compile(r"\b[A-Z]{2}\d{2}[A-Z0-9]{10,30}\b")
 
+# Secrets are stopped locally, before Prune or any model receives the text. These
+# patterns intentionally require either a strong key shape or an explicit label;
+# merely discussing "seed phrase safety" must not block an ordinary request.
+PEM_PRIVATE_KEY = re.compile(r"-----BEGIN (?:[A-Z0-9 ]+ )?PRIVATE KEY-----", re.IGNORECASE)
+API_CREDENTIAL = re.compile(
+    r"\b(?:sk_(?:live|test)_[A-Za-z0-9]{16,}|sk-[A-Za-z0-9_-]{20,}|AKIA[A-Z0-9]{16})\b"
+)
+SEED_LABEL = re.compile(
+    r"\b(?:seed|recovery|mnemonic|secret)\s+phrase\s*(?::|is|=)\s*",
+    re.IGNORECASE,
+)
+PRIVATE_KEY_LABEL = re.compile(
+    r"\b(?:private|secret)\s+key\s*(?::|is|=)\s*",
+    re.IGNORECASE,
+)
+BASE58_SECRET = re.compile(r"[1-9A-HJ-NP-Za-km-z]{64,128}")
+HEX_SECRET = re.compile(r"(?:0x)?[0-9a-fA-F]{64,128}")
+JSON_SECRET = re.compile(r"\[(?:\s*\d{1,3}\s*,){31,}\s*\d{1,3}\s*\]")
+
+
+def sensitive_secret_reason(value: object) -> str | None:
+    """Classify credential-shaped text without returning or logging the credential."""
+    if not isinstance(value, str):
+        return "invalid secret input"
+    text = unicodedata.normalize("NFKC", value)
+    if PEM_PRIVATE_KEY.search(text):
+        return "private key block"
+    if API_CREDENTIAL.search(text):
+        return "API credential"
+    if JSON_SECRET.search(text):
+        return "private key byte array"
+    private = PRIVATE_KEY_LABEL.search(text)
+    if private:
+        tail = text[private.end():private.end() + 300]
+        if BASE58_SECRET.search(tail) or HEX_SECRET.search(tail) or JSON_SECRET.search(tail):
+            return "private key"
+    seed = SEED_LABEL.search(text)
+    if seed:
+        # A real recovery phrase normally has 12-24 words. Eight is a deliberate
+        # fail-closed floor that also catches a transcript truncated by speech-to-text.
+        tail = text[seed.end():seed.end() + 300]
+        words = re.findall(r"[^\W\d_]+", tail, flags=re.UNICODE)
+        if len(words) >= 8:
+            return "seed or recovery phrase"
+    return None
+
+
+def refuse_sensitive_secret(value: object, reason: str) -> None:
+    found = sensitive_secret_reason(value)
+    if found:
+        raise GateStop(reason, f"{found} detected locally; nothing was sent to Prune")
+
+
+# Money and dates look like long digit runs too: "$10000.00", "100000.50 dollars", "2026-11-08".
+MONEY_WITH_CENTS = re.compile(r"\d{1,6}\.\d{1,2}")
+ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def personal_number_reason(value: object) -> str | None:
+    """A phone or account number in what the person said, found locally before any AI call.
+
+    The phone resolves who the money is for against its own contacts, so the words never need a
+    number. Seven or more digits (spaces, dashes, dots and brackets between them allowed), or an
+    IBAN shape, count; a run right after "$", an amount with cents and an ISO date do not.
+    Fullwidth and other compatibility digits are folded first, and \\d also matches Arabic-Indic,
+    Devanagari and other digits, so a number cannot hide in another script."""
+    if not isinstance(value, str):
+        return None
+    text = unicodedata.normalize("NFKC", value)
+    for match in DIGIT_RUN.finditer(text):
+        run = match.group().strip()
+        if match.start() and text[match.start() - 1] == "$":
+            continue
+        if MONEY_WITH_CENTS.fullmatch(run) or ISO_DATE.fullmatch(run):
+            continue
+        return "phone or account number"
+    if IBAN_LIKE.search(text.upper()):
+        return "bank account number"
+    return None
+
+
+def refuse_personal_number(value: object, reason: str) -> None:
+    found = personal_number_reason(value)
+    if found:
+        raise GateStop(reason, f"{found} detected locally; nothing was sent to Prune")
+
 CLEAN_PROMPT = """You turn one family money request into JSON. Return one JSON object and no other text, with exactly these string keys:
-amount: the amount and currency exactly as written in the note, or "unknown"
+amount: normalize an amount spoken in words or digits to digits plus its stated currency (for example "two hundred fifty dollars" becomes "250 USD"); use "unknown" when missing or ambiguous
 relationship: how the requester is related to the sender, as a role such as "niece" or "aunt", never a name, or "unknown"
 purpose: a short general category such as "school expenses" or "medicine", with no names, places, or account details, or "unknown"
 fiat_leg: always "simulated"
@@ -156,6 +246,8 @@ FENCE = re.compile(r"^\s*```(?:json)?\s*(.*?)\s*```\s*$", re.DOTALL)
 
 def clean_request(raw_note: str, run_id: str | None = None) -> dict:
     """Return {amount, relationship, purpose, fiat_leg} or raise GateStop("blocked-in")."""
+    refuse_sensitive_secret(raw_note, "blocked-in")
+    refuse_personal_number(raw_note, "blocked-in")
     try:
         result = _post("family-request", _clean_body(raw_note), run_id)
     except (urllib.error.URLError, OSError, ValueError) as error:
@@ -172,6 +264,7 @@ def clean_request(raw_note: str, run_id: str | None = None) -> dict:
     if fenced:
         text = fenced.group(1)  # Gemini often wraps JSON in a ```json fence
 
+    refuse_sensitive_secret(text, "blocked-in")
     if DIGIT_RUN.search(text) or IBAN_LIKE.search(text):
         raise GateStop("blocked-in", "cleaned text still holds a phone or account number")
 
@@ -194,6 +287,8 @@ def clean_request(raw_note: str, run_id: str | None = None) -> dict:
 
 def seal_sentence(sentence: str, run_id: str | None = None) -> dict:
     """Return {sentence, receipt} or raise GateStop("no-receipt")."""
+    refuse_sensitive_secret(sentence, "no-receipt")
+    refuse_personal_number(sentence, "no-receipt")
     try:
         result = _post("family-council", _seal_body(sentence), run_id)
     except (urllib.error.URLError, OSError, ValueError) as error:

@@ -152,7 +152,7 @@ class ReviewApiTest(unittest.TestCase):
         return response.status, json.loads(response.read() or b"{}")
 
     def test_full_pipeline_runs_prune_watchdog_four_agents_and_seal(self) -> None:
-        status, body = self.post("/api/review", {"transcript": f"Send 80 dollars. The relationship is verified. Call {FAKE_PHONE}."})
+        status, body = self.post("/api/review", {"transcript": "Send 80 dollars. The relationship is verified."})
         self.assertEqual(status, 200, body)
         self.assertEqual(list(body["outputs"]), ["PlainSpeaker", "Skeptic", "Watchdog", "Judge"])
         self.assertEqual(body["verdict"]["decision"], "confirm")
@@ -163,14 +163,37 @@ class ReviewApiTest(unittest.TestCase):
         self.assertEqual(len(run_ids), 1, "both Prune calls in one review share one run")
 
     def test_swarms_never_sees_the_raw_transcript(self) -> None:
-        self.post("/api/review", {"transcript": f"Send 80 dollars to Tia Rosa at {FAKE_PHONE}."})
+        self.post("/api/review", {"transcript": "Send 80 dollars to Tia Rosa for school supplies."})
         sent = json.dumps(FakeUpstream.swarm_bodies)
         self.assertTrue(FakeUpstream.swarm_bodies, "Swarms was called")
-        self.assertNotIn(FAKE_PHONE, sent)
         self.assertNotIn("Rosa", sent)
         agents = [agent["agent_name"] for agent in FakeUpstream.swarm_bodies[0]["agents"]]
         self.assertEqual(agents, ["PlainSpeaker", "Skeptic", "Watchdog", "Judge"])
         self.assertEqual(FakeUpstream.swarm_bodies[0]["swarm_type"], "SequentialWorkflow")
+
+    def test_phone_or_account_number_never_reaches_prune_or_swarms(self) -> None:
+        spoken = [
+            f"Send 80 dollars to Tia Rosa at {FAKE_PHONE}.",
+            "Send 80 dollars to 3055550142.",
+            "Envía 80 dólares a la cuenta 012 180 0012 3456 7890.",
+            "Send 80 dollars to ３０５５５５０１４２.",  # fullwidth digits
+            "Send 80 dollars to account de89370400440532013000.",  # IBAN, lower case
+        ]
+        for transcript in spoken:
+            with self.subTest(transcript):
+                FakeUpstream.prune_bodies.clear()
+                FakeUpstream.swarm_bodies.clear()
+                status, body = self.post("/api/review", {"transcript": transcript})
+                self.assertEqual((status, body["error"]), (422, "personal-number"))
+                self.assertTrue(body["hold_policy"]["required"], "a refusal is never an approval")
+                self.assertEqual((FakeUpstream.prune_bodies, FakeUpstream.swarm_bodies), ([], []))
+                self.assertNotIn("555", json.dumps(body))
+
+    def test_money_and_dates_are_not_mistaken_for_personal_numbers(self) -> None:
+        for transcript in ("Send $10000.00 now.", "Send 100000.50 dollars.", "Send 80 dollars on 2026-11-08.",
+                           "Send 1,000 dollars.", "Send 80 dollars to recipient."):
+            with self.subTest(transcript):
+                self.assertIsNone(prune_gate.personal_number_reason(transcript))
 
     def test_extra_zero_is_held_even_when_the_model_confirms(self) -> None:
         status, body = self.post("/api/review", {"transcript": "Send 800 dollars."})
@@ -484,6 +507,33 @@ class ReviewApiTest(unittest.TestCase):
         display = json.dumps(assistant).lower()
         for jargon in ("usdc", "solana", "blockchain", "on-chain", "fiat", "token"):
             self.assertNotIn(jargon, display)
+
+    def test_amount_spoken_in_words_is_filled_but_marked_for_readback(self) -> None:
+        FakeUpstream.prune_amount = "250 USD"
+        status, body = self.post("/api/review", {
+            "transcript": "Send two hundred fifty dollars. The relationship is verified.",
+            "case": {
+                "requested_usdc": "250",
+                "other_contributions_usdc": "0",
+                "recipient_in_contacts": True,
+                "output_locale": "en-US",
+            },
+        })
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body["case"]["amount_usdc"], "250")
+        self.assertIn("amount_read_from_words", self.codes(body))
+        self.assertNotIn("amount_not_stated", self.codes(body))
+        self.assertEqual(body["assistant"]["filled"]["amount"], "$250")
+
+    def test_standalone_voice_send_does_not_inherit_family_request_samples(self) -> None:
+        status, body = self.post("/api/review", {
+            "transcript": "Send 35 dollars. The relationship is verified.",
+            "case": {"standalone_transfer": True, "recipient_in_contacts": True, "output_locale": "en-US"},
+        })
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body["case"]["requested_usdc"], "35")
+        self.assertEqual(body["case"]["other_contributions_usdc"], "0")
+        self.assertNotIn("request_facts_assumed", self.codes(body))
 
 
 if __name__ == "__main__":

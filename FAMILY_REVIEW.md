@@ -4,9 +4,10 @@ Caleb, this is yours to build on. It's the backend for checking a family transfe
 anyone signs it. It has **no UI**: the Nest app owns all the screens. This guide covers
 what it does, how to run it, the API contract, and what is still open.
 
-Everything here lives in `app.py`, `swarm/`, `tests/`, `hold/` and `programs/family_hold/`.
-None of it touches `apps/`, `web-earth/` or the site, so it merges with `main` and
-`calebs-output` without conflicts.
+The review engine lives in `app.py`, `swarm/`, `tests/`, `hold/` and `programs/family_hold/`.
+The small adapter under `apps/api` and `apps/mobile/src/services/review.ts` now connects it to
+the existing authenticated Send flow; it does not add a second transaction or confirmation route.
+See [PARTNER_INTEGRATION.md](./PARTNER_INTEGRATION.md) for the branch order and conflict rules.
 
 ## Start here (5 minutes)
 
@@ -112,6 +113,8 @@ or another machine from spending the Swarms credits.
 - `recipient_in_contacts` is `true` or `false`, worked out **on the phone** from the sender's contacts.
   Only this yes/no is sent, never the contact list or phone numbers. `false` puts the transfer in a Safe Hold.
   Leave it out and the review only notes that contacts were not checked.
+- Set `standalone_transfer` to `true` for an ordinary voice Send. This makes the stated amount
+  the complete request instead of filling the family-request sample totals.
 - **Identity facts**, all optional and all worked out on the phone. Only these values are sent, never names
   or phone numbers. A missing or wrongly typed value is ignored, not guessed.
 
@@ -197,7 +200,8 @@ or another machine from spending the Swarms credits.
 | 402 | `budget` | The Swarms balance is too low |
 | 502 | `swarms-auth` | Swarms rejected `SWARMS_API_KEY` (missing, wrong or revoked) |
 | 502 | `bad-verdict`, `swarms-api` | The Judge returned invalid JSON twice, or the Swarms API failed |
-| 422 | `blocked-in` | Prune failed, or the cleaned text still held a phone or account number. Swarms was not called. |
+| 422 | `personal-number` | The words held a phone or bank account number. Refused before the Prune API; neither Prune nor Swarms was called. Show `message` and ask again. |
+| 422 | `blocked-in` | A secret (seed phrase, private key, credential) was in the words, Prune failed, or the cleaned text still held a phone or account number. Swarms was not called. |
 | 502 | `no-receipt` | The decision was `confirm`, but Prune did not stamp it. The verdict is included. Do not treat it as ready. |
 | 503 | `missing-key` | `SWARMS_API_KEY` isn't set. The response still includes `signals`. |
 
@@ -411,9 +415,26 @@ const facts = {
 body: JSON.stringify({ transcript, incoming_message: messageThatAskedForMoney, case: { ...previousCase, ...facts } })
 ```
 
+## Prune API and Swarms API: what each one is allowed to see
+
+| | Prune API (Gemini proxy) | Swarms API (PlainSpeaker, Skeptic, Watchdog, Judge) |
+|---|---|---|
+| Receives | the payment sentence, after the checks below | allowlisted facts and fixed warning codes only, never the words |
+| Contact name | replaced with "recipient" on the phone before the words leave it (`redactRecipientName` in `apps/mobile/src/services/review.ts`) | never sent |
+| Phone or bank account number | refused before the call, by the Next proxy and again by this server: `422 personal-number`, a fail-closed `hold_policy`, zero Prune and Swarms requests | never sent |
+| Seed phrase, private key, API credential | refused before the call: `422 blocked-in` | never sent |
+| The scam message that asked for money (`incoming_message`) | never sent | never sent; only the scam codes it raised |
+| Its answer | checked: the spoken amount wins, labels are 3 words with no digits, and a number or secret in the reply stops the review | can add a hold, never remove one |
+
+The number rule: seven or more digits (spaces, dashes, dots or brackets between them) or an IBAN shape.
+"$10000.00", "100000.50 dollars", "1,000" and ISO dates such as 2026-11-08 are money or dates, not numbers
+to block. Fullwidth and other-script digits are folded first, so a number cannot hide in another script.
+The app shows `message` ("Do not say a phone or account number. Choose a saved contact instead.") and
+asks again; the recipient always comes from the phone's own contacts.
+
 ## Penetration tests: attacks on the API
 
-`tests/test_attacks.py` runs 28 attacks against the real server code (stand-in Swarms and Prune, no keys).
+`tests/test_attacks.py` runs 30 attacks against the real server code (stand-in Swarms and Prune, no keys).
 CI runs them as tests and prints the attack log. To see it yourself:
 
 ```
@@ -425,7 +446,7 @@ python tests/test_attacks.py --report
 | Who can call | malicious website, CORS preflight, DNS rebinding, text/plain form post, missing / guessed / off-by-one / Basic token | Origin allowlist, loopback Host check, JSON-only posts, constant-time bearer token |
 | Bad input | 40 KB body, lying Content-Length, JSON 15,000 levels deep, invalid UTF-8, wrong shapes and types, unknown endpoint, path traversal, slowloris | Size and length limits, strict parsing, fixed routes, Solana address check, 15 s socket timeout |
 | Tampering | prompt injection in the words, a hijacked Prune answer, forged `signals` / `hold_policy` / `verdict`, smuggled amounts (`1e9`, `NaN`, `-80`, SQL), disguised scam words | The words never reach Swarms; Prune's answer is checked; only allowlisted fields are read; the hold is recomputed on the server and only gets stricter; scam text is folded before scanning |
-| Data leaks | the scammer's message sent through the AI providers, the Swarms key echoed in an error, cross-site reads | Only codes leave the server, fixed error codes, no wildcard CORS |
+| Data leaks | the scammer's message sent through the AI providers, a seed phrase in the voice transcript, a phone or bank account number in the words, the Swarms key echoed in an error, cross-site reads | Only codes leave the server; a local secret gate blocks seed phrases, private keys, PEM keys, and API credentials before Prune; a local number gate refuses phone and account numbers before Prune (`422 personal-number`); fixed error codes; no wildcard CORS |
 
 In every attack the stand-in agents answer "confirm, no flag, no suspicion", as if the attack had worked on the
 models, so only the server's own defenses can stop it.
