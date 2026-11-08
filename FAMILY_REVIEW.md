@@ -396,6 +396,33 @@ const facts = {
 body: JSON.stringify({ transcript, incoming_message: messageThatAskedForMoney, case: { ...previousCase, ...facts } })
 ```
 
+## Penetration tests: attacks on the API
+
+`tests/test_attacks.py` runs 28 attacks against the real server code (stand-in Swarms and Prune, no keys).
+CI runs them as tests and prints the attack log. To see it yourself:
+
+```
+python tests/test_attacks.py --report
+```
+
+| Area | Attacks | What stops them |
+|---|---|---|
+| Who can call | malicious website, CORS preflight, DNS rebinding, text/plain form post, missing / guessed / off-by-one / Basic token | Origin allowlist, loopback Host check, JSON-only posts, constant-time bearer token |
+| Bad input | 40 KB body, lying Content-Length, JSON 15,000 levels deep, invalid UTF-8, wrong shapes and types, unknown endpoint, path traversal, slowloris | Size and length limits, strict parsing, fixed routes, Solana address check, 15 s socket timeout |
+| Tampering | prompt injection in the words, a hijacked Prune answer, forged `signals` / `hold_policy` / `verdict`, smuggled amounts (`1e9`, `NaN`, `-80`, SQL), disguised scam words | The words never reach Swarms; Prune's answer is checked; only allowlisted fields are read; the hold is recomputed on the server and only gets stricter; scam text is folded before scanning |
+| Data leaks | the scammer's message sent through the AI providers, the Swarms key echoed in an error, cross-site reads | Only codes leave the server, fixed error codes, no wildcard CORS |
+
+In every attack the stand-in agents answer "confirm, no flag, no suspicion", as if the attack had worked on the
+models, so only the server's own defenses can stop it.
+
+The scan reads disguised scam text: zero-width and other invisible characters, soft hyphens, Cyrillic and Greek
+look-alike letters, fullwidth letters, digits for letters (`g1ft c4rds`), dotted letters (`n.e.w`) and line breaks.
+
+Not covered yet: the on-chain program has no attack tests (wrong signer, early release, refund by a stranger;
+the checks are in `lib.rs` but untested), there is no rate limit (anyone with the token can spend Swarms credits),
+and `ThreadingHTTPServer` starts one thread per connection. Run it behind a reverse proxy with rate and
+connection limits before it faces the internet.
+
 ## Calling it from the Nest app
 
 Call it from the Next server in `apps/api`, not from the phone, so no token ships in

@@ -412,9 +412,43 @@ SCAM_PATTERNS: dict[str, re.Pattern[str]] = {
 }
 
 
+# Scammers write the incoming message, so they can disguise words to slip past a word list:
+# "new​number" (zero-width space), "co­de" (soft hyphen), Cyrillic "е" for Latin "e",
+# fullwidth letters, "g1ft c4rds", "n.e.w number". The scan folds those back first. Only the
+# scan sees the folded text; the transcript itself is not changed.
+_CONFUSABLES = str.maketrans({
+    # Cyrillic and Greek letters that look like Latin ones.
+    "а": "a", "в": "b", "е": "e", "к": "k", "м": "m", "н": "h", "о": "o", "р": "p", "с": "c", "т": "t",
+    "у": "y", "х": "x", "і": "i", "ј": "j", "ѕ": "s", "ԁ": "d", "һ": "h", "ӏ": "l", "ԛ": "q", "ԝ": "w",
+    "А": "A", "В": "B", "Е": "E", "К": "K", "М": "M", "Н": "H", "О": "O", "Р": "P", "С": "C", "Т": "T",
+    "Х": "X", "І": "I", "Ј": "J", "Ѕ": "S",
+    "α": "a", "ε": "e", "ι": "i", "κ": "k", "ν": "v", "ο": "o", "ρ": "p", "τ": "t", "υ": "u", "χ": "x",
+    "Α": "A", "Β": "B", "Ε": "E", "Ζ": "Z", "Η": "H", "Ι": "I", "Κ": "K", "Μ": "M", "Ν": "N", "Ο": "O",
+    "Ρ": "P", "Τ": "T", "Υ": "Y", "Χ": "X",
+})
+_LEET = str.maketrans({"0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "@": "a", "$": "s", "|": "l"})
+# A dot, dash, star or underscore between two letters: "n.e.w", "c-o-d-e", "g_i_f_t".
+_SPLIT_LETTERS = re.compile(r"(?<=[^\W\d_])[.\-_*·•](?=[^\W\d_])")
+
+
+def scan_forms(text: str) -> list[str]:
+    """The forms of a text that the scam scan reads: as written once disguises are undone, with
+    look-alike digits read as letters, and with letters joined across dots and dashes. Several
+    forms, so undoing one disguise never hides a phrase another form still shows."""
+    text = unicodedata.normalize("NFKC", text)  # fullwidth and other compatibility letters
+    forms = []
+    # An invisible character either splits a word ("co­de") or stands in for a space ("new​number").
+    for joiner in ("", " "):
+        plain = "".join(joiner if unicodedata.category(char) == "Cf" else char for char in text)
+        plain = re.sub(r"\s+", " ", plain.translate(_CONFUSABLES))
+        leet = plain.translate(_LEET)
+        forms += [plain, leet, _SPLIT_LETTERS.sub("", leet)]
+    return forms
+
+
 def scam_patterns(*texts: str) -> list[str]:
-    """Scam pattern codes found in any of the texts."""
-    joined = "\n".join(text for text in texts if isinstance(text, str))
+    """Scam pattern codes found in any of the texts, disguised or not."""
+    joined = "\n".join(form for text in texts if isinstance(text, str) for form in scan_forms(text))
     return [code for code, pattern in SCAM_PATTERNS.items() if pattern.search(joined)]
 
 
@@ -539,7 +573,7 @@ def check_case(case: dict[str, Any], transcript: str, incoming_message: str = ""
     source = checked.pop("_amount_source", "case")
     defaulted = bool(checked.pop("_request_defaulted", False))
     notes = transcript_notes(transcript)
-    notes["pressure"] = notes["pressure"] or bool(PRESSURE.search(incoming_message or ""))
+    notes["pressure"] = notes["pressure"] or any(PRESSURE.search(form) for form in scan_forms(incoming_message or ""))
     checked["signals"] = family_review.detect_signals(
         checked,
         previous=last_reviewed(),
@@ -879,6 +913,9 @@ def api_token() -> str:
 
 class VoiceReviewHandler(BaseHTTPRequestHandler):
     server_version = "ProjectMiamiReview/0.2"
+    # Seconds a client may stay silent while sending its request. Without it, a client that
+    # trickles headers or promises a body it never sends holds a server thread forever.
+    timeout = 15
 
     def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
         path = urlparse(self.path).path
@@ -976,7 +1013,8 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
             return
         try:
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError):
+        except (UnicodeDecodeError, json.JSONDecodeError, RecursionError):
+            # RecursionError: "[[[[..." nested thousands deep fits in the size limit.
             self._json(HTTPStatus.BAD_REQUEST, {"error": "bad-request"})
             return
         if not isinstance(payload, dict):
