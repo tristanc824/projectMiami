@@ -539,6 +539,19 @@ def skeptic_flag(text: str) -> bool | None:
     return "yes" in found
 
 
+WATCHDOG_SUSPICION = re.compile(r"^\s*suspicion:\s*(none|low|high)\s*\.?\s*$", re.IGNORECASE | re.MULTILINE)
+
+
+def watchdog_suspicion(text: str) -> str | None:
+    """The highest "suspicion:" level the Watchdog wrote, or None when it wrote none.
+
+    Fails closed like skeptic_flag: "suspicion: high" followed by "suspicion: none" is still high."""
+    found = [level.lower() for level in WATCHDOG_SUSPICION.findall(text or "")]
+    if not found:
+        return None
+    return max(found, key=SUSPICION_LEVELS.index)
+
+
 def review_hash(case: dict[str, Any], verdict: dict[str, Any], decision: dict[str, Any] | None = None) -> str:
     """sha256 of the safe facts, the verdict and the hold decision. It goes on-chain with the hold, so
     anyone can check later that this hold came from this review, with this outcome. A clean review's
@@ -579,6 +592,14 @@ def hold_policy(
     elif flag:
         reasons.append("skeptic_flag")
     reasons += [f"watchdog:{code}" for code in signal_codes(case) if code in HIGH_SIGNALS]
+    # The Watchdog agent itself can add a hold the local checks missed (it can never remove one).
+    suspicion = watchdog_suspicion(outputs.get("Watchdog", ""))
+    if suspicion is None:
+        reasons.append("watchdog_unclear")
+    elif suspicion == "high":
+        reasons.append("watchdog_suspicion")
+    if verdict.get("suspicion") == "high" and suspicion != "high":
+        reasons.append("judge_suspicion")
     if verdict.get("decision") != "confirm":
         reasons.append(f"judge:{verdict.get('decision')}")
     required = bool(reasons)

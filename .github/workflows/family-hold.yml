@@ -1,0 +1,131 @@
+# Builds the family hold Solana program, runs the review tests, and (by hand only) deploys to devnet.
+#
+# Deploy: Actions tab -> "Family hold" -> Run workflow -> deploy = true. It needs two repository
+# secrets, added in Settings -> Secrets and variables -> Actions:
+#   SOLANA_DEPLOYER_KEYPAIR      a devnet keypair (the JSON array) with about 3 devnet SOL
+#   FAMILY_HOLD_PROGRAM_KEYPAIR  the contents of hold/keys/program.json (program id 7NKeo...)
+# Before deploying for real, set POLICY_AUTHORITY in programs/family_hold/src/lib.rs to your server's key.
+name: Family hold
+
+on:
+  push:
+    paths:
+      - "programs/family_hold/**"
+      - "hold/**"
+      - "swarm/**"
+      - "app.py"
+      - "tests/**"
+      - ".github/workflows/family-hold.yml"
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Deploy the program to devnet (needs the two secrets)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  SOLANA_VERSION: "1.18.26"
+
+jobs:
+  program:
+    name: Build the Solana program
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache cargo and the Solana tools
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.local/share/solana
+            ~/.cache/solana
+            programs/family_hold/target
+          key: family-hold-${{ env.SOLANA_VERSION }}-${{ hashFiles('programs/family_hold/Cargo.toml', 'programs/family_hold/Cargo.lock') }}
+
+      - name: Install the Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${SOLANA_VERSION}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - name: Type-check on the host
+        working-directory: programs/family_hold
+        run: cargo check --all-targets
+
+      - name: Lint (report only)
+        working-directory: programs/family_hold
+        continue-on-error: true
+        run: cargo clippy --all-targets
+
+      - name: Build the on-chain program
+        working-directory: programs/family_hold
+        run: |
+          solana --version
+          cargo build-sbf
+          ls -l target/deploy/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: family_hold-program
+          path: |
+            programs/family_hold/target/deploy/family_hold.so
+            programs/family_hold/Cargo.lock
+
+  review:
+    name: Review API tests and scam scenarios
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Unit tests (stand-in Swarms and Prune, no keys)
+        run: python -m unittest discover tests -v
+      - name: Scam scenarios (local checks)
+        run: python -m swarm.scam_scenarios
+      - name: Hold client parses
+        run: node --check hold/hold.mjs
+
+  deploy:
+    name: Deploy to devnet
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy
+    needs: [program, review]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: family_hold-program
+          path: build
+      - name: Install the Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${SOLANA_VERSION}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - name: Deploy
+        env:
+          DEPLOYER: ${{ secrets.SOLANA_DEPLOYER_KEYPAIR }}
+          PROGRAM: ${{ secrets.FAMILY_HOLD_PROGRAM_KEYPAIR }}
+        run: |
+          if [ -z "$DEPLOYER" ] || [ -z "$PROGRAM" ]; then
+            echo "Add SOLANA_DEPLOYER_KEYPAIR and FAMILY_HOLD_PROGRAM_KEYPAIR as repository secrets first."
+            exit 1
+          fi
+          umask 077
+          printf '%s' "$DEPLOYER" > deployer.json
+          printf '%s' "$PROGRAM" > program.json
+          solana config set --url https://api.devnet.solana.com --keypair deployer.json
+          echo "Deployer balance: $(solana balance)"
+          solana program deploy build/target/deploy/family_hold.so --program-id program.json
+          echo "Program id: $(solana address -k program.json)"
+          rm -f deployer.json program.json

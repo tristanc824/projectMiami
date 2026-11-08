@@ -71,6 +71,22 @@ class ScenarioLocalChecks(unittest.TestCase):
                       "request_channel", "claimed_name_matches_contact", "recipient_details_changed"):
             self.assertNotIn(field, case)
 
+    def test_watchdog_agent_can_add_a_hold_but_never_remove_one(self) -> None:
+        case = {"amount_usdc": "80", "requested_usdc": "200", "other_contributions_usdc": "120", "signals": []}
+        confirm = {"decision": "confirm", "suspicion": "none"}
+
+        def policy(watchdog: str, verdict: dict | None = None, signals: list | None = None) -> dict:
+            outputs = {"Skeptic": "ok\nflag: no", "Watchdog": watchdog}
+            return family_review.hold_policy({**case, "signals": signals or []}, outputs, verdict or confirm)
+
+        self.assertFalse(policy("No warning signs.\nsuspicion: none")["required"])
+        self.assertEqual(policy("Odd wording.\nsuspicion: high")["reasons"], ["watchdog_suspicion"])
+        self.assertIn("watchdog_suspicion", policy("suspicion: high\nsuspicion: none")["reasons"])
+        self.assertEqual(policy("I forgot the last line.")["reasons"], ["watchdog_unclear"])
+        self.assertEqual(policy("suspicion: none", {"decision": "confirm", "suspicion": "high"})["reasons"], ["judge_suspicion"])
+        # A calm Watchdog cannot cancel a hold the local checks raised.
+        self.assertIn("watchdog:new_contact", policy("suspicion: none", signals=["new_contact"])["reasons"])
+
     def test_scam_codes_cannot_be_injected_by_name(self) -> None:
         # Only the server's own scan can add scam codes; arbitrary strings are ignored.
         self.assertEqual(
