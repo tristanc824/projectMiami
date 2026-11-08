@@ -1,7 +1,7 @@
 import React from "react";
 import { AbsoluteFill, Sequence, useCurrentFrame } from "remotion";
 import { C, FONT } from "../theme";
-import { LabelBody, MoBlur, Paper } from "./kit";
+import { LabelBody, MoBlur, mix, Paper } from "./kit";
 import { LABEL } from "./layout";
 import { BIG, lockCentred } from "./lockup";
 import { EASE_IN, EASE_IN_OUT, EASE_OUT, lerp, tween } from "./motion";
@@ -9,8 +9,8 @@ import { SceneCtx } from "./scene";
 import { CHAPTERS, FILM_FRAMES, HIT, SC, Scene, SCENES, SceneId } from "./timeline";
 import { S01Map } from "./scenes/S01Map";
 import { S02Inflation } from "./scenes/S02Inflation";
-import { S03Drop } from "./scenes/S03Drop";
-import { halves, S04Always } from "./scenes/S04Always";
+import { DROP_LEFT, S03Drop } from "./scenes/S03Drop";
+import { duskAt, S04Always } from "./scenes/S04Always";
 import { S05Send } from "./scenes/S05Send";
 import { S06Claim } from "./scenes/S06Claim";
 import { S07Offline } from "./scenes/S07Offline";
@@ -77,7 +77,7 @@ const ChapterLabel = () => {
   if (f < HIT.fly || f >= SC.close.from) return null;
   // Bar 10: the big lockup flies from the centre to the label's spot (the drop scene drew it until now).
   const fly = tween(f, [HIT.fly, HIT.fly + 36], [0, 1], EASE_IN_OUT);
-  const big = lockCentred(960, 540);
+  const big = lockCentred(DROP_LEFT.cx, DROP_LEFT.cy);
   const s = lerp(BIG, 1, fly);
   const x = lerp(big.x, LABEL.x, fly);
   const y = lerp(big.y, LABEL.y, fly);
@@ -85,7 +85,8 @@ const ChapterLabel = () => {
   const ci = CHAPTERS.findIndex((c) => f >= c.from && f < c.to);
   const word = ci < 0 ? "Nest" : CHAPTERS[ci].word;
   const prev = ci <= 0 ? "Nest" : CHAPTERS[ci - 1].word;
-  const roll = ci < 0 ? 1 : tween(f, [CHAPTERS[ci].from, CHAPTERS[ci].from + 9], [0, 1], EASE_OUT);
+  // v3 (M8): the flip lands on the downbeat (starts 4 frames before, ~90% there on the beat).
+  const roll = ci < 0 ? 1 : tween(f, [CHAPTERS[ci].from - 4, CHAPTERS[ci].from + 3], [0, 1], EASE_OUT);
   // Leaves with the security pull-back.
   const out = tween(f, [SC.close.from - 12, SC.close.from - 4], [0, 1], EASE_IN);
   const style: React.CSSProperties = { position: "absolute", left: x, top: y, transformOrigin: "0 0", transform: `scale(${s})`, zIndex: 50, opacity: 1 - out };
@@ -93,16 +94,12 @@ const ChapterLabel = () => {
   const inAlways = f >= SC.always.from - SC.always.swap && f < SC.send.from - SC.send.swap;
   const inScam = f >= SC.scam.from && f < SC.check.from;
   if (inAlways) {
-    const h = halves(f - SC.always.from);
+    // v3 (M2): 24/7 is a dusk tint, not a black wipe; the label crossfades to white with it.
+    const d = duskAt(f - SC.always.from);
     return (
-      <>
-        <div style={style}>
-          <div style={{ clipPath: shift(h.day, -x, -y, s) }}><LabelLayer word={word} prev={prev} roll={roll} tone="ink" /></div>
-        </div>
-        <div style={style}>
-          <div style={{ clipPath: shift(h.night, -x, -y, s) }}><LabelLayer word={word} prev={prev} roll={roll} tone="white" /></div>
-        </div>
-      </>
+      <div style={style}>
+        <LabelBody word={word} prev={prev} roll={roll} p={[1, 1, 1]} color={mix(C.moss, "#E4ECDF", d)} wordColor={mix(C.ink, "#FFFFFF", d)} />
+      </div>
     );
   }
   let white = false;
@@ -116,10 +113,6 @@ const ChapterLabel = () => {
     </div>
   );
 };
-
-/** Re-express a screen-space polygon clip-path in the label's local (scaled, translated) space. */
-const shift = (poly: string, dx: number, dy: number, s: number) =>
-  poly.replace(/(-?\d+(?:\.\d+)?)px (-?\d+(?:\.\d+)?)px/g, (_, a, b) => `${((+a + dx) / s).toFixed(1)}px ${((+b + dy) / s).toFixed(1)}px`);
 
 /* ------------------------------------------------------------------ the film */
 

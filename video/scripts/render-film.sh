@@ -1,5 +1,5 @@
 #!/bin/sh
-# Renders the Nest film v2 to out/film.mp4 (1920x1080, 24 fps, 2053 frames = 85.5 s, cut to
+# Renders the Nest film v3 to out/film.mp4 (1920x1080, 24 fps, 2053 frames = 85.5 s, cut to
 # "Santa María"). Every time below comes from src/film/timeline.ts.
 # 1. Remotion renders the picture to out/film-picture.mp4 (motion graphics only, no audio:
 #    Remotion's bundled ffprobe can't read media at this project's long Windows path).
@@ -12,6 +12,9 @@
 # Usage: sh scripts/render-film.sh               (picture + mix)
 #        sh scripts/render-film.sh --audio-only  (re-mix onto the existing picture)
 #        MUSIC=path/to/track.wav sh scripts/render-film.sh --audio-only
+# Music (v3, Caleb's picks): MUSIC_PITCH=1 (semitones, rubberband, first in the chain), MUSIC_SOFTEN=B|C|off,
+#        MUSIC2=public/film/music/best-friend.wav (default; MUSIC2=none = Santa María to the end),
+#        MUSIC2_OFFSET=31.008 (s into track 2 = its first downbeat), MUSIC2_BPM=102.006 (its native tempo).
 set -e
 cd "$(dirname "$0")/.."
 CHROME="${CHROME:-C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe}"
@@ -48,5 +51,6 @@ ffmpeg -hide_banner -i out/film.mp4 -af ebur128=peak=true -f null - 2>&1 | sed -
 ffmpeg -v error -y -ss 15.27 -t 6.6 -i out/film-mix-norm.wav -c:a pcm_s16le out/mix-check/b03-drop.wav
 ffmpeg -v error -y -ss 26.47 -t 8.2 -i out/film-mix-norm.wav -c:a pcm_s16le out/mix-check/b06-send.wav
 ffmpeg -v error -y -ss 59.06 -t 8.2 -i out/film-mix-norm.wav -c:a pcm_s16le out/mix-check/b11-undo.wav
-grep -E "^(bar|line|b03|b06|b11)" out/mix-report.txt
+ffmpeg -v error -y -ss 77.38 -t 8.16 -i out/film-mix-norm.wav -c:a pcm_s16le out/mix-check/b13-end.wav
+cat out/mix-report.txt
 echo "wrote out/film.mp4 and out/mix-check/"

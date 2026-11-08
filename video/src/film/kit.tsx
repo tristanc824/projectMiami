@@ -88,7 +88,7 @@ export const Reveal = ({
   const o = clamp01(out);
   if (a <= 0.0001 || o >= 0.9999) return <div style={{ ...style, visibility: "hidden" }}><div style={inner}>{children}</div></div>;
   return (
-    <div style={{ overflow: "hidden", paddingBottom: "0.16em", marginBottom: "-0.16em", paddingTop: "0.04em", marginTop: "-0.04em", ...style }}>
+    <div style={{ overflow: "hidden", paddingBottom: "0.16em", marginBottom: "-0.16em", paddingTop: "0.04em", marginTop: "-0.04em", opacity: Math.min(1, a * 2) * (1 - o), ...style }}>
       <div style={{ transform: `translateY(${((1 - a) * 112 - o * 112).toFixed(2)}%)`, ...inner }}>{children}</div>
     </div>
   );
@@ -232,7 +232,7 @@ const Wifi = ({ w, color }: { w: number; color: string }) => (
   </svg>
 );
 
-export const FStatus = ({ light = false, net = {}, time = "9:41" }: { light?: boolean; net?: Net; time?: string }) => {
+export const FStatus = ({ light = false, net = {}, time = "8:41" }: { light?: boolean; net?: Net; time?: string }) => {
   const color = light ? "#fff" : C.ink;
   const wifi = net.wifi ?? 1;
   const bars = net.bars ?? 4;

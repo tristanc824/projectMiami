@@ -10,7 +10,9 @@ import { spawnSync } from "node:child_process";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const T = await import(pathToFileURL(path.join(root, "src", "film", "timeline.ts")).href);
 const grid = JSON.parse(fs.readFileSync(path.join(root, "public/film/music/santa-maria-grid.json"), "utf8"));
-const kicks = grid.kicks.map((k) => k.frame);
+// v3: T.KICKS = Santa María's detected kicks up to the bar 32 switch, then track 2's four-on-the-floor
+// kick on the grid beats (measured after the stretch: attacks within ~15-30 ms of the grid).
+const kicks = T.MUSIC2_ON ? T.KICKS.map(([f]) => f) : grid.kicks.map((k) => k.frame);
 const video = process.argv[2] ?? "out/film-picture.mp4";
 
 const r = spawnSync("ffmpeg", ["-hide_banner", "-i", video, "-vf", "scale=480:270,format=gray,tblend=all_mode=difference,signalstats,metadata=print:key=lavfi.signalstats.YAVG", "-f", "null", "-"], { cwd: root, encoding: "utf8", maxBuffer: 1 << 28 });

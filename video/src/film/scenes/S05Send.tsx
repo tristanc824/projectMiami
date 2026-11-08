@@ -2,7 +2,7 @@ import React from "react";
 import { AbsoluteFill } from "remotion";
 import { C, FONT } from "../../theme";
 import { BankGlyph, body, Cam, Check, DotGrid, FlipPhone, FPhone, head, MoneyDot, Pill, Reveal, Rings } from "../kit";
-import { colR, colX, HALF_L, HALF_R, onPhone, phoneAt, T } from "../layout";
+import { HALF_L, HALF_R, onPhone, phoneAt, T } from "../layout";
 import { CAM, clamp01, EASE_IN, EASE_IN_OUT, evenDots, hitIn, lerp, lineOut, lineT, Pt, PUSH, qpath, qpt, tAtLength, tween } from "../motion";
 import { Drift, useF, useKick } from "../scene";
 import { HIT, SC } from "../timeline";
@@ -21,22 +21,31 @@ const FROM = SC.send.from;
 const L = (abs: number) => abs - FROM;
 const ARRIVE_SWAP = L(HIT.arrived) - 6;
 
-const LX = colX(1); // 262
-const LR = colR(4); // 806
-const RX = colX(7); // 1114
-const RR = colR(10); // 1658
-const TITLE_Y = 244;
-const ROUTE_Y = 420;
-const NODE_LBL_Y = 482;
-const ARR_Y = 576;
-const VAL_Y = 620;
-const CHIP_Y = 776;
+/*
+ * v3 (design review): each panel is one block W wide, centred on its frame half (480 / 1440), so the
+ * two panels' combined midpoint is exactly x = 960. Text starts at the block's left edge; the route
+ * runs from a start dot at the left edge to the coin, whose right edge is the block's right edge.
+ */
+const W_P = 592;
+const LX = HALF_L - W_P / 2; // 184
+const RX = HALF_R - W_P / 2; // 1144
+const COIN_R = 48;
+const LR = LX + W_P - COIN_R; // 728: old route end (coin centre)
+const RR = RX + W_P - COIN_R; // 1688
+const TITLE_Y = 224;
+const ROUTE_Y = 404;
+const NODE_LBL_Y = 470;
+const SUB_Y = 510;
+const ARR_Y = 586;
+const VAL_Y = 630;
+const CHIP_Y = 786;
 
-const OLD_X = [0, 1, 2, 3, 4].map((i) => LX + ((LR - LX) * i) / 4);
+/** Banks at 20/40/60% of the route; the last leg to Buenos Aires is the long one (leaves room for the end label). */
+const OLD_X = [0, 0.2, 0.4, 0.6, 1].map((q) => LX + 10 + (LR - LX - 10) * q);
 const HOP_AT = [L(SC.send.from), L(HIT.bank1), L(HIT.bank2), L(HIT.bank3), L(HIT.oldArrives)];
 const FEES = [6, 6, 7];
 const hopC = (i: number): Pt => ({ x: (OLD_X[i] + OLD_X[i + 1]) / 2, y: ROUTE_Y - 70 });
-const NM = { x: RX, y: ROUTE_Y };
+const NM = { x: RX + 10, y: ROUTE_Y };
 const NB = { x: RR, y: ROUTE_Y };
 const NC = { x: (RX + RR) / 2, y: ROUTE_Y - 250 };
 const OLD_DOTS = [0, 1, 2, 3].flatMap((i) => evenDots({ x: OLD_X[i], y: ROUTE_Y }, hopC(i), { x: OLD_X[i + 1], y: ROUTE_Y }, 17).pts.slice(1, -1));
@@ -56,7 +65,7 @@ const oldCoin = (f: number) => {
 };
 
 const Coin = ({ x, y, value, paid, tone, s = 1 }: { x: number; y: number; value: string; paid: number; tone: "old" | "nest"; s?: number }) => {
-  const size = 96;
+  const size = COIN_R * 2;
   const missing = paid * 0.085;
   const bg = tone === "old" ? "#CEC6B6" : C.moss;
   return (
@@ -82,16 +91,16 @@ const Split = ({ f }: { f: number }) => {
       <div style={{ position: "absolute", left: 959, top: 0, width: 2, height: 1080, background: "#DDD7CB" }} />
       <DotGrid glow={k.glow} />
       {/* titles */}
-      <div style={{ position: "absolute", left: LX, top: TITLE_Y }}><Reveal t={lineT(f, 0)}><div style={head(T.l, C.ink4)}>The old way</div></Reveal></div>
+      <div style={{ position: "absolute", left: LX, top: TITLE_Y }}><Reveal t={lineT(f, 0)}><div style={{ ...head(T.l, C.ink4), height: 50, display: "flex", alignItems: "center" }}>Bank wire</div></Reveal></div>
       <div style={{ position: "absolute", left: RX, top: TITLE_Y }}>
-        <Reveal t={lineT(f, 6)}><div style={{ ...head(T.l), display: "flex", alignItems: "center", gap: 14 }}><Rings size={44} color={C.moss} />Nest</div></Reveal>
+        <Reveal t={lineT(f, 6)}><div style={{ ...head(T.l), height: 50, display: "flex", alignItems: "center", gap: 14 }}><Rings size={44} color={C.moss} />Nest</div></Reveal>
       </div>
       {/* routes */}
       <svg width={1920} height={1080} style={{ position: "absolute", inset: 0 }}>
         {OLD_DOTS.map((p, i) => <circle key={`o${i}`} cx={p.x} cy={p.y} r={2.6} fill={C.ink4} opacity={0.45} />)}
         {NEST_DOTS.map((p, i) => <circle key={`n${i}`} cx={p.x} cy={p.y} r={2.6} fill={C.ink} opacity={0.35} />)}
         {fly > 0 ? <path d={rightD} fill="none" stroke={C.moss} strokeWidth={5} strokeLinecap="round" pathLength={1} strokeDasharray={`${fly} 2`} opacity={1 - tween(f, [L(HIT.nestLands) + 6, L(HIT.nestLands) + 30], [0, 0.7], (t) => t)} /> : null}
-        {[OLD_X[0], OLD_X[4], RX, RR].map((x) => <circle key={x} cx={x} cy={ROUTE_Y} r={10} fill={x < 960 ? C.ink4 : C.ink} />)}
+        {[OLD_X[0], OLD_X[4], NM.x, RR].map((x) => <circle key={x} cx={x} cy={ROUTE_Y} r={10} fill={x < 960 ? C.ink4 : C.ink} />)}
       </svg>
       {/* banks pop on beats 2-4 of bar 13 */}
       {[1, 2, 3].map((n) => {
@@ -114,12 +123,19 @@ const Split = ({ f }: { f: number }) => {
         );
       })}
       <Coin x={coin.p.x} y={coin.p.y} value={`$${value}`} paid={coin.paid} tone="old" />
-      {/* node labels: left-aligned under the start, right-aligned under the end */}
-      {[[LX, "Miami", 0], [LR, "Buenos Aires", 0], [RX, "Miami", 6], [RR, "Buenos Aires", 6]].map(([x, name, d]) => (
-        <div key={`${x}`} style={{ position: "absolute", left: (x as number) - 150, width: 300, top: NODE_LBL_Y + 6, display: "flex", justifyContent: "center" }}>
-          <Reveal t={lineT(f, d as number, 1)}><div style={body(T.s)}>{name}</div></Reveal>
+      {/* node labels: left-aligned under the start, right-aligned under the end (the block's edges) */}
+      {([[LX, "Miami", 0, "flex-start"], [LX, "Buenos Aires", 0, "flex-end"], [RX, "Miami", 6, "flex-start"], [RX, "Buenos Aires", 6, "flex-end"]] as [number, string, number, string][]).map(([x, name, d, j]) => (
+        <div key={`${x}${name}`} style={{ position: "absolute", left: x, width: W_P, top: NODE_LBL_Y, display: "flex", justifyContent: j }}>
+          <Reveal t={lineT(f, d, 1)}><div style={body(T.s)}>{name}</div></Reveal>
         </div>
       ))}
+      {/* v3 sub-labels under the arriving coins */}
+      <div style={{ position: "absolute", left: LX, width: W_P, top: SUB_Y, display: "flex", justifyContent: "flex-end" }}>
+        <Reveal t={lineT(f, L(HIT.oldArrives))}><div style={body(T.s, C.ink, 600)}>Paid out in local currency</div></Reveal>
+      </div>
+      <div style={{ position: "absolute", left: RX, width: W_P, top: SUB_Y, display: "flex", justifyContent: "flex-end" }}>
+        <Reveal t={lineT(f, L(HIT.nestLands))}><div style={body(T.s, C.moss, 600)}>Arrives as US dollars</div></Reveal>
+      </div>
       {/* Nest: the dot flies, lands whole as the $250 coin */}
       {f < L(HIT.nestLands) - 1 ? <MoneyDot x={dot.x} y={dot.y} r={15 * k.scale} /> : <Coin x={NB.x} y={NB.y} value="$250" paid={0} tone="nest" s={landed * k.scale} />}
       {/* arrives in / arrived in */}
@@ -150,7 +166,7 @@ const Arrived = ({ f }: { f: number }) => {
       <DotGrid glow={k.glow} />
       <Cam z={lerp(5, 1, inT)} ox={badge.x} oy={badge.y} blur={(1 - inT) * 8}>
         <FlipPhone ph={PH} angle={flip * 90}>
-          <FPhone><ArrivedScreen check={tween(f, [L(HIT.arrived), L(HIT.arrived) + 8], [0, 1])} /></FPhone>
+          <FPhone><ArrivedScreen check={tween(f, [L(HIT.arrived) - 2, L(HIT.arrived) + 6], [0, 1])} /></FPhone>
         </FlipPhone>
         <div style={{ position: "absolute", left: HALF_R - 400, width: 800, top: 540 - (T.xxl * 1.05) / 2, display: "flex", justifyContent: "center" }}>
           <Reveal t={lineT(f, L(HIT.arrived))} out={lineOut(f, SC.send.dur - 12)}>

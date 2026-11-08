@@ -59,8 +59,8 @@ export const glide = (f: number, at: number) => springAt(f - at + SPRING_LEAD, 3
 
 /** Masked line reveal timing: 9 frames per line, lines 6 frames apart, starting on `at`. */
 export const lineT = (f: number, at: number, i = 0, len = 9) => tween(f, [at + i * 6 - LEAD, at + i * 6 + len - LEAD], [0, 1], EASE_OUT);
-/** Masked line exit (upward), same rhythm. */
-export const lineOut = (f: number, at: number, i = 0, len = 8) => tween(f, [at + i * 3 - LEAD, at + i * 3 + len - LEAD], [0, 1], EASE_IN);
+/** Masked line exit (upward), same rhythm. v3 (H4): the exit FINISHES on `at` (nothing is half-masked on a beat). */
+export const lineOut = (f: number, at: number, i = 0, len = 8) => tween(f, [at + i * 3 - len, at + i * 3], [0, 1], EASE_IN);
 
 /** Camera drift: about 0.4% scale per bar, from 1.000 at the scene's downbeat. */
 export const drift = (f: number) => 1 + 0.004 * (Math.max(0, f) / BAR_F);

@@ -33,7 +33,7 @@ const CITY_R = 11;
 const GHOST_R = 5;
 const LABEL_GAP = 30;
 
-export type City = { pop: number; label: number; labelOut?: number; halo?: number };
+export type City = { pop: number; label: number; labelOut?: number; halo?: number; o?: number };
 
 const CityDot = ({ p, c, ink }: { p: Pt; c: City; ink: string }) => {
   const pop = c.pop;
@@ -41,7 +41,7 @@ const CityDot = ({ p, c, ink }: { p: Pt; c: City; ink: string }) => {
   const a = 0.28 + 0.72 * clamp01(pop);
   const h = c.halo ?? 0;
   return (
-    <g transform={`translate(${p.x} ${p.y})`}>
+    <g transform={`translate(${p.x} ${p.y})`} opacity={c.o ?? 1}>
       {h > 0 && h < 1 ? <circle r={CITY_R + 46 * EASE_OUT(h)} fill="none" stroke={ink} strokeOpacity={0.4 * (1 - h)} strokeWidth={2.5} /> : null}
       <circle r={26} fill={ink} opacity={0.06 * clamp01(pop)} />
       <circle r={Math.max(0, r)} fill={ink} opacity={a} />

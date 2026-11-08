@@ -24,11 +24,12 @@ export const colC = (i: number) => colX(i) + COL / 2;
 export const span = (n: number) => n * COL + (n - 1) * GUTTER;
 
 /**
- * 2-up layouts split at x = 960; each element is centred in its half of the 12-column grid
- * (cols 0-5 = 120..948 and cols 6-11 = 972..1800), so both centres are symmetric about 960.
+ * 2-up layouts split at x = 960; v3 (design review H1): each element is centred on its half of the
+ * FRAME (480 / 1440), so the pair reads as centred on the frame. The chapter label moved up to
+ * y = 48 so a phone at x = 480 clears it.
  */
-export const HALF_L = (colX(0) + colR(5)) / 2; // 534
-export const HALF_R = (colX(6) + colR(11)) / 2; // 1386
+export const HALF_L = 480;
+export const HALF_R = 1440;
 
 /** Type scale (px). Headlines 600 weight, -0.035em; display line-height 1.05, body 1.35. */
 export const T = { xxl: 112, xl: 72, l: 48, m: 32, s: 24 } as const;
@@ -46,7 +47,7 @@ export const phoneAt = (cx: number, cy = CY) => ({ x: cx - PHONE_SW / 2, y: cy -
 export const onPhone = (p: { x: number; y: number; k: number }, lx: number, ly: number) => ({ x: p.x + lx * p.k, y: p.y + ly * p.k });
 
 /** Chapter label: top-left on the margin, the same size in every scene. */
-export const LABEL = { x: MARGIN, y: 96, mark: 40, font: T.m, gap: 12 } as const;
+export const LABEL = { x: MARGIN, y: 48, mark: 40, font: T.m, gap: 12 } as const;
 
 /** The inflation scene's two grocery cards (scene 1 pushes into the left one). */
-export const INFL_CARD = { y: 312, w: 544, h: 418, r: 40 };
+export const INFL_CARD = { y: 300, w: 544, h: 418, r: 40 };

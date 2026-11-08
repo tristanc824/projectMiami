@@ -41,7 +41,7 @@ export const CheckBody = ({ f }: { f: number }) => {
           <Drift f={Math.max(0, f)}>
             <DotGrid color="#8A5A10" alpha={0.1} glow={k.glow} />
             <PhoneAt x={PH.x} y={PH.y}>
-              <FPhone>
+              <FPhone time="9:38">
                 <ScamScreen reasons={reasons} holdFill={hold} />
                 {hold > 0 && hold < 1 ? <div style={{ position: "absolute", left: SCAM_HOLD.x - 34, top: SCAM_HOLD.y - 34, width: 68, height: 68, borderRadius: "50%", background: "rgba(138,90,16,0.16)", transform: `scale(${1 + 0.06 * Math.sin(f / 3)})` }} /> : null}
               </FPhone>

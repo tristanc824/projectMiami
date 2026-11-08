@@ -5,29 +5,31 @@ import { Avatar } from "../../ui/Atoms";
 import { NestMark } from "../../ui/NestMark";
 import { IcKey, IcLock, IcSend } from "../icons";
 import { body, Cam, Check, DotGrid, FLOAT, Fingerprint, head, Reveal } from "../kit";
-import { colX, span, T } from "../layout";
-import { CAM, clamp01, EASE_OUT, hitIn, lerp, lineT, pulse, PUSH, settle, tween } from "../motion";
+import { T } from "../layout";
+import { CAM, clamp01, EASE_IN_OUT, EASE_OUT, hitIn, lerp, lineT, PUSH, settle, tween } from "../motion";
 import { Drift, useF, useKick } from "../scene";
-import { at, HIT, SC } from "../timeline";
+import { HIT, SC } from "../timeline";
 
 /*
- * 11. Security (bars 33-35). Three equal cards in one even row (cols 1-4, 5-8, 9-12: the full
- * content width, 24 px gutters), no scrolling. Each card lands on its bar's kick; its inner
- * animation fires on beat 3 (fingerprint check, the Lock toggle, the card arriving on Mamá's
- * phone). The landed cards breathe on the beats of bar 35, then the camera pulls back to the map.
+ * 11. Security (bars 33-35), v3 (design review H2). Three equal cards (520 x 660) with equal 24 px
+ * gaps; the GROUP stays centred on x = 960 as the cards arrive (card 1 lands in the centre, then
+ * the row re-centres as cards 2 and 3 land), ending at x 156-1764, inside the 120 px margins even
+ * with the camera drift. Cards never scale after landing (kick accents punch the glyphs only), so
+ * the gaps stay exactly 24 px. Each card's inner animation fires on beat 3 of its bar.
  */
 
 const FROM = SC.security.from;
 const L = (abs: number) => abs - FROM;
-const CW = span(4); // 544
-const CH = 688;
+const CW = 520;
+const GAP = 24;
+const CH = 660;
 const CY0 = 540 - CH / 2;
-const XS = [colX(0), colX(4), colX(8)];
+/** Left edge of card i when `n` (fractional while moving) cards are on screen, the row centred on 960. */
+const cardX = (i: number, n: number) => 960 - (n * CW + (n - 1) * GAP) / 2 + i * (CW + GAP);
 const LAND = [L(HIT.card1), L(HIT.card2), L(HIT.card3)];
 const FX = [L(HIT.card1Fx), L(HIT.card2Fx), L(HIT.card3Fx)];
-const BREATHE = [at(35, 1), at(35, 2), at(35, 3), at(35, 4)].map(L);
 const CARDS = [
-  { title: "Only you can approve", sub: "With your fingerprint or PIN." },
+  { title: "Only you approve payments", sub: "With your fingerprint or PIN." },
   { title: "Lock Nest", sub: "Stops all sends until you unlock." },
   { title: "Trusted contact", sub: "Mamá can help you get back in." },
 ];
@@ -91,25 +93,29 @@ export const SecurityBody = ({ f }: { f: number }) => {
         <Drift f={f}>
           <DotGrid glow={k.glow} />
           {CARDS.map((c, i) => {
-            const s = hitIn(f, LAND[i]);
-            if (f < LAND[i]) return null;
+            const s = settle(f, LAND[i]);
+            if (f < LAND[i] - 2) return null;
             const fx = f - FX[i];
-            const breathe = i < 2 ? 1 + 0.012 * Math.max(...BREATHE.map((b) => pulse(f, b, 10))) : 1;
+            // The row makes room over the 8 frames before each landing (one shared value, so the gaps never
+            // change) and the new card drops into the gap on the beat, fully inside the frame.
+            const n = 1 + tween(f, [LAND[1] - 8, LAND[1]], [0, 1], EASE_IN_OUT) + tween(f, [LAND[2] - 8, LAND[2]], [0, 1], EASE_IN_OUT);
             const ks = f >= LAND[i] + 10 ? k.scale : 1;
             return (
               <div
                 key={i}
                 style={{
-                  position: "absolute", left: XS[i], top: CY0, width: CW, height: CH, borderRadius: 48, background: C.white, boxShadow: FLOAT,
-                  transform: `translateY(${((1 - s) * 70).toFixed(2)}px) scale(${((0.92 + 0.08 * s) * breathe * ks).toFixed(4)})`, opacity: clamp01(s * 3),
+                  position: "absolute", left: cardX(i, n), top: CY0, width: CW, height: CH, borderRadius: 48, background: C.white, boxShadow: FLOAT,
+                  transform: `translateY(${((1 - s) * 70).toFixed(2)}px) scale(${(0.94 + 0.06 * Math.min(1, s)).toFixed(4)})`, opacity: clamp01(s * 3),
                 }}
               >
-                <div style={{ position: "absolute", left: 0, right: 0, top: 40, height: 400, display: "grid", placeItems: "center" }}>
+                <div style={{ position: "absolute", left: 0, right: 0, top: 36, height: 380, display: "grid", placeItems: "center", transform: `scale(${ks})` }}>
                   {i === 0 ? <FingerprintVisual t={f - LAND[i]} fx={fx} /> : i === 1 ? <LockVisual fx={fx} /> : <TrustedVisual fx={fx} />}
                 </div>
-                <div style={{ position: "absolute", left: 40, right: 40, top: 476, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
-                  <Reveal t={lineT(f, LAND[i])}><div style={head(T.l)}>{c.title}</div></Reveal>
-                  <Reveal t={lineT(f, LAND[i], 1)} style={{ marginTop: 14 }}><div style={{ ...body(T.m), whiteSpace: "normal" }}>{c.sub}</div></Reveal>
+                <div style={{ position: "absolute", left: 36, right: 36, top: 420, height: 104, display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "center", textAlign: "center" }}>
+                  <Reveal t={lineT(f, LAND[i])}><div style={{ ...head(T.l), whiteSpace: "normal", lineHeight: 1.05 }}>{c.title}</div></Reveal>
+                </div>
+                <div style={{ position: "absolute", left: 36, right: 36, top: 540, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+                  <Reveal t={lineT(f, LAND[i], 1)}><div style={{ ...body(T.m), whiteSpace: "normal" }}>{c.sub}</div></Reveal>
                 </div>
               </div>
             );

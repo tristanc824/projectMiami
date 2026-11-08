@@ -24,22 +24,29 @@ const L = (abs: number) => abs - FROM;
 const RING = { x: CX, y: 560, r: 176, w: 24 };
 const NEW = { x: colC(2), y: 560 }; // 463
 const YOU = { x: colC(9), y: 560 }; // 1457
-const ARC_C = { x: CX, y: -60 };
+const ARC_C = { x: CX, y: 40 }; // arc peak at y 300, under the caption
+const HEAD_Y = 146; // v3 (M4): below the chapter-label band (48-90)
+const NOTE_Y = 214;
+const BAL = 4030.12; // after the 8:41 PM send of $250 from $4,280.12
 const BTN_Y = 836;
 const DRAIN_BEATS = [at(30, 1), at(30, 2), at(30, 3), at(30, 4)].map(L);
 
 export const UndoBody = ({ f }: { f: number }) => {
   const k = useKick(f);
-  const out1 = tween(f, [L(HIT.sendAnyway), L(HIT.heldAt)], [0, 1], EASE_IN_OUT);
+  // Fast attack on the kick (the dot is flung out), soft landing at the new number.
+  const out1 = tween(f, [L(HIT.sendAnyway) - 1, L(HIT.heldAt)], [0, 1], EASE_OUT);
   const back = tween(f, [L(HIT.flyBack), L(HIT.undone)], [0, 1], EASE_IN_OUT);
   const held = f >= L(HIT.heldAt) && f < L(HIT.flyBack);
   const dot =
     f < L(HIT.heldAt) ? qpt(YOU, ARC_C, NEW, tAtLength(YOU, ARC_C, NEW, out1)) : f < L(HIT.flyBack) ? NEW : qpt(NEW, ARC_C, YOU, tAtLength(NEW, ARC_C, YOU, back));
   const done = f >= L(HIT.undone) - 1;
-  const balance = !done
-    ? lerp(4280.12, 3780.12, tween(f, [L(HIT.sendAnyway), L(HIT.sendAnyway) + 8], [0, 1], EASE_OUT))
-    : lerp(3780.12, 4280.12, tween(f, [L(HIT.undone), L(HIT.undone) + 10], [0, 1], EASE_OUT));
+  // v3 (M4): the $500 leaves as one masked roll when the dot lands (no in-between values), and the
+  // count back up runs over the last beat and LANDS on the 65.165 downbeat.
+  const outRoll = tween(f, [L(HIT.heldAt) - 1, L(HIT.heldAt) + 6], [0, 1], EASE_OUT);
+  const upT = tween(f, [L(HIT.undone) - 12, L(HIT.undone)], [0, 1], EASE_OUT);
+  const balance = f < L(HIT.undone) - 12 ? BAL - 500 : lerp(BAL - 500, BAL, upT);
   const { d, c } = fmtUsd(balance);
+  const before = fmtUsd(BAL);
   // The ring: draws as the dot is held, drains a step per beat of bar 30, closes as the dot flies home.
   const draw = tween(f, [L(HIT.heldAt), L(HIT.heldAt) + 12], [0, 1], EASE_OUT);
   const steps = DRAIN_BEATS.reduce((a, b) => a + tween(f, [b - 1, b + 4], [0, 1], EASE_OUT), 0);
@@ -63,11 +70,15 @@ export const UndoBody = ({ f }: { f: number }) => {
         <Drift f={f}>
           <DotGrid glow={k.glow} />
           {/* headline */}
-          <div style={{ position: "absolute", left: 0, right: 0, top: 104, display: "flex", justifyContent: "center" }}>
-            <Reveal t={lineT(f, -SC.undo.swap)} out={lineOut(f, L(HIT.undone) - 8)}><div style={head(T.l)}>You have 24 hours to undo this.</div></Reveal>
+          <div style={{ position: "absolute", left: 0, right: 0, top: HEAD_Y, display: "flex", justifyContent: "center" }}>
+            <Reveal t={lineT(f, -SC.undo.swap)} out={lineOut(f, L(HIT.undone) - 2)}><div style={head(T.l)}>You have 24 hours to undo this.</div></Reveal>
           </div>
-          <div style={{ position: "absolute", left: 0, right: 0, top: 104, display: "flex", justifyContent: "center" }}>
+          <div style={{ position: "absolute", left: 0, right: 0, top: HEAD_Y, display: "flex", justifyContent: "center" }}>
             <Reveal t={lineT(f, L(HIT.undone))}><div style={head(T.l, C.moss)}>Undone. Your $500 is back.</div></Reveal>
+          </div>
+          {/* test viewers: "what if they spend it before I undo?" */}
+          <div style={{ position: "absolute", left: 0, right: 0, top: NOTE_Y, display: "flex", justifyContent: "center" }}>
+            <Reveal t={lineT(f, L(HIT.waitNote))} out={lineOut(f, L(HIT.undone) - 2)}><div style={body(T.m, C.ink6)}>First payments to someone new wait 24 hours.</div></Reveal>
           </div>
           <svg width={1920} height={1080} style={{ position: "absolute", inset: 0, overflow: "visible" }}>
             <path d={qpath(NEW, ARC_C, YOU)} fill="none" stroke={C.ink} strokeOpacity={0.3} strokeWidth={4} strokeLinecap="round" strokeDasharray="0.1 16" opacity={lblIn(0)} />
@@ -104,7 +115,12 @@ export const UndoBody = ({ f }: { f: number }) => {
           </div>
           <div style={{ position: "absolute", left: YOU.x - 300, width: 600, top: YOU.y + 40, display: "flex", flexDirection: "column", alignItems: "center" }}>
             <Reveal t={lblIn(1)}><div style={body(T.m)}>Your balance</div></Reveal>
-            <Reveal t={lblIn(2)}><div style={{ ...head(T.l, done ? C.moss : C.ink), fontVariantNumeric: "tabular-nums" }}>{d}<span style={{ color: C.cents }}>.{c}</span></div></Reveal>
+            <Reveal t={lblIn(2)}>
+              <div style={{ position: "relative", overflow: "hidden", height: T.l * 1.12 }}>
+                <div style={{ ...head(T.l, done ? C.moss : C.ink), fontVariantNumeric: "tabular-nums", transform: `translateY(${((1 - outRoll) * 100).toFixed(2)}%)` }}>{d}<span style={{ color: C.cents }}>.{c}</span></div>
+                {outRoll < 1 ? <div style={{ ...head(T.l), position: "absolute", left: 0, top: 0, fontVariantNumeric: "tabular-nums", transform: `translateY(${(-outRoll * 100).toFixed(2)}%)` }}>{before.d}<span style={{ color: C.cents }}>.{before.c}</span></div> : null}
+              </div>
+            </Reveal>
           </div>
           {/* the undo button */}
           {btn > 0.001 && btnOut < 1 ? (

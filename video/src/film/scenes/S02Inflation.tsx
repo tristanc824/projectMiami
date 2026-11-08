@@ -3,15 +3,15 @@ import { AbsoluteFill } from "remotion";
 import { C, FONT } from "../../theme";
 import { GroceryIcon } from "../groceries";
 import { body, DotGrid, head, MoneyDot, Reveal, Rings } from "../kit";
-import { colX, CX, CY, INFL_CARD, T } from "../layout";
+import { CX, CY, HALF_L, HALF_R, INFL_CARD, T } from "../layout";
 import { clamp01, EASE_IN, EASE_IN_OUT, EASE_OUT, hitIn, lerp, lineT, pulse, settle, tween } from "../motion";
 import { Drift, useF, useKick } from "../scene";
 import { beat, SC } from "../timeline";
 import { BA_R_AT_SWAP, PUSH_END } from "./S01Map";
 
 /*
- * 2. Inflation (bars 4-7): what $1,000 buys, month by month, Argentina 2023 (INDEC CPI).
- * Two equal panels on the grid (cols 1-4 and 7-10, centred in their halves), 12 grocery tiles
+ * 2. Inflation (bars 4-7): the groceries $1,000 still buys, month by month, Argentina 2023 (INDEC
+ * CPI) vs. US dollars (US CPI 2023). Two equal panels centred on the frame halves (480 / 1440), 12 grocery tiles
  * each. One month per beat on beats 3-14; when the count drops, a left tile drops 10 px,
  * desaturates and fades to a dashed outline. The right tiles bounce together on every beat.
  * The pickup: the left panel dims to 40%, the right tiles collapse into the money dot.
@@ -22,21 +22,23 @@ const FROM = SC.inflation.from;
 const B = (j: number) => beat(16 + j) - FROM;
 
 const CARD = INFL_CARD;
-const LX = colX(1); // 262
-const RX = colX(7); // 1114
+const LX = HALF_L - INFL_CARD.w / 2; // 208
+const RX = HALF_R - INFL_CARD.w / 2; // 1168
 const TILE = 102;
 const PAD = 32;
 const GAP = 24;
-const TITLE_Y = 236;
-const BUYS_Y = 762;
-const VALUE_Y = 800;
+const TITLE_Y = 224;
+const BUYS_Y = 750;
+const VALUE_Y = 790;
 const MONTH_Y = 104;
 const TICKS_Y = 186;
 const FOOT_Y = 984;
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-/** INDEC CPI 2023: what $1,000 held in local currency bought at each month's end, and tiles left of 12. */
-const BUYS = [943, 885, 822, 758, 703, 663, 624, 555, 493, 455, 403, 321];
+/** INDEC CPI 2023 (Martha's numbers): share of what $1,000 bought in January, kept in local currency, and tiles left of 12. */
+const PCT = [94, 89, 82, 76, 70, 66, 62, 56, 49, 46, 40, 32];
+/** US CPI 2023 (BLS, NSA, vs Dec 2022): the same share kept in US dollars; Dec = 97% (inflation ~3.4%). */
+const PCT_US = [99, 99, 98, 98, 98, 97, 97, 97, 96, 96, 97, 97];
 const LEFT = [11, 11, 10, 9, 8, 8, 7, 7, 6, 5, 5, 4];
 /** Tiles leave bottom-right first, reading backwards. */
 const ORDER = [11, 10, 9, 8, 7, 6, 5, 4];
@@ -58,8 +60,9 @@ const monthAt = (f: number) => {
 /** A value that rolls up to the next text on each change (masked). */
 const Roll = ({ items, f, style, h }: { items: { at: number; text: string }[]; f: number; style: React.CSSProperties; h: number }) => {
   let i = 0;
-  for (let k = 0; k < items.length; k++) if (f >= items[k].at - 1) i = k;
-  const t = i === 0 ? 1 : tween(f, [items[i].at - 1, items[i].at + 6], [0, 1], EASE_OUT);
+  // v3 (H4): each change rolls in over the 6 frames before its beat and is settled ON the beat.
+  for (let k = 0; k < items.length; k++) if (f >= items[k].at - 6) i = k;
+  const t = i === 0 ? 1 : tween(f, [items[i].at - 6, items[i].at], [0, 1], EASE_OUT);
   return (
     <div style={{ position: "relative", height: h, overflow: "hidden", ...style }}>
       <div style={{ transform: `translateY(${((1 - t) * 100).toFixed(2)}%)` }}>{items[i].text}</div>
@@ -93,7 +96,7 @@ const Tile = ({ i, x, y, s = 1, o = 1, gone = 0, dy = 0 }: { i: number; x: numbe
   );
 };
 
-const money = (n: number) => "$" + n.toLocaleString("en-US");
+const pct = (n: number) => `${n}%`;
 
 export const InflationBody = ({ f }: { f: number }) => {
   const k = useKick(f);
@@ -121,7 +124,8 @@ export const InflationBody = ({ f }: { f: number }) => {
   // The right grid's synchronized bounce on every month beat.
   let bounce = 0;
   for (let j = 3; j <= 14; j++) bounce = Math.max(bounce, pulse(f, B(j), 9));
-  const leftItems = [{ at: -999, text: money(1000) }, ...BUYS.map((v, i) => ({ at: B(3 + i), text: money(v) }))];
+  const leftItems = [{ at: -999, text: pct(100) }, ...PCT.map((v, i) => ({ at: B(3 + i), text: pct(v) }))];
+  const rightItems = [{ at: -999, text: pct(100) }, ...PCT_US.map((v, i) => ({ at: B(3 + i), text: pct(v) })).filter((x, i) => i === 0 || PCT_US[i] !== PCT_US[i - 1])];
   const monthItems = MONTHS.map((mo, i) => ({ at: B(3 + i), text: `${mo} 2023` }));
   const dotR = 14 * tween(f, [pick + 4, B(16)], [0, 1], EASE_OUT);
 
@@ -147,11 +151,11 @@ export const InflationBody = ({ f }: { f: number }) => {
         {/* LEFT: local currency */}
         <div style={{ opacity: dim }}>
           <div style={{ position: "absolute", left: LX, top: TITLE_Y }}>
-            <Reveal t={lTitle}><div style={head(T.l)}>Local currency</div></Reveal>
+            <Reveal t={lTitle}><div style={{ ...head(T.l), height: 50, display: "flex", alignItems: "center" }}>Kept in local currency</div></Reveal>
           </div>
           {f < 0 ? (
             <>
-              <div style={{ position: "absolute", left: PUSH_END.x - disc, top: PUSH_END.y - disc, width: disc * 2, height: disc * 2, borderRadius: "50%", background: C.ink, opacity: 1 - iris }} />
+              <div style={{ position: "absolute", left: PUSH_END.x - disc, top: PUSH_END.y - disc, width: disc * 2, height: disc * 2, borderRadius: "50%", background: C.moss, opacity: 1 - iris }} />
               <div style={{ position: "absolute", left: LX, top: CARD.y, width: CARD.w, height: CARD.h, borderRadius: CARD.r, background: C.white, clipPath: `circle(${irisR.toFixed(1)}px at ${PUSH_END.x - LX}px ${PUSH_END.y - CARD.y}px)`, boxShadow: "0 1px 0 rgba(23,32,26,.04)" }} />
             </>
           ) : (
@@ -166,7 +170,7 @@ export const InflationBody = ({ f }: { f: number }) => {
             return <Tile key={i} i={i} x={p.x} y={p.y} s={0.55 + 0.45 * lTiles} o={clamp01(lTiles * 3)} gone={g} dy={dy} />;
           })}
           <div style={{ position: "absolute", left: LX, top: BUYS_Y }}>
-            <Reveal t={lBuys}><div style={body(T.m)}>$1,000 buys</div></Reveal>
+            <Reveal t={lBuys}><div style={body(T.m)}>Groceries it still buys</div></Reveal>
           </div>
           <div style={{ position: "absolute", left: LX, top: VALUE_Y }}>
             <Reveal t={lBuys}>
@@ -179,8 +183,8 @@ export const InflationBody = ({ f }: { f: number }) => {
         <div style={{ opacity: 1 - rightOut }}>
           <div style={{ position: "absolute", left: RX, top: TITLE_Y }}>
             <Reveal t={rTitle}>
-              <div style={{ ...head(T.l), display: "flex", alignItems: "center", gap: 14 }}>
-                <Rings size={44} color={C.moss} />Nest · US dollars
+              <div style={{ ...head(T.l), height: 50, display: "flex", alignItems: "center", gap: 14 }}>
+                <Rings size={44} color={C.moss} />Kept in US dollars
               </div>
             </Reveal>
           </div>
@@ -192,10 +196,12 @@ export const InflationBody = ({ f }: { f: number }) => {
             }}
           />
           <div style={{ position: "absolute", left: RX, top: BUYS_Y }}>
-            <Reveal t={rBuys}><div style={body(T.m)}>$1,000 buys</div></Reveal>
+            <Reveal t={rBuys}><div style={body(T.m)}>Groceries it still buys</div></Reveal>
           </div>
           <div style={{ position: "absolute", left: RX, top: VALUE_Y }}>
-            <Reveal t={rBuys}><div style={{ ...head(T.xl, C.moss), fontVariantNumeric: "tabular-nums" }}>{money(1000)}</div></Reveal>
+            <Reveal t={rBuys}>
+              <Roll f={f} items={rightItems} h={T.xl * 1.1} style={{ ...head(T.xl, C.moss), width: 400, fontVariantNumeric: "tabular-nums" }} />
+            </Reveal>
           </div>
         </div>
         {Array.from({ length: 12 }, (_, i) => {
@@ -208,9 +214,9 @@ export const InflationBody = ({ f }: { f: number }) => {
         {dotR > 0.05 ? <MoneyDot x={CX} y={CY} r={dotR} /> : null}
 
         {/* footnote, bottom centre */}
-        <div style={{ position: "absolute", left: 0, right: 0, top: FOOT_Y, display: "flex", justifyContent: "center", opacity: dim }}>
+        <div style={{ position: "absolute", left: 0, right: 0, top: FOOT_Y, display: "flex", justifyContent: "center" }}>
           <Reveal t={foot}>
-            <div style={body(T.s)}>What $1,000 bought each month, kept in local currency · Example: Argentina, 2023 inflation (INDEC)</div>
+            <div style={body(26, C.ink6)}>Share of what $1,000 bought in January · Argentina 2023 (INDEC)</div>
           </Reveal>
         </div>
       </Drift>

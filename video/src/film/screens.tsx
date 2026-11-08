@@ -94,7 +94,6 @@ export const FHome = ({ amount = 4280.12, line = 1 }: { amount?: number; line?: 
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
             <Chip tone="green"><IcLeaf size={13} />Held in US dollars</Chip>
-            <Chip tone="sky">≈ ARS 4.15M · example rate</Chip>
           </div>
         </Card>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
@@ -104,8 +103,9 @@ export const FHome = ({ amount = 4280.12, line = 1 }: { amount?: number; line?: 
         </div>
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}><Label>Activity</Label><Label>See all</Label></div>
-          <Item left={<Avatar who="rosa" />} title="Mamá" sub="Arrived in 0.9s · No fee" right={<Amt>−$250.00</Amt>} />
-          <Item left={<Avatar who="dani" />} title="Daniela" sub="Received" right={<Amt style={{ color: C.moss }}>+$120.00</Amt>} last />
+          {/* v3 (M5): the story's send is at 8:41 PM, so Home shows no "Mamá · Arrived" row before it. */}
+          <Item left={<Avatar who="dani" />} title="Daniela" sub="Received · Friday" right={<Amt style={{ color: C.moss }}>+$120.00</Amt>} />
+          <Item left={<Avatar><IcPlus size={20} /></Avatar>} title="Added money" sub="From your bank · Oct 30" right={<Amt style={{ color: C.moss }}>+$500.00</Amt>} last />
         </div>
       </Body>
       <TabBar />
@@ -134,7 +134,7 @@ export const ArrivedScreen = ({ check = 1 }: { check?: number }) => (
       <Card tight style={{ width: "100%", textAlign: "left" }}>
         <Kv k="Amount" v="$250.00" />
         <Kv k="Fee" v="$0.00" />
-        <Kv k="When" v="Sunday, 9:41 PM" last />
+        <Kv k="When" v="Sunday, 8:41 PM" last />
       </Card>
       <Stack>
         <Button>Done</Button>
@@ -177,7 +177,7 @@ export const ChatScreen = ({ cardIn = 1, morph = 1, frame = 0, press = 0 }: { ca
         <div style={{ fontSize: 12, color: C.ink4 }}>Miami</div>
       </div>
     </div>
-    <div style={{ position: "absolute", top: 136, left: 0, right: 0, textAlign: "center", fontSize: 11.5, color: C.ink4 }}>Today 9:41 PM</div>
+    <div style={{ position: "absolute", top: 136, left: 0, right: 0, textAlign: "center", fontSize: 11.5, color: C.ink4 }}>Today 8:41 PM</div>
     <div style={{ position: "absolute", top: 160, left: 14, maxWidth: 270, background: "#ECE8E0", borderRadius: "20px 20px 20px 6px", padding: "10px 14px", fontSize: 17, lineHeight: 1.3, letterSpacing: "-0.01em" }}>
       For this week, Mamá.
     </div>
@@ -198,6 +198,7 @@ export const ChatScreen = ({ cardIn = 1, morph = 1, frame = 0, press = 0 }: { ca
           <div style={{ fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em", color: morph >= 1 ? C.moss : C.ink4, fontVariantNumeric: "tabular-nums", height: 22 }}>
             {morphText(morph, frame)}
           </div>
+          <div style={{ fontSize: 13, color: C.skyInk, marginTop: 4, textDecoration: "underline", textUnderlineOffset: 2 }}>nest.app/c/7xKq2…9fLm</div>
           <div style={{ fontSize: 13, color: C.ink4, marginTop: 3 }}>Tap to claim · no app needed</div>
         </div>
       </div>
@@ -230,7 +231,6 @@ export const ClaimScreen = ({ claimed = 0, press = 0 }: { claimed?: number; pres
             </div>
           ) : null}
         </div>
-        <Note style={{ color: "rgba(255,255,255,.6)" }}>Yours to use in 24 hours, since it's Ana's first payment to you.</Note>
       </Stack>
     </Body>
   </div>
@@ -322,5 +322,79 @@ export const ScamScreen = ({ reasons = 3, holdFill = 0, head = 1, tile = 1 }: { 
         <ScamCheckContent width={350} reasons={reasons} holdFill={holdFill} head={head} tile={tile} />
       </div>
     </Body>
+  </div>
+);
+
+/* ------------------------------------------------------------------ v3: Mamá's Nest (the mechanism beat) */
+
+/** Mamá's Home: her balance in US dollars. `amount` counts up when the money lands. */
+export const MamaHome = ({ amount = 250, line = 1 }: { amount?: number; line?: number }) => {
+  const { d, c } = fmtUsd(amount);
+  return (
+    <div style={{ position: "absolute", inset: 0, background: C.page }}>
+      <Body>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Brand />
+          <Avatar who="rosa" size={40} />
+        </div>
+        <div style={{ fontSize: 15, color: C.ink6, marginTop: 4 }}>Hola, Mamá</div>
+        <Card>
+          <Label>Balance</Label>
+          <div style={{ marginTop: 8, fontSize: 54, fontWeight: 600, letterSpacing: "-0.055em", lineHeight: 0.95, fontVariantNumeric: "tabular-nums" }}>
+            {d}<span style={{ color: C.cents }}>.{c}</span>
+          </div>
+          <svg viewBox="0 0 300 64" width="100%" height={64} style={{ marginTop: 14, overflow: "visible", display: "block" }}>
+            <path d="M0 34 L300 34" fill="none" stroke={C.moss} strokeWidth={2.5} strokeLinecap="round" pathLength={1} strokeDasharray="1 1" strokeDashoffset={1 - clamp01(line)} />
+            {line >= 0.99 ? <circle cx={300} cy={34} r={4.5} fill={C.moss} stroke="#fff" strokeWidth={2} /> : null}
+          </svg>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 12, color: C.ink4 }}>
+            <span>Your balance</span><span>Past month</span>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+            <Chip tone="green"><IcLeaf size={13} />Held in US dollars</Chip>
+          </div>
+        </Card>
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}><Label>Activity</Label><Label>See all</Label></div>
+          <Item left={<Avatar who="ana" />} title="Ana" sub="Received · No fee" right={<Amt style={{ color: C.moss }}>+$250.00</Amt>} last />
+        </div>
+      </Body>
+      <TabBar />
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------ v3: Mamá's messages, by text (offline) */
+
+/** Mamá's phone when the money goes by text: an SMS from Ana's number with the claim link. `inT` 0..1 drops it in. */
+export const SmsScreen = ({ inT = 1 }: { inT?: number }) => (
+  <div style={{ position: "absolute", inset: 0, background: "#FBFAF7", fontFamily: FONT }}>
+    <div style={{ position: "absolute", top: 54, left: 0, right: 0, padding: "8px 16px 12px", borderBottom: `1px solid ${C.line}`, display: "flex", alignItems: "center", gap: 10 }}>
+      <IcBack size={24} color={C.ink4} />
+      <Avatar who="ana" size={40} />
+      <div>
+        <div style={{ fontSize: 16, fontWeight: 600 }}>Ana</div>
+        <div style={{ fontSize: 12, color: C.ink4 }}>Text Message</div>
+      </div>
+    </div>
+    <div style={{ position: "absolute", top: 136, left: 0, right: 0, textAlign: "center", fontSize: 11.5, color: C.ink4 }}>Today 8:41 PM</div>
+    <div style={{ position: "absolute", top: 160, left: 14, maxWidth: 270, background: "#ECE8E0", borderRadius: "20px 20px 20px 6px", padding: "10px 14px", fontSize: 17, lineHeight: 1.3, letterSpacing: "-0.01em" }}>
+      For this week, Mamá.
+    </div>
+    {inT > 0.001 ? (
+      <div
+        style={{
+          position: "absolute", top: 220, left: 14, width: 286, background: "#ECE8E0", borderRadius: "20px 20px 20px 6px", padding: "12px 14px",
+          fontSize: 17, lineHeight: 1.32, letterSpacing: "-0.01em", opacity: clamp01(inT * 2), transform: `translateY(${((1 - inT) * -30).toFixed(1)}px) scale(${(0.92 + 0.08 * inT).toFixed(3)})`, transformOrigin: "0 0",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: C.moss, marginBottom: 4 }}><NestMark size={16} color={C.moss} />Nest</div>
+        Ana sent you $250 in US dollars. Tap to claim:
+        <div style={{ color: C.skyInk, textDecoration: "underline", textUnderlineOffset: 2, marginTop: 2 }}>nest.app/c/7xKq2…9fLm</div>
+      </div>
+    ) : null}
+    <div style={{ position: "absolute", bottom: 30, left: 14, right: 14, height: 40, borderRadius: 20, border: `1px solid ${C.line}`, display: "flex", alignItems: "center", padding: "0 16px", fontSize: 15, color: C.ink4 }}>
+      Text Message
+    </div>
   </div>
 );

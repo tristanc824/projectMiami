@@ -18,7 +18,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const T = await import(pathToFileURL(path.join(root, "src", "film", "timeline.ts")).href);
-const { FILM_FPS, FILM_FRAMES, VO, VO_TARGET_LUFS, SFX, MUSIC, BAR_SEC, BEAT_SEC, beatSec, FILM_BARS } = T;
+const { FILM_FPS, FILM_FRAMES, VO, VO_TARGET_LUFS, SFX, MUSIC, BAR_SEC, BEAT_SEC, beatSec, FILM_BARS, MUSIC2_DEFAULT, barSec } = T;
 const total = FILM_FRAMES / FILM_FPS;
 const SR = 48000;
 const ENV_RATE = 1000; // envelope samples per second
@@ -38,6 +38,27 @@ const loudness = (file, extra = []) => {
 };
 const dbToGain = (db) => Math.pow(10, db / 20);
 const musicFile = process.env.MUSIC || MUSIC.file;
+const durOf = (f) => Number(execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path.join(root, f)]).toString());
+
+/* ------------------------------------------------------------------ v3 music chain (Caleb's picks, Nov 7) */
+// D1 pitch: MUSIC_PITCH semitones (default +1), rubberband, applied first. D2 soften: MUSIC_SOFTEN = B | C | off.
+const PITCH = process.env.MUSIC_PITCH !== undefined ? Number(process.env.MUSIC_PITCH) : MUSIC.pitchSemis;
+const SOFTEN = (process.env.MUSIC_SOFTEN ?? "B").toUpperCase();
+// D4 track 2: MUSIC2 (default Best Friend; "none" = Santa María to the end), MUSIC2_OFFSET (s into track 2 = its first downbeat), MUSIC2_BPM (its native tempo).
+const M2ENV = process.env.MUSIC2;
+const music2 = M2ENV === "none" || M2ENV === "" ? null : M2ENV || MUSIC2_DEFAULT.file;
+const m2Offset = process.env.MUSIC2_OFFSET !== undefined ? Number(process.env.MUSIC2_OFFSET) : MUSIC2_DEFAULT.offsetSec;
+const m2Bpm = process.env.MUSIC2_BPM !== undefined ? Number(process.env.MUSIC2_BPM) : MUSIC2_DEFAULT.bpm;
+const SWITCH = barSec(MUSIC2_DEFAULT.fromBar); // 65.165 s
+const GRID_BPM = 60 / BEAT_SEC;
+const softenChain = (inL, outL) => {
+  const c = MUSIC.soften[SOFTEN];
+  if (!c) return `[${inL}]anull[${outL}]`;
+  return `[${inL}]acrossover=split=150:order=4th[lo][hi];` +
+    `[lo]acompressor=threshold=${c.threshold}:ratio=${c.ratio}:attack=${c.attack}:release=${c.release},volume=${c.lowDb}dB[lo2];` +
+    `[hi]highshelf=f=8000:g=${c.shelfDb}[hi2];[lo2][hi2]amix=inputs=2:normalize=0[${outL}]`;
+};
+const musicNotes = [];
 
 /* ------------------------------------------------------------------ narration analysis */
 
@@ -86,7 +107,9 @@ const lp = MUSIC.lowpass;
 const wet = new Float32Array(N);
 for (let i = 0; i < N; i++) {
   const t = tAt(i);
-  wet[i] = ramp(t, lp.from, lp.from + lp.sweepSec) * (1 - ramp(t, lp.to - lp.sweepSec, lp.to));
+  wet[i] = music2
+    ? ramp(t, lp.from, lp.from + lp.sweepSec) * (1 - ramp(t, SWITCH - MUSIC.switchSec / 2, SWITCH + MUSIC.switchSec / 2))
+    : ramp(t, lp.from, lp.from + lp.sweepSec) * (1 - ramp(t, lp.to - lp.sweepSec, lp.to));
 }
 
 // 2. Duck amount 0..1 under each line (attack 80 ms starting 100 ms before the line, release 400 ms),
@@ -124,9 +147,47 @@ const writeEnv = (file, data) => {
 // Pass A: the song, trimmed, with the low-pass crossfade (dry * (1-wet) + lowpassed * wet).
 const wetFile = writeEnv("env-wet", wet);
 const dryFile = writeEnv("env-dry", wet.map((w) => 1 - w));
+// 0. The source: Santa María (full song) -> pitch (rubberband, first) -> soften; duration must not change.
+const smProc = rel(path.join(mixDir, "music-sm.wav"));
+{
+  const pre = PITCH ? `aresample=${SR},aformat=sample_fmts=flt:channel_layouts=stereo,rubberband=pitch=${Math.pow(2, PITCH / 12).toFixed(8)}:transients=crisp[p]` : `aresample=${SR},aformat=sample_fmts=flt:channel_layouts=stereo[p]`;
+  ff(["-y", "-i", musicFile, "-filter_complex", `[0:a]${pre};${softenChain("p", "o")}`, "-map", "[o]", "-c:a", "pcm_f32le", smProc]);
+  const d0 = durOf(musicFile);
+  const d1 = durOf(smProc);
+  musicNotes.push(`Santa María: pitch ${PITCH >= 0 ? "+" : ""}${PITCH} st (rubberband, crisp), soften ${MUSIC.soften[SOFTEN] ? SOFTEN : "off"}; duration ${d0.toFixed(4)} -> ${d1.toFixed(4)} s (diff ${((d1 - d0) * 1000).toFixed(1)} ms)`);
+  if (Math.abs(d1 - d0) > 0.03) throw new Error("pitch shift changed the song's duration: " + musicNotes[musicNotes.length - 1]);
+}
+// 0b. Track 2: from MUSIC2_OFFSET minus a one-beat pre-roll (so rubberband is settled), stretched to the grid
+//     tempo, pre-roll trimmed, placed so its first downbeat lands on the switch; hard switch (30 ms crossfade).
+const srcFile = rel(path.join(mixDir, "music-src.wav"));
+if (music2) {
+  const ratio = GRID_BPM / m2Bpm;
+  const preNative = 60 / m2Bpm;
+  const t2 = rel(path.join(mixDir, "music-2.wav"));
+  const len = (total - SWITCH + 1) * ratio + preNative;
+  ff([
+    "-y", "-ss", (m2Offset - preNative).toFixed(4), "-t", len.toFixed(4), "-i", music2, "-filter_complex",
+    `[0:a]aresample=${SR},aformat=sample_fmts=flt:channel_layouts=stereo,rubberband=tempo=${ratio.toFixed(8)}:transients=crisp,atrim=start=${(preNative / ratio).toFixed(5)},asetpts=PTS-STARTPTS[o]`,
+    "-map", "[o]", "-c:a", "pcm_f32le", t2,
+  ]);
+  const xs = MUSIC.switchSec;
+  const delayMs = Math.round(SWITCH * 1000);
+  ff([
+    "-y", "-ss", String(MUSIC.offsetSec), "-t", total.toFixed(4), "-i", smProc, "-i", t2, "-filter_complex",
+    `[0:a]afade=t=out:st=${(SWITCH - xs / 2).toFixed(4)}:d=${xs}[a];` +
+      `[1:a]afade=t=in:st=0:d=${xs / 2},adelay=${delayMs}|${delayMs},apad=whole_dur=${total.toFixed(4)}[b];` +
+      `[a][b]amix=inputs=2:normalize=0:duration=first,atrim=0:${total.toFixed(4)}[o]`,
+    "-map", "[o]", "-c:a", "pcm_f32le", srcFile,
+  ]);
+  musicNotes.push(`Track 2: ${music2} from ${m2Offset.toFixed(3)} s (its downbeat), ${m2Bpm} -> ${GRID_BPM.toFixed(3)} BPM (rubberband tempo x${ratio.toFixed(5)}), starts on ${SWITCH.toFixed(3)} s with a ${xs * 1000} ms switch`);
+} else {
+  ff(["-y", "-ss", String(MUSIC.offsetSec), "-t", total.toFixed(4), "-i", smProc, "-c:a", "pcm_f32le", srcFile]);
+  musicNotes.push("Track 2: none (Santa María to the end)");
+}
+
 const musicLp = rel(path.join(mixDir, "music-lp.wav"));
 ff([
-  "-y", "-ss", String(MUSIC.offsetSec), "-t", total.toFixed(4), "-i", musicFile, "-i", dryFile, "-i", wetFile,
+  "-y", "-i", srcFile, "-i", dryFile, "-i", wetFile,
   "-filter_complex",
   `[0:a]aresample=${SR},aformat=sample_fmts=flt:channel_layouts=stereo,asplit=2[d][w];` +
     `[w]lowpass=f=${lp.hz}:p=2,lowpass=f=${lp.hz}:p=2,volume=${lp.makeupDb}dB[wl];` +
@@ -174,7 +235,9 @@ for (let i = 0; i < N; i++) {
   else if (n < FILM_BARS - 1 && into > BAR_SEC - BEAT_SEC / 2) g = barGain[n] + (barGain[n + 1] - barGain[n]) * ((into - (BAR_SEC - BEAT_SEC / 2)) / BEAT_SEC);
   const duckDb = depth[i];
   const fade = 1 - ramp(t, MUSIC.fadeOut.from, MUSIC.fadeOut.to);
-  bed[i] = dbToGain(g + duckDb) * fade * Math.min(1, t / 0.02);
+  const lf = MUSIC.lift;
+  const liftDb = lf.db * ramp(t, lf.from - lf.rampSec, lf.from) * (1 - ramp(t, lf.to - lf.rampSec, lf.to));
+  bed[i] = dbToGain(g + liftDb + duckDb) * fade * Math.min(1, t / 0.02);
 }
 const bedFile = writeEnv("env-bed", bed);
 // EQ dip: subtract a band-passed copy around 3 kHz, scaled so the band drops ~3 dB under a line.
@@ -241,12 +304,14 @@ return { report, diffs };
 // Pass 1 at the nominal depth; pass 2 trims any line that measured outside +-0.75 LU of duckLU.
 let res = pass({});
 const corr = {};
+const lifted = new Set(vos.filter((v) => v.speech[0][0] < MUSIC.lift.to && v.speech[v.speech.length - 1][1] > MUSIC.lift.from).map((v) => v.id));
 for (const [id, d] of Object.entries(res.diffs)) {
+  if (lifted.has(id)) continue; // the drop lift is deliberate (H3): don't trim it back out
   const c = Math.max(-6, Math.min(6, -MUSIC.duckLU - d));
   if (Math.abs(c) > 0.75) corr[id] = c;
 }
 if (Object.keys(corr).length) res = pass(corr);
-const report = res.report;
+const report = [...musicNotes, `lift: +${MUSIC.lift.db} dB over bars 8-9 (${[...lifted].join(", ") || "no line"} not trimmed back to the duck target)`, ...res.report];
 const txt = report.join("\n");
 fs.writeFileSync(path.join(root, "out", "mix-report.txt"), txt + "\n");
 console.log(txt);
