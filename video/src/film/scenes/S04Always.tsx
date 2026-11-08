@@ -18,7 +18,7 @@ import { FHome, HOME_CARD } from "../screens";
  */
 
 const FROM = SC.always.from;
-const B = (j: number) => beat(44 + j) - FROM;
+const B = (j: number) => beat(SC.always.bars[0] * 4 + j) - FROM;
 const PH = phoneAt(HALF_R);
 const SLOT = { x: HALF_L, y: 236 };
 

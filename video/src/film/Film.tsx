@@ -18,11 +18,11 @@ import { S08Scam } from "./scenes/S08Scam";
 import { S09Check, washR, WASH_C } from "./scenes/S09Check";
 import { S10Undo } from "./scenes/S10Undo";
 import { S11Security } from "./scenes/S11Security";
-import { S12Close, S13End } from "./scenes/S12Close";
+import { S12Close } from "./scenes/S12Close";
 
 /*
- * The Nest film v2: 16:9, 1920x1080, 24 fps, 42 bars of "Santa María" (85.5 s), motion graphics
- * only. Spec: FILM_V2_SPEC.md. Every frame comes from ./timeline.ts. Audio is mixed afterwards by
+ * The Nest film v4: 16:9, 1920x1080, 24 fps, 37 bars of SOFI TUKKER "Best Friend" plus the final
+ * hit (87.6 s). Spec: FILM_V4.md on top of FILM_V3_FIXES.md and FILM_V2_SPEC.md. Every frame comes from ./timeline.ts. Audio is mixed afterwards by
  * scripts/render-film.sh (Remotion's bundled ffprobe can't read media at this long Windows path).
  */
 
@@ -39,7 +39,6 @@ const COMPONENTS: Record<SceneId, React.FC> = {
   undo: S10Undo,
   security: S11Security,
   close: S12Close,
-  end: S13End,
 };
 
 /** Motion blur only during fast moves: the one-beat transitions in and out, plus a few in-scene moves. */

@@ -1,20 +1,18 @@
 #!/bin/sh
-# Renders the Nest film v3 to out/film.mp4 (1920x1080, 24 fps, 2053 frames = 85.5 s, cut to
-# "Santa María"). Every time below comes from src/film/timeline.ts.
+# Renders the Nest film v4 to out/film.mp4 (1920x1080, 24 fps, 2103 frames = 87.6 s, cut to SOFI TUKKER
+# "Best Friend" on its own bars). Every time below comes from src/film/timeline.ts.
 # 1. Remotion renders the picture to out/film-picture.mp4 (motion graphics only, no audio:
 #    Remotion's bundled ffprobe can't read media at this project's long Windows path).
-# 2. scripts/film-cues.mjs mixes narration (each file normalised, placed on its beat), the song
-#    (trimmed from 0.9336 s, per-bar bed level, duck + 2-4 kHz dip under each line, the scam-section
-#    low-pass, fade over the last 2 bars) and the sound effects -> out/film-mix.wav + stems + report.
+# 2. scripts/film-cues.mjs mixes narration (each file normalised, placed on its beat), the music
+#    (Best Friend re-cut bar by bar from the timeline's EDIT, intro low-pass sweep, per-bar bed level,
+#    duck + 2-4 kHz dip under each line, the scam-section low-pass, the final hit) and the sound
+#    effects -> out/film-mix.wav + stems + report.
 # 3. Two-pass loudnorm to -14 LUFS, true peak under -1 dBTP; light grain on the picture; mux.
-# 4. Mix check: three excerpts in out/mix-check/ (b03 on the drop, b06, b11 into the undo).
+# 4. Mix check: excerpts in out/mix-check/ (opening, b03 on the drop, b08 offline, b10 into the undo, the end).
 #
 # Usage: sh scripts/render-film.sh               (picture + mix)
 #        sh scripts/render-film.sh --audio-only  (re-mix onto the existing picture)
-#        MUSIC=path/to/track.wav sh scripts/render-film.sh --audio-only
-# Music (v3, Caleb's picks): MUSIC_PITCH=1 (semitones, rubberband, first in the chain), MUSIC_SOFTEN=B|C|off,
-#        MUSIC2=public/film/music/best-friend.wav (default; MUSIC2=none = Santa María to the end),
-#        MUSIC2_OFFSET=31.008 (s into track 2 = its first downbeat), MUSIC2_BPM=102.006 (its native tempo).
+# Music: MUSIC_SOFTEN=B|C|off (default off).
 set -e
 cd "$(dirname "$0")/.."
 CHROME="${CHROME:-C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe}"
@@ -48,9 +46,10 @@ echo "final loudness (out/film.mp4):"
 ffmpeg -hide_banner -i out/film.mp4 -af ebur128=peak=true -f null - 2>&1 | sed -n '/Summary:/,$p' | grep -E "I:|Peak:"
 
 # Mix check excerpts (from the normalised mix) and their voice-vs-music numbers (out/mix-report.txt).
-ffmpeg -v error -y -ss 15.27 -t 6.6 -i out/film-mix-norm.wav -c:a pcm_s16le out/mix-check/b03-drop.wav
-ffmpeg -v error -y -ss 26.47 -t 8.2 -i out/film-mix-norm.wav -c:a pcm_s16le out/mix-check/b06-send.wav
-ffmpeg -v error -y -ss 59.06 -t 8.2 -i out/film-mix-norm.wav -c:a pcm_s16le out/mix-check/b11-undo.wav
-ffmpeg -v error -y -ss 77.38 -t 8.16 -i out/film-mix-norm.wav -c:a pcm_s16le out/mix-check/b13-end.wav
+ffmpeg -v error -y -ss 0 -t 9.5 -i out/film-mix-norm.wav -c:a pcm_s16le out/mix-check/b01-open.wav
+ffmpeg -v error -y -ss 15.3 -t 7.2 -i out/film-mix-norm.wav -c:a pcm_s16le out/mix-check/b03-drop.wav
+ffmpeg -v error -y -ss 47.0 -t 9.5 -i out/film-mix-norm.wav -c:a pcm_s16le out/mix-check/b08-offline.wav
+ffmpeg -v error -y -ss 61.0 -t 12.0 -i out/film-mix-norm.wav -c:a pcm_s16le out/mix-check/b10-undo.wav
+ffmpeg -v error -y -ss 79.5 -t 8.2 -i out/film-mix-norm.wav -c:a pcm_s16le out/mix-check/b13-end.wav
 cat out/mix-report.txt
 echo "wrote out/film.mp4 and out/mix-check/"

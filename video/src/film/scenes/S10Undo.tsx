@@ -29,7 +29,7 @@ const HEAD_Y = 146; // v3 (M4): below the chapter-label band (48-90)
 const NOTE_Y = 214;
 const BAL = 4030.12; // after the 8:41 PM send of $250 from $4,280.12
 const BTN_Y = 836;
-const DRAIN_BEATS = [at(30, 1), at(30, 2), at(30, 3), at(30, 4)].map(L);
+const DRAIN_BEATS = [at(28, 3), at(28, 4)].map(L);
 
 export const UndoBody = ({ f }: { f: number }) => {
   const k = useKick(f);
@@ -50,14 +50,14 @@ export const UndoBody = ({ f }: { f: number }) => {
   // The ring: draws as the dot is held, drains a step per beat of bar 30, closes as the dot flies home.
   const draw = tween(f, [L(HIT.heldAt), L(HIT.heldAt) + 12], [0, 1], EASE_OUT);
   const steps = DRAIN_BEATS.reduce((a, b) => a + tween(f, [b - 1, b + 4], [0, 1], EASE_OUT), 0);
-  const drained = draw * (1 - 0.035 * steps);
+  const drained = draw * (1 - 0.06 * steps);
   const close = tween(f, [L(HIT.flyBack), L(HIT.undone)], [0, 1], EASE_IN_OUT);
   const frac = lerp(drained, 1, close);
   const ringColor = mix(C.amber, C.moss, tween(f, [L(HIT.undone) - 4, L(HIT.undone)], [0, 1], (t) => t));
   const circ = 2 * Math.PI * RING.r;
   const secs = 86399 - Math.max(0, Math.floor(f - L(HIT.heldAt)));
   const check = hitIn(f, L(HIT.undone));
-  const btn = hitIn(f, L(at(30, 1)));
+  const btn = hitIn(f, L(HIT.btnIn));
   const btnOut = tween(f, [L(HIT.flyBack), L(HIT.flyBack) + 8], [0, 1], EASE_IN);
   const press = tween(f, [L(HIT.undoTap) - 2, L(HIT.undoTap)], [0, 1]) * (1 - tween(f, [L(HIT.undoTap) + 2, L(HIT.undoTap) + 7], [0, 1]));
   const hold = hitIn(f, L(HIT.heldAt)) * (1 - tween(f, [L(HIT.flyBack), L(HIT.flyBack) + 6], [0, 1], EASE_IN));

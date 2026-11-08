@@ -398,3 +398,96 @@ export const SmsScreen = ({ inT = 1 }: { inT?: number }) => (
     </div>
   </div>
 );
+
+/* ------------------------------------------------------------------ v4: the claim link, in Mamá's browser */
+
+/** Mamá's own number (not the scammer's +54 9 11 5555 0142). */
+export const MAMA_NUMBER = "+54 9 11 4823 0187";
+/** Logical centres of the browser page's two buttons. */
+export const SIGNIN_BTN = { x: 195, y: 606 };
+export const KEEP_BTN = { x: 195, y: 606 };
+
+const IcLockSmall = ({ size = 12, color = C.ink4 }: { size?: number; color?: string }) => (
+  <svg viewBox="0 0 24 24" width={size} height={size} style={{ display: "block", flex: "none" }}>
+    <rect x="5" y="10.5" width="14" height="10" rx="2.5" fill={color} />
+    <path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" fill="none" stroke={color} strokeWidth={2.4} />
+  </svg>
+);
+
+/**
+ * The claim page at nest.app in the phone's own browser (no app): Safari-style address bar and
+ * toolbar. `load` 0..1 runs the page-load bar; `typed` 0..1 types her number; `signed` 0..1 swaps the
+ * sign-in card for the claim card; `claimed` 0..1 turns the button into "$250.00 is yours".
+ */
+export const BrowserClaimScreen = ({
+  load = 1, typed = 0, signed = 0, claimed = 0, pressA = 0, pressB = 0, frame = 0,
+}: { load?: number; typed?: number; signed?: number; claimed?: number; pressA?: number; pressB?: number; frame?: number }) => {
+  const n = Math.round(MAMA_NUMBER.length * clamp01(typed));
+  const caret = typed > 0 && typed < 1.2 && Math.floor(frame / 8) % 2 === 0;
+  const sg = clamp01(signed);
+  return (
+    <div style={{ position: "absolute", inset: 0, background: "#F7F5F0", fontFamily: FONT }}>
+      {/* address bar */}
+      <div style={{ position: "absolute", top: 56, left: 14, right: 14, height: 40, borderRadius: 12, background: "#E9E5DC", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 15, fontWeight: 500, color: C.ink, letterSpacing: "-0.01em" }}>
+        <IcLockSmall />nest.app/c/7xKq2…9fLm
+      </div>
+      {load < 1 ? <div style={{ position: "absolute", top: 100, left: 14, height: 3, width: (390 - 28) * clamp01(load), borderRadius: 2, background: C.skyLine }} /> : null}
+      {/* page */}
+      <div style={{ position: "absolute", top: 110, left: 0, right: 0, bottom: 84, background: C.page, opacity: clamp01(load * 1.6 - 0.3) }}>
+        <div style={{ position: "absolute", top: 18, left: 20, right: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Brand />
+          <span style={{ fontSize: 12, fontWeight: 600, color: C.ink4 }}>No app needed</span>
+        </div>
+        <div style={{ position: "absolute", top: 86, left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 10 }}>
+          <Avatar who="ana" size={72} />
+          <H1 style={{ fontSize: 30 }}>Ana sent you $250.</H1>
+          <div style={{ fontSize: 15, color: C.ink6 }}>It stays in US dollars.</div>
+        </div>
+        {/* sign in with her number */}
+        {sg < 1 ? (
+          <div style={{ position: "absolute", top: 300, left: 20, right: 20, opacity: 1 - sg, transform: `translateY(${(-sg * 20).toFixed(1)}px)` }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.ink4, marginBottom: 8 }}>Sign in with your phone number</div>
+            <div style={{ height: 54, borderRadius: 16, background: C.white, border: `1.5px solid ${typed > 0 ? C.moss : C.line}`, display: "flex", alignItems: "center", padding: "0 16px", fontSize: 20, fontWeight: 600, letterSpacing: "-0.01em", fontVariantNumeric: "tabular-nums", color: C.ink }}>
+              {n > 0 ? MAMA_NUMBER.slice(0, n) : <span style={{ color: C.ink4, fontWeight: 500, fontSize: 17 }}>Your number</span>}
+              {caret ? <span style={{ width: 2, height: 24, background: C.moss, marginLeft: 2 }} /> : null}
+            </div>
+            <div style={{ fontSize: 12, color: C.ink4, marginTop: 8 }}>We text you a code. No password.</div>
+            <div style={{ position: "absolute", top: SIGNIN_BTN.y - 300 - 26 - 110, left: 0, right: 0, height: 52, borderRadius: 999, background: C.ink, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 600, transform: `scale(${1 - pressA * 0.04})`, opacity: typed >= 1 ? 1 : 0.35 }}>
+              Continue
+            </div>
+          </div>
+        ) : null}
+        {/* the claim card */}
+        {sg > 0 ? (
+          <div style={{ position: "absolute", top: 300, left: 20, right: 20, opacity: sg, transform: `translateY(${((1 - sg) * 24).toFixed(1)}px)` }}>
+            <div style={{ borderRadius: 22, background: C.white, padding: "16px 18px", boxShadow: "0 1px 0 rgba(23,32,26,.05)" }}>
+              <div style={{ fontSize: 13, color: C.ink4 }}>Signed in as {MAMA_NUMBER}</div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 6 }}>
+                <span style={{ fontSize: 40, fontWeight: 600, letterSpacing: "-0.05em", fontVariantNumeric: "tabular-nums" }}>$250<span style={{ color: C.cents }}>.00</span></span>
+              </div>
+              <div style={{ marginTop: 8 }}><Chip tone="green"><IcLeaf size={13} />Held in US dollars</Chip></div>
+            </div>
+            <div style={{ position: "absolute", top: KEEP_BTN.y - 300 - 26 - 110, left: 0, right: 0, height: 52, transform: `scale(${1 - pressB * 0.04})` }}>
+              <div style={{ position: "absolute", inset: 0, borderRadius: 999, background: C.moss, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 600, opacity: 1 - clamp01(claimed * 2) }}>
+                Keep it in US dollars
+              </div>
+              {claimed > 0 ? (
+                <div style={{ position: "absolute", inset: 0, borderRadius: 999, background: C.sage1, color: C.moss, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontWeight: 600, fontSize: 16, opacity: clamp01(claimed * 2) }}>
+                  <span style={{ width: 24, height: 24, borderRadius: "50%", background: C.moss, display: "grid", placeItems: "center", transform: `scale(${clamp01(claimed * 1.3)})` }}><Check size={14} t={clamp01(claimed * 1.5 - 0.3)} /></span>
+                  $250.00 is yours
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+      </div>
+      {/* browser toolbar */}
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 84, background: "#F7F5F0", borderTop: `1px solid ${C.line}`, display: "flex", justifyContent: "space-around", alignItems: "flex-start", paddingTop: 14, color: C.skyInk }}>
+        <IcBack size={24} />
+        <span style={{ opacity: 0.35 }}><IcBack size={24} style={{ transform: "scaleX(-1)" }} /></span>
+        <svg viewBox="0 0 24 24" width={24} height={24}><path d="M12 15V4M8 8l4-4 4 4M6 12v7h12v-7" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" /></svg>
+        <svg viewBox="0 0 24 24" width={24} height={24}><path d="M5 5h10v10H5zM9 19h10V9" fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" /></svg>
+      </div>
+    </div>
+  );
+};

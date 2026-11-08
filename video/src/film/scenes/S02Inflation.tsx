@@ -19,7 +19,7 @@ import { BA_R_AT_SWAP, PUSH_END } from "./S01Map";
 
 const FROM = SC.inflation.from;
 /** Local frame of the scene's beat j (0..15). */
-const B = (j: number) => beat(16 + j) - FROM;
+const B = (j: number) => beat(SC.inflation.bars[0] * 4 + j) - FROM;
 
 const CARD = INFL_CARD;
 const LX = HALF_L - INFL_CARD.w / 2; // 208
