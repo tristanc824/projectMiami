@@ -146,6 +146,20 @@ jobs:
         run: python -m swarm.scam_scenarios
       - name: Attack log (penetration tests against the API)
         run: python tests/test_attacks.py --report
+      - name: Install wallet API dependencies
+        working-directory: apps/api
+        run: npm ci
+      - name: Wallet API transaction-boundary tests
+        working-directory: apps/api
+        run: npm test
+      - name: Dependency vulnerability report (known findings are documented)
+        working-directory: apps/api
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
+      - name: Mobile dependency vulnerability report
+        working-directory: apps/mobile
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
       - name: Hold client parses
         run: node --check hold/hold.mjs
 

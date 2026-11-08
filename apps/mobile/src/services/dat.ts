@@ -49,8 +49,20 @@ export async function depositTestCard(getToken: TokenSource, dollars: number): P
  * The server builds a fee-sponsored USDC transfer; only this device's wallet can sign it.
  * Pass a recipient wallet, or toTreasury for cash-outs (the treasury stands in for a payout partner).
  */
-export async function transfer(getToken: TokenSource, sign: Signer, target: { recipient: string } | { toTreasury: true }, cents: number): Promise<string> {
+export async function transfer(
+  getToken: TokenSource,
+  sign: Signer,
+  wallet: string,
+  target: { recipient: string } | { toTreasury: true },
+  cents: number,
+): Promise<string> {
   const prepared = await post<{ message: string; lastValidBlockHeight: number }>(getToken, '/api/transfer/prepare', { ...target, amount: centsToAmount(cents) });
+  // Verify exactly what the server prepared before the wallet is allowed to sign it.
+  checkPreparedTransfer(prepared.message, {
+    wallet,
+    recipient: 'recipient' in target ? target.recipient : null,
+    units: BigInt(cents) * 10_000n,
+  });
   const signature = normalizeSignature(await sign(prepared.message));
   return (await post<{ signature: string }>(getToken, '/api/transfer/submit', { message: prepared.message, signature, lastValidBlockHeight: prepared.lastValidBlockHeight })).signature;
 }
@@ -126,4 +138,107 @@ export function normalizeSignature(signature: string | Uint8Array): string {
   const b58 = base58ToBytes(value);
   if (b58?.length === 64) return bytesToBase64(b58);
   throw new Error('The wallet returned an unexpected signature.');
+}
+
+const TOKEN_PROGRAM = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+const ATA_PROGRAM = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';
+const USDC_DECIMALS = 6;
+const TRANSFER_CHECKED = 12;
+const CREATE_IDEMPOTENT = 1;
+
+type ParsedInstruction = { program: Uint8Array; accounts: Uint8Array[]; data: Uint8Array };
+
+function sameBytes(a: Uint8Array, b: Uint8Array | null): boolean {
+  return !!b && a.length === b.length && a.every((value, i) => value === b[i]);
+}
+
+/** Reads a legacy or v0 Solana message and rejects malformed or truncated data. */
+function parseMessage(bytes: Uint8Array) {
+  let at = 0;
+  const byte = () => {
+    if (at >= bytes.length) throw new Error('truncated');
+    return bytes[at++];
+  };
+  const take = (count: number) => {
+    if (at + count > bytes.length) throw new Error('truncated');
+    const out = bytes.slice(at, at + count);
+    at += count;
+    return out;
+  };
+  const shortVec = () => {
+    let value = 0;
+    for (let shift = 0; shift < 21; shift += 7) {
+      const next = byte();
+      value |= (next & 0x7f) << shift;
+      if (!(next & 0x80)) return value;
+    }
+    throw new Error('bad length');
+  };
+
+  const versioned = (bytes[0] & 0x80) !== 0;
+  if (versioned && (byte() & 0x7f) !== 0) throw new Error('unsupported version');
+  const requiredSignatures = byte();
+  byte();
+  byte();
+  const keys = Array.from({ length: shortVec() }, () => take(32));
+  take(32);
+  const key = (index: number) => {
+    if (index >= keys.length) throw new Error('bad account index');
+    return keys[index];
+  };
+  const instructions: ParsedInstruction[] = Array.from({ length: shortVec() }, () => {
+    const program = key(byte());
+    const accounts = Array.from(take(shortVec()), key);
+    const data = take(shortVec());
+    return { program, accounts, data };
+  });
+  const lookups = versioned ? shortVec() : 0;
+  if (at !== bytes.length) throw new Error('trailing bytes');
+  return { requiredSignatures, keys, instructions, lookups };
+}
+
+/**
+ * Refuses to sign unless the prepared bytes are exactly the transfer the person confirmed.
+ * The only optional instruction is creation of the recipient's associated token account.
+ */
+export function checkPreparedTransfer(
+  messageBase64: string,
+  expected: { wallet: string; recipient: string | null; units: bigint },
+): void {
+  const refuse = (why: string): never => {
+    throw new Error(`The server prepared a different transfer than you confirmed (${why}). Nothing was signed.`);
+  };
+  const raw = base64ToBytes(messageBase64);
+  if (!raw) refuse('unreadable');
+  let message: ReturnType<typeof parseMessage>;
+  try {
+    message = parseMessage(raw as Uint8Array);
+  } catch {
+    return refuse('unreadable');
+  }
+  const wallet = base58ToBytes(expected.wallet);
+  if (message.lookups !== 0) refuse('lookup tables');
+  if (message.requiredSignatures !== 2 || !sameBytes(message.keys[1], wallet)) refuse('signer');
+  const { instructions } = message;
+  if (instructions.length < 1 || instructions.length > 2) refuse('instructions');
+
+  const transfer = instructions[instructions.length - 1];
+  const { data, accounts } = transfer;
+  if (!sameBytes(transfer.program, base58ToBytes(TOKEN_PROGRAM))) refuse('program');
+  if (data.length !== 10 || data[0] !== TRANSFER_CHECKED || data[9] !== USDC_DECIMALS) refuse('instruction');
+  let units = 0n;
+  for (let i = 8; i >= 1; i--) units = (units << 8n) | BigInt(data[i]);
+  if (units !== expected.units) refuse('amount');
+  if (accounts.length !== 4 || !sameBytes(accounts[3], wallet)) refuse('owner');
+  const [, mint, destination] = accounts;
+
+  if (instructions.length === 2) {
+    const setup = instructions[0];
+    if (!sameBytes(setup.program, base58ToBytes(ATA_PROGRAM))) refuse('setup program');
+    if (setup.data.length !== 1 || setup.data[0] !== CREATE_IDEMPOTENT || setup.accounts.length !== 6) refuse('setup');
+    if (!sameBytes(setup.accounts[1], destination) || !sameBytes(setup.accounts[3], mint)) refuse('destination');
+    if (expected.recipient !== null && !sameBytes(setup.accounts[2], base58ToBytes(expected.recipient))) refuse('recipient');
+  } else if (expected.recipient !== null) {
+    refuse('recipient');
+  }
 }

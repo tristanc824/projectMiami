@@ -5,6 +5,7 @@ import { createCloseAccountInstruction, createTransferCheckedInstruction, getAss
 import { formatPhone, normalizePhone } from '../lib/phone.mjs';
 import { toBaseUnits } from '../lib/money.mjs';
 import { assertSponsorable, buildTransferMessage } from '../lib/tx.mjs';
+import { assertSoftwareKeysAllowed, decodeTransferSubmission, validateLastValidBlockHeight } from '../lib/server/transactionSecurity.mjs';
 
 const feePayer = Keypair.generate().publicKey;
 const owner = Keypair.generate().publicKey;
@@ -63,4 +64,35 @@ test('rejects a different token', () => {
 test('rejects a different fee payer', () => {
   const bytes = buildTransferMessage({ feePayer: recipient, owner, recipient: feePayer, mint, amount: 5n, blockhash }).serialize();
   assert.throws(() => assertSponsorable(bytes, ctx));
+});
+
+test('rejects malformed and oversized transaction submissions before RPC broadcast', () => {
+  const message = Buffer.from('valid message').toString('base64');
+  const signature = Buffer.alloc(64, 7).toString('base64');
+  assert.deepEqual(decodeTransferSubmission(message, signature), {
+    message: Buffer.from('valid message'),
+    signature: Buffer.alloc(64, 7),
+  });
+  for (const badMessage of ['', 'not base64!', Buffer.alloc(2049).toString('base64')]) {
+    assert.throws(() => decodeTransferSubmission(badMessage, signature));
+  }
+  for (const badSignature of ['', 'not base64!', Buffer.alloc(63).toString('base64'), Buffer.alloc(65).toString('base64')]) {
+    assert.throws(() => decodeTransferSubmission(message, badSignature));
+  }
+});
+
+test('rejects stale or attacker-extended block expiry values', () => {
+  assert.equal(validateLastValidBlockHeight(1_100, 1_000), 1_100);
+  for (const bad of [999, 1_301, 1.5, '1100', null, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.throws(() => validateLastValidBlockHeight(bad, 1_000));
+  }
+});
+
+test('raw environment signing keys are devnet/localnet only', () => {
+  assert.doesNotThrow(() => assertSoftwareKeysAllowed('https://api.devnet.solana.com'));
+  assert.doesNotThrow(() => assertSoftwareKeysAllowed('http://127.0.0.1:8899'));
+  assert.doesNotThrow(() => assertSoftwareKeysAllowed('https://custom-rpc.example', 'devnet'));
+  assert.throws(() => assertSoftwareKeysAllowed('https://api.mainnet-beta.solana.com'));
+  assert.throws(() => assertSoftwareKeysAllowed('https://custom-rpc.example'));
+  assert.throws(() => assertSoftwareKeysAllowed('https://custom-rpc.example', 'mainnet-beta'));
 });
