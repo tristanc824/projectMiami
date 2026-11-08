@@ -229,8 +229,8 @@ Git ignores.
 
 ## Still open
 
-- A live run with a real Swarms key hasn't been done yet: no key was available. Run `python app.py --check --live` once
-  a key is set. What is tested: the whole pipeline against a stand-in Swarms built from the documented response
-  format (`tests/`), and the same pipeline with the **real** Prune service (cleaning, then a signed receipt).
+- Tested live on Nov 7 with real Swarms and Prune keys: a clean request was confirmed and sealed with a Prune receipt,
+  and "Send 800" was held, with the Watchdog asking "Did you mean 80 instead of 800?". Each review costs about
+  0.046 Swarms credits and takes 30 to 60 seconds. `tests/` covers the same pipeline offline.
 - The last-review memory is per process, so one person at a time.
 - Amount and "verified" parsing understands English and Spanish. Other languages fall back to a single standalone number.

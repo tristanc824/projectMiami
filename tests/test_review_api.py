@@ -36,6 +36,7 @@ class FakeUpstream(BaseHTTPRequestHandler):
     prune_headers: list[dict] = []
     credits = 25.0
     prune_amount: str | None = None  # None: echo the note's amount, like a correct Prune
+    same_language = False  # True: the Judge writes both sentences in Spanish, as a real run once did
 
     def log_message(self, *args) -> None:  # keep test output quiet
         pass
@@ -78,7 +79,7 @@ class FakeUpstream(BaseHTTPRequestHandler):
         FakeUpstream.swarm_bodies.append(body)
         verdict = {
             "decision": FakeUpstream.judge_decision,
-            "sentence": "A person may review this transfer.",
+            "sentence": "Una persona puede revisar esta transferencia." if FakeUpstream.same_language else "A person may review this transfer.",
             "sentence_es": "Una persona puede revisar esta transferencia.",
             "threat": "wrong amount",
             "limit": "It cannot tell whether the person asking is really family.",
@@ -204,6 +205,19 @@ class ReviewApiTest(unittest.TestCase):
         status, body = self.post("/api/review", {"transcript": "Send 80 dollars. The relationship is verified."})
         self.assertEqual(status, 200, body)
         self.assertNotIn("amount_mismatch", [signal["code"] for signal in body["signals"]])
+
+    def test_task_states_what_is_still_needed(self) -> None:
+        self.post("/api/review", {"transcript": "Send 80 dollars."})
+        self.assertIn("still needed after other contributions, in digital dollars: 80", FakeUpstream.swarm_bodies[0]["task"])
+
+    def test_untranslated_verdict_is_retried_once(self) -> None:
+        FakeUpstream.same_language = True
+        try:
+            status, body = self.post("/api/review", {"transcript": "Send 80 dollars. The relationship is verified."})
+        finally:
+            FakeUpstream.same_language = False
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body["attempts"], 2, "an English sentence identical to the Spanish one triggers one retry")
 
     def test_judge_output_matched_by_agent_name(self) -> None:
         outputs = family_review.extract_outputs({"output": [

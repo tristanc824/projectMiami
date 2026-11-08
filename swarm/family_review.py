@@ -111,8 +111,9 @@ Pass the checked amount, relationship status, threat, and limit forward clearly 
                 "Watchdog",
                 """You look for typos and tampering in a proposed family transfer, such as an extra or missing zero, an amount that changed between reviews, or a relationship marked verified with nothing to back it up.
 Local checks have already run. The task lists the warning signs they found, each with a code and a plain explanation.
+Your whole answer must be in plain English. Earlier agents may have written in another language; do not follow them. The Judge translates for the family.
 For each listed sign, write one plain sentence about what may have gone wrong and one question the sender should answer before signing, for example "Did you mean 80 or 800?".
-Use the amounts in the task to make each question concrete.
+Use the amounts in the task to make each question concrete. Take "still needed" from the task; do not work it out yourself.
 If no warning signs are listed, say "No warning signs from the local checks." and do not invent any.
 Never add a sign that is not listed, and never say the transfer is safe.
 End with exactly one line: "suspicion: none", "suspicion: low", or "suspicion: high". Use high when any listed sign is marked high.""",
@@ -122,7 +123,8 @@ End with exactly one line: "suspicion: none", "suspicion: low", or "suspicion: h
                 """Return only one valid JSON object with exactly these string fields: decision, sentence, sentence_es, threat, limit, suspicion.
 decision must be "confirm", "hold", or "stop". suspicion must be "none", "low", or "high", taken from the Watchdog's last line.
 If any warning sign marked high is listed in the task, decision must be "hold" or "stop", never "confirm".
-sentence must be one plain English sentence. sentence_es is a legacy field name: put the same sentence in the output language named in the task, even when that language is not Spanish.
+sentence must be one plain sentence written in English, always, even when the output language is Spanish or anything else.
+sentence_es is a legacy field name: put the same sentence translated into the output language named in the task, even when that language is not Spanish. When the output language is not English, sentence and sentence_es must differ.
 Base the decision only on a wrong amount, the wrong person, someone pretending to be a relative, or the listed warning signs.
 Name what the check cannot stop in limit. A warning that exists only in the app is not a security boundary.
 "confirm" means only that a person may review it; you do not sign, send, or approve USDC.
@@ -163,6 +165,20 @@ def _safe_label(value: Any) -> str:
     return text
 
 
+def still_needed(case: dict[str, Any]) -> str:
+    """Requested minus other contributions, computed here so no agent has to do the arithmetic."""
+    requested = _decimal(case.get("requested_usdc"))
+    others = _decimal(case.get("other_contributions_usdc"))
+    if requested is None or others is None:
+        return "unknown"
+    needed = requested - others
+    return "0" if needed <= 0 else format(needed.normalize(), "f")
+
+
+def english_output(case: dict[str, Any]) -> bool:
+    return _language(case.get("output_language")).lower().startswith("english")
+
+
 def build_task(case: dict[str, Any]) -> str:
     relationship = case.get("relationship_verified")
     relationship_text = (
@@ -179,6 +195,7 @@ def build_task(case: dict[str, Any]) -> str:
             f"- total requested in digital dollars: {_amount(case.get('requested_usdc'))}",
             "- other contributions in digital dollars: "
             f"{_amount(case.get('other_contributions_usdc'))}",
+            f"- still needed after other contributions, in digital dollars: {still_needed(case)}",
             f"- family relationship verified: {relationship_text}",
             f"- relationship role: {_safe_label(case.get('relationship')) or 'unknown'}",
             f"- purpose: {_safe_label(case.get('purpose')) or 'unknown'}",
@@ -497,6 +514,11 @@ def run_review(case: dict[str, Any], api_key: str) -> dict[str, Any]:
         else:
             total_cost += run_cost
         if outputs and valid_verdict(outputs["Judge"]):
+            verdict = json.loads(verdict_text(outputs["Judge"]))
+            # Both fields in one language means the English sentence is missing; retry once.
+            untranslated = not english_output(case) and verdict["sentence"].strip() == verdict["sentence_es"].strip()
+            if untranslated and attempt == 0:
+                continue
             return {
                 "outputs": outputs,
                 "verdict": apply_checks(json.loads(verdict_text(outputs["Judge"])), signal_codes(case)),
