@@ -617,11 +617,11 @@
         <div class="tab"><svg width="24" height="24"><use href="#user"/></svg>You</div>
       </div>
       
-      <div class="orb-tip">Send with your voice</div>
-      <div class="orb" role="button" aria-label="Send money with your voice"><svg><use href="#nest"/></svg></div>
+      <div class="orb-tip">Tap to send money by voice</div>
+      <div class="orb" role="button" aria-label="Send money by voice"><svg><use href="#nest"/></svg></div>
       <div class="homebar"></div>
     </div>
-    <figcaption><span class="tag">Voice</span><b>17 · Voice orb.</b> A small circle above the tab bar on Home. The tip shows once, the first time.</figcaption>
+    <figcaption><span class="tag">Voice</span><b>17 · Voice orb.</b> A small circle above the tab bar on Home. The tip shows once, the first time. Screen reader label: “Send money by voice”.</figcaption>
   </figure>
   <!-- voice: listening -->
   <figure>
@@ -670,7 +670,7 @@
           <div class="orb-lg" style="margin:30px 0"><i></i><i></i><i></i><svg><use href="#nest"/></svg></div>
           <span class="xbtn"><svg width="20" height="20"><use href="#x"/></svg></span>
         </div>
-        <div class="label" style="color:rgba(255,255,255,.78);margin-top:-6px">Try “Send $250 to Mamá”</div>
+        <div class="label" style="color:rgba(255,255,255,.78);margin-top:-6px">Say something like “Send $250 to Mamá”</div>
       </div>
       <div class="homebar"></div>
     </div>
@@ -715,7 +715,7 @@
       <div class="scrim" style="background:rgba(17,24,19,.46);backdrop-filter:blur(2px)"></div>
       <div class="voice-wrap">
         <div class="pop" style="padding:22px">
-          <div class="row gap12"><span class="avatar lg rosa"></span><div class="grow"><div class="label">You said</div><div class="h2" style="margin-top:2px">Send $250 to Mamá?</div></div></div>
+          <div class="row gap12"><span class="avatar lg rosa"></span><div class="grow"><div class="label">You said</div><div class="h2" style="margin-top:2px">Send $250.00 to Mamá</div></div></div>
           <div style="margin-top:14px">
             <div class="kv"><span>Fee</span><span>$0.00</span></div>
             <div class="kv"><span>Arrives</span><span>In about a second</span></div>
@@ -725,13 +725,13 @@
             <button class="btn dark"><svg width="22" height="22" style="color:#fff"><use href="#faceid"/></svg>Send with Face ID</button>
             <button class="btn ghost">Change it</button>
           </div>
-          <div class="note" style="text-align:center">Your voice alone never sends money.</div>
+          <div class="note" style="text-align:center">Nothing is sent until you approve it.</div>
         </div>
         <div class="row gap12" style="align-items:center"><span class="orb-sm"><svg><use href="#nest"/></svg></span><span class="xbtn"><svg width="20" height="20"><use href="#x"/></svg></span></div>
       </div>
       <div class="homebar"></div>
     </div>
-    <figcaption><span class="tag">Voice</span><b>19 · Confirm.</b> Nest reads it back. You still approve with the phone's unlock: Face ID, fingerprint or PIN.</figcaption>
+    <figcaption><span class="tag">Voice</span><b>19 · Confirm.</b> Nest reads it back with cents, so “two fifty” can't become $2.50. The button follows the unlock: Send with Face ID / with your fingerprint / with your PIN.</figcaption>
   </figure>
   <!-- voice: clarify -->
   <figure>
@@ -775,8 +775,8 @@
           <div class="label">You said “Send $40 to Daniela”</div>
           <div class="h2" style="margin-top:4px">Which Daniela?</div>
           <div class="col" style="gap:8px;margin-top:16px">
-            <div class="opt"><span class="avatar dani"></span><div class="grow"><div class="t1">Daniela Ruiz</div><div class="t2">···· 4418 · Paid you last week</div></div><svg width="18" height="18" style="color:var(--ink4)"><use href="#chev"/></svg></div>
-            <div class="opt"><span class="avatar">DM</span><div class="grow"><div class="t1">Daniela Medina</div><div class="t2">···· 0391 · Paid in March</div></div><svg width="18" height="18" style="color:var(--ink4)"><use href="#chev"/></svg></div>
+            <div class="opt"><span class="avatar dani"></span><div class="grow"><div class="t1">Daniela</div><div class="t2">Last paid $40 · In October</div></div><svg width="18" height="18" style="color:var(--ink4)"><use href="#chev"/></svg></div>
+            <div class="opt"><span class="avatar">D</span><div class="grow"><div class="t1">Daniela</div><div class="t2">Phone ending in 3381 · <span style="color:var(--amber);font-weight:600">New</span></div></div><svg width="18" height="18" style="color:var(--ink4)"><use href="#chev"/></svg></div>
           </div>
         </div>
         <div class="row gap12" style="align-items:center"><span class="orb-sm"><svg><use href="#nest"/></svg></span><span class="xbtn"><svg width="20" height="20"><use href="#x"/></svg></span></div>
@@ -824,9 +824,9 @@
       <div class="scrim" style="background:rgba(17,24,19,.46);backdrop-filter:blur(2px)"></div>
       <div class="voice-wrap">
         <div class="pop" style="text-align:center">
-          <div class="h2">I didn't catch that.</div>
-          <div class="label" style="margin-top:6px">Say who and how much, like “Send $250 to Mamá”.</div>
-          <button class="btn dark" style="margin-top:18px"><svg width="20" height="20"><use href="#mic"/></svg>Try again</button>
+          <div class="h2">Sorry, we didn't catch that.</div>
+          <div class="label" style="margin-top:6px">Say something like “Send $250 to Mamá”</div>
+          <button class="btn dark" style="margin-top:18px"><svg width="20" height="20"><use href="#mic"/></svg>Say it again</button>
         </div>
         <div class="row gap12" style="align-items:center"><span class="orb-sm" style="background:var(--ink4)"><svg><use href="#nest"/></svg></span><span class="xbtn"><svg width="20" height="20"><use href="#x"/></svg></span></div>
       </div>

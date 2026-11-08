@@ -110,6 +110,35 @@ Ask it for **strict JSON** (schema above) and validate it on the server. If vali
 | Mic permission | (system sheet, after our one-line reason) | Only on the first tap. |
 | Locked | (orb greyed) | When Lock Nest is on. |
 
-## 5. Copy
+## 5. Copy (final, by Martha)
 
-Martha is writing the final strings: the tip, listening and thinking lines, the confirm button for each unlock method, the clarify questions, the miss, mic permission, and the Security row. The screens use draft strings until then.
+| ID | Where | String |
+|---|---|---|
+| V1.1 | Orb, screen reader label | Send money by voice |
+| V1.2 | Orb, screen reader hint | Starts listening. |
+| V1.3 | First-time tip | Tap to send money by voice |
+| V2.1 | Listening status | Listening |
+| V2.2 | Listening hint (live words replace it) | Say something like “Send $250 to Mamá” |
+| V3.1 | Thinking | One moment |
+| V4.1 | Confirm title (always with cents) | Send $250.00 to Mamá |
+| V4.2–4 | Approve button | Send with Face ID / Send with your fingerprint / Send with your PIN |
+| V4.5 | Change | Change it |
+| V4.6 | Cancel | Cancel |
+| V4.7 | Reassurance | Nothing is sent until you approve it. |
+| V5.1 | Two matches | Which Daniela? (if the names differ, e.g. Daniel and Daniela: “Who did you mean?”) |
+| V5.2 | Row, paid before | Daniela / Last paid $40 · In October |
+| V5.3 | Row, never paid | Daniela / Phone ending in 3381 · New (“New” in amber) |
+| V6.1 | Missing amount | How much do you want to send to Mamá? |
+| V7.1 | Didn't catch it | Sorry, we didn't catch that. |
+| V7.2 | Retry button | Say it again |
+| V8.1 | Sent (only once the money has arrived) | Mamá has your $250. |
+| V9.1 | Mic permission, title | Let Nest use your microphone |
+| V9.2 | Mic permission, reason (also the iOS purpose string) | Nest only listens after you tap the circle, to hear who you want to pay. |
+| V9.3 | Mic permission, button | Continue |
+| V10.1 | Security row | Send by voice |
+| V10.2–4 | Security sub-line | Every send still needs Face ID / your fingerprint / your PIN |
+
+Notes:
+- **Sends to someone new** end on the Undo screen ("You have 24 hours to undo this."), not V8.1, because the money is on hold. **Sends by text message** end on "Your $250 is on its way to Mamá."
+- **Unlock names on Android:** use "face unlock", "fingerprint" or "screen lock" (which covers PIN, pattern and password). On iPhone the PIN is the "passcode".
+- **Open question:** does voice send take Spanish? If yes, add a Spanish hint example ("Mandale $250 a mamá") so Spanish speakers don't keep getting V7.1.
