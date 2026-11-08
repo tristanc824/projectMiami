@@ -77,7 +77,7 @@ Field rules:
 | `amount.value` | string decimal, or `null` | `null` → clarify `missing_amount`. |
 | `recipient.status` | `matched` / `ambiguous` / `not_found` | `ambiguous` → `candidates` (max 3: `contact_id`, `display_name`, `phone_last4`, `last_paid_at`) → screen 20. |
 | `recipient.is_new` | bool | `true` → after the unlock, route to the scam check before sending. |
-| `clarify` | `null` or `{ "type": "which_recipient" \| "missing_amount" \| "missing_recipient", "question": "Which Daniela?" }` | The app shows the question and keeps listening. Send the next transcript with `"draft_id"` so the server fills the gap. |
+| `clarify` | `null` or `{ "type": "which_recipient" \| "missing_amount" \| "missing_recipient" \| "currency", "question": "Which Daniela?" }` | The app shows the question and keeps listening. Send the next transcript with `"draft_id"` so the server fills the gap. |
 | `confidence` | 0–1 | Below 0.6 → treat as `unknown`. |
 | `expires_at` | ISO time | The draft is only good for about 2 minutes. |
 
@@ -141,4 +141,13 @@ Ask it for **strict JSON** (schema above) and validate it on the server. If vali
 Notes:
 - **Sends to someone new** end on the Undo screen ("You have 24 hours to undo this."), not V8.1, because the money is on hold. **Sends by text message** end on "Your $250 is on its way to Mamá."
 - **Unlock names on Android:** use "face unlock", "fingerprint" or "screen lock" (which covers PIN, pattern and password). On iPhone the PIN is the "passcode".
-- **Open question:** does voice send take Spanish? If yes, add a Spanish hint example ("Mandale $250 a mamá") so Spanish speakers don't keep getting V7.1.
+- **Languages: English and Spanish** (decided Nov 7). See section 6.
+
+## 6. English and Spanish
+
+- **Speech to text:** run the phone's recognizer in the language the user sets in Nest (default: phone language). If it's English or Spanish, also allow the other one: iOS `SFSpeechRecognizer` takes one locale per request, so start with the user's language and, on a low-confidence result, retry with the other. Android `SpeechRecognizer` accepts `EXTRA_LANGUAGE` plus `EXTRA_LANGUAGE_PREFERENCE`. Supported: `en-US`, `es-419` (Latin American), `es-AR`.
+- **`POST /voice/intent`** gets `"locale"` (e.g. `"es-AR"`). The Swarms agent must handle both languages and return `readback` and `clarify.question` **in the same language the user spoke**.
+- **Spanish phrasings to parse** (Martha is writing the full test list): "mandale 250 a mamá", "pasale 250 dólares a mamá", "transferile 250 a mamá", "enviá 250 a mamá", "envía 250 dólares a mi mamá". Nicknames: mamá, mami, mamita, ma, vieja.
+- **Currency:** Nest sends US dollars. If the user says pesos or another local currency, don't convert silently: return `clarify.type = "currency"` with a question like "¿En dólares?" / "In dollars?".
+- **Numbers:** handle "doscientos cincuenta", "250", "dos cincuenta" (ask if ambiguous), and "mil" / "un palo" slang → treat slang amounts as ambiguous and ask.
+- **UI strings:** every voice string gets a Spanish version (table coming from Martha). The confirm title stays in the user's language: "Enviar $250.00 a Mamá".
