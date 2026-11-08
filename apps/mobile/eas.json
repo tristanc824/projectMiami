@@ -1,10 +1,46 @@
 {
-  "cli": { "version": ">= 16.0.0", "appVersionSource": "remote" },
-  "build": {
-    "development": { "developmentClient": true, "distribution": "internal" },
-    "simulator": { "developmentClient": true, "ios": { "simulator": true } },
-    "testflight": { "distribution": "store", "autoIncrement": true },
-    "production": { "distribution": "store", "autoIncrement": true }
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
   },
-  "submit": { "testflight": {}, "production": {} }
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_PRIVY_APP_ID": "cmw5ti92q012j0gjvszydnd3c",
+        "EXPO_PUBLIC_DAT_API_URL": "https://uncouth-scroll-amenity.ngrok-free.dev"
+      }
+    },
+    "simulator": {
+      "developmentClient": true,
+      "ios": {
+        "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_PRIVY_APP_ID": "cmw5ti92q012j0gjvszydnd3c",
+        "EXPO_PUBLIC_DAT_API_URL": "https://uncouth-scroll-amenity.ngrok-free.dev"
+      }
+    },
+    "testflight": {
+      "distribution": "store",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_PRIVY_APP_ID": "cmw5ti92q012j0gjvszydnd3c",
+        "EXPO_PUBLIC_DAT_API_URL": "https://uncouth-scroll-amenity.ngrok-free.dev"
+      }
+    },
+    "production": {
+      "distribution": "store",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_PRIVY_APP_ID": "cmw5ti92q012j0gjvszydnd3c",
+        "EXPO_PUBLIC_DAT_API_URL": "https://uncouth-scroll-amenity.ngrok-free.dev"
+      }
+    }
+  },
+  "submit": {
+    "testflight": {},
+    "production": {}
+  }
 }
