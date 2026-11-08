@@ -34,14 +34,14 @@ export function Nav() {
   return (
     <header
       className={cn(
-        "fixed inset-x-0 top-0 z-50 px-6 pt-6 transition-transform duration-500 ease-[cubic-bezier(.2,.7,.2,1)] sm:pt-10",
+        "fixed inset-x-0 top-0 z-50 px-[max(24px,env(safe-area-inset-left))] pt-6 transition-transform duration-500 ease-[cubic-bezier(.2,.7,.2,1)] sm:pt-10",
         hidden ? "-translate-y-[160%]" : "translate-y-0",
       )}
     >
       {/* compact frosted pill: lets the photo show through over the hero, turns page-colored below it */}
       <nav
         className={cn(
-          "mx-auto flex h-[52px] max-w-[760px] items-center justify-between rounded-full pl-5 pr-1.5 ring-1 backdrop-blur-xl transition-colors duration-500",
+          "mx-auto flex h-[52px] max-w-[760px] items-center justify-between rounded-full pl-5 pr-1.5 ring-1 frost-xl transition-colors duration-500",
           overHero ? "bg-white/55 ring-white/50" : "bg-page/85 ring-ink/[0.06]",
         )}
       >

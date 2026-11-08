@@ -4,7 +4,9 @@
 
 @layer base {
   html { scroll-behavior: smooth; }
-  html, body { overflow-x: clip; }
+  /* Safari < 16 has no overflow: clip, so fall back to hidden there (no horizontal scroll from the orbit rings). */
+  html, body { overflow-x: hidden; }
+  @supports (overflow: clip) { html, body { overflow-x: clip; } }
   body {
     @apply bg-page font-sans text-ink antialiased;
     font-feature-settings: "cv11", "ss01", "ss03";
@@ -24,6 +26,31 @@
   .btn-outline { @apply btn border border-current; }
   .link { @apply inline-flex items-center gap-1 font-medium text-moss underline-offset-4 hover:underline; }
   sup.fn { @apply ml-0.5 text-[0.55em] font-medium; }
+
+  /* Frosted glass with the -webkit- prefix Safari 17 and older still need, written out literally
+     (Tailwind's backdrop-blur only emits the unprefixed property). */
+  .frost { -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+  .frost-xl { -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px); }
+
+  /* Safari drops border-radius clipping while a child is scaled or filtered; a mask keeps the
+     rounded / egg / pebble corners clean during the hover zoom. */
+  .round-clip { isolation: isolate; -webkit-mask-image: -webkit-radial-gradient(white, black); mask-image: radial-gradient(white, black); }
+
+  /* Hero height: vh fallback for Safari < 15.4 (no svh), taller cap on big monitors. */
+  .hero-h { min-height: min(92vh, 1040px); min-height: min(92svh, 1040px); }
+  @media (max-width: 1023px) { .hero-h { min-height: min(92vh, 900px); min-height: min(92svh, 900px); } }
+  .keep-h { min-height: min(80vh, 760px); min-height: min(80svh, 760px); }
+  @media (max-height: 560px) and (orientation: landscape) { .hero-h, .keep-h { min-height: 0; } }
+
+  /* Hero headline scales with width AND height, so short laptop windows
+     (a 13" MacBook in Safari is ~1280x700 / 1440x790) keep the photo visible. */
+  .hero-title { font-size: 52px; }
+  @media (min-width: 640px) { .hero-title { font-size: 72px; } }
+  @media (min-width: 1024px) { .hero-title { font-size: 96px; } }
+  @supports (font-size: clamp(1px, 1vw, 2px)) {
+    .hero-title { font-size: clamp(52px, min(8.4vw, 12.5vh), 112px); }
+    @media (min-width: 1800px) and (min-height: 1000px) { .hero-title { font-size: clamp(112px, min(6.4vw, 11vh), 132px); } }
+  }
 }
 
 /* ---------- Motion, kept to a minimum ---------- */

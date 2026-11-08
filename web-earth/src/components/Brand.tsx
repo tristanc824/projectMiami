@@ -36,11 +36,11 @@ function Orbit({ className, rotate = -18 }: { className?: string; rotate?: numbe
 /* ---------- Stories: a row of tall cards you can swipe ---------- */
 
 const STORIES = [
-  { img: "/photos/selfie.jpg", tag: "Send home", title: "Mom gets it in about a second.", pos: "50% 35%" },
-  { img: "/photos/market-pair.jpg", tag: "Dollar savings", title: "Your savings stay in US dollars.", pos: "35% 30%" },
-  { img: "/photos/kitchen.jpg", tag: "Undo", title: "Undo a scam payment within 24 hours.", pos: "60% 30%" },
-  { img: "/photos/friends.jpg", tag: "No fees", title: "Split dinner without paying a fee.", pos: "50% 55%" },
-  { img: "/photos/phone.jpg", tag: "Independent", title: "Take your account with you when you move.", pos: "45% 40%" },
+  { img: "/photos/selfie.jpg", tag: "Send home", title: "Mom gets it in about a second.", pos: "66% 35%" },
+  { img: "/photos/market-pair.jpg", tag: "Dollar savings", title: "Your savings stay in US dollars.", pos: "62% 30%" },
+  { img: "/photos/kitchen.jpg", tag: "Undo", title: "Undo a scam payment within 24 hours.", pos: "53% 30%" },
+  { img: "/photos/friends.jpg", tag: "No fees", title: "Split dinner without paying a fee.", pos: "48% 55%" },
+  { img: "/photos/phone.jpg", tag: "Independent", title: "Take your account with you when you move.", pos: "50% 40%" },
   { img: "/photos/market.jpg", tag: "No Wi-Fi", title: "Send money with no Wi-Fi.", pos: "50% 30%" },
 ];
 
@@ -56,12 +56,12 @@ export function Stories() {
           <button onClick={() => nudge(1)} aria-label="More stories" className="grid h-12 w-12 place-items-center rounded-2xl bg-ink text-white transition-colors hover:bg-moss-900"><ArrowRight size={18} /></button>
         </div>
       </div>
-      <div ref={row} className="mt-10 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth px-5 pb-4 [scrollbar-width:none] sm:gap-5 sm:px-[max(32px,calc((100vw-1200px)/2+32px))] [&::-webkit-scrollbar]:hidden">
+      <div ref={row} className="mt-10 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth scroll-px-5 px-5 pb-4 [scrollbar-width:none] sm:gap-5 sm:scroll-px-[max(32px,calc((100%-1200px)/2+32px))] sm:px-[max(32px,calc((100%-1200px)/2+32px))] [&::-webkit-scrollbar]:hidden">
         {STORIES.map((s) => (
-          <article key={s.title} className="relative aspect-[3/4] w-[78vw] shrink-0 snap-start overflow-hidden rounded-[36px] sm:w-[360px]">
+          <article key={s.title} className="round-clip relative aspect-[3/4] w-[78vw] max-w-[360px] shrink-0 snap-start overflow-hidden rounded-[36px] sm:w-[min(360px,calc((100svh-260px)*0.75))] sm:min-w-[280px]">
             <img src={s.img} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-700 hover:scale-[1.03]" style={{ objectPosition: s.pos }} />
-            <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(14,20,16,0.6),rgba(14,20,16,0)_45%)]" />
-            <span className="absolute left-5 top-5 rounded-full bg-white/85 px-3.5 py-1.5 text-[13px] font-medium text-ink backdrop-blur">{s.tag}</span>
+            <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(14,20,16,0.78),rgba(14,20,16,0.35)_28%,rgba(14,20,16,0)_55%)]" />
+            <span className="absolute left-5 top-5 rounded-full bg-white/85 px-3.5 py-1.5 text-[13px] font-medium text-ink frost">{s.tag}</span>
             <p className="absolute inset-x-6 bottom-6 text-[28px] font-medium leading-[1.1] tracking-[-0.025em] text-white">{s.title}</p>
           </article>
         ))}
@@ -86,7 +86,7 @@ function MomentCard({ m, className }: { m: Moment; className?: string }) {
     <figure className={cn("relative", className)}>
       <div className="relative">
         {m.orbit && <Orbit className={cn("top-[-6%] h-[112%] w-[130%]", m.orbit === "left" ? "-left-[22%]" : "-right-[22%]")} rotate={m.orbit === "left" ? -18 : 18} />}
-        <div className={cn("relative overflow-hidden", SHAPES[m.shape])}>
+        <div className={cn("round-clip relative overflow-hidden", SHAPES[m.shape])}>
           <img src={m.img} alt={m.alt} loading="lazy" className="h-full w-full object-cover transition-transform duration-700 hover:scale-[1.03]" style={{ objectPosition: m.pos }} />
         </div>
       </div>
@@ -135,10 +135,10 @@ export function Trust() {
 export function Keep() {
   return (
     <section className="px-3 sm:px-6">
-      <div className="relative isolate overflow-hidden rounded-[32px] sm:rounded-[48px]">
-        <img src="/photos/together.jpg" alt="A father and his daughter laughing among autumn leaves." loading="lazy" className="absolute inset-0 -z-10 h-full w-full object-cover object-[50%_30%]" />
+      <div className="round-clip relative isolate mx-auto max-w-[1920px] overflow-hidden rounded-[32px] sm:rounded-[48px]">
+        <img src="/photos/together.jpg" alt="A father and his daughter laughing among autumn leaves." loading="lazy" className="absolute inset-0 -z-10 h-full w-full object-cover object-[50%_30%] md:object-[50%_18%]" />
         <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(14,20,16,0.6),rgba(14,20,16,0.1)_60%)]" />
-        <div className="flex min-h-[min(80svh,760px)] flex-col justify-center px-7 py-24 sm:px-16">
+        <div className="keep-h mx-auto flex max-w-[1392px] flex-col justify-center px-7 py-24 sm:px-16">
           <Label light>Dollar savings</Label>
           <h2 className="mt-5 max-w-[12ch] text-[clamp(44px,6.4vw,96px)] font-medium leading-[1] tracking-[-0.035em] text-white">
             Keep her college fund in dollars.
@@ -170,7 +170,7 @@ export function Cards() {
       <div className="mt-12 grid gap-8 md:grid-cols-3">
         {CARDS.map((c) => (
           <article key={c.title} className="group">
-            <div className="aspect-[4/3] overflow-hidden rounded-[28px]">
+            <div className="round-clip aspect-[4/3] overflow-hidden rounded-[28px]">
               <img src={c.img} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]" style={{ objectPosition: c.pos }} />
             </div>
             <div className="mt-5">
@@ -189,7 +189,7 @@ export function Cards() {
 export function Closing() {
   return (
     <section id="join" className="px-3 pb-3 sm:px-6 sm:pb-6">
-      <div className="relative overflow-hidden rounded-[32px] bg-moss px-7 py-24 text-center sm:rounded-[48px] sm:py-32">
+      <div className="relative mx-auto max-w-[1920px] overflow-hidden rounded-[32px] bg-moss px-7 py-24 text-center sm:rounded-[48px] sm:py-32">
         <svg viewBox="0 0 64 64" className="pointer-events-none absolute -right-40 -top-40 h-[560px] w-[560px] opacity-[0.08]" aria-hidden="true">
           <g fill="none" stroke="#FFFFFF" strokeWidth="1.2">
             <ellipse cx="23" cy="32" rx="18" ry="14" transform="rotate(90 23 32)" />

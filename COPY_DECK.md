@@ -63,7 +63,7 @@ Written by Martha, 2026-11-07. Covers every customer-facing string on the websit
 | ID | Where | Current | New | Why |
 |---|---|---|---|---|
 | H1 | h1 | Protect what matters. | **keep** | Tagline |
-| H2 | subline | Save, spend and send dollars. 24/7. No fees. | Keep your money in dollars and send it in about a second, with no fees. | One sentence, not three fragments |
+| H2 | subline | Save, spend and send dollars. 24/7. No fees. | Save, send, privately & secured. | Caleb's pick (Nov 7). Open flag: Solana transfers are public on-chain, so "privately" may be challenged |
 | H3 | button 1 | Open an account | **keep** | Clear |
 | H4 | button 2 | See how it works | **keep** | Clear |
 
