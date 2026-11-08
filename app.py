@@ -189,6 +189,11 @@ def safe_case(source: Any) -> dict[str, Any]:
     if "amount_usdc" in supplied:
         result["_amount_source"] = "case"
     result["_request_defaulted"] = not {"requested_usdc", "other_contributions_usdc"} <= supplied
+    # The app says whether the recipient is in the sender's contacts. Only this yes/no
+    # leaves the phone: no contact list and no phone numbers.
+    known = source.get("recipient_in_contacts")
+    if known is True or known is False:
+        result["recipient_in_contacts"] = known
     relationship = source.get("relationship_verified")
     if relationship is True or relationship is False:
         result["relationship_verified"] = relationship
@@ -252,6 +257,7 @@ def check_case(case: dict[str, Any], transcript: str) -> dict[str, Any]:
         amount_mismatch=mismatch,
         amount_source=source,
         request_facts_assumed=defaulted,
+        recipient_in_contacts=checked.get("recipient_in_contacts"),
         **transcript_notes(transcript),
     )
     return checked
@@ -776,7 +782,7 @@ def run_check(live: bool) -> int:
                 # A complete, clean request: it should confirm with no Safe Hold.
                 body = json.dumps({
                     "transcript": "Send 80 dollars. The relationship is verified.",
-                    "case": {"requested_usdc": "200", "other_contributions_usdc": "120"},
+                    "case": {"requested_usdc": "200", "other_contributions_usdc": "120", "recipient_in_contacts": True},
                 }).encode("utf-8")
                 request = urllib.request.Request(
                     f"http://127.0.0.1:{server.server_address[1]}/api/review",

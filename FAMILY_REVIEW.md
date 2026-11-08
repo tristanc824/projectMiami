@@ -99,13 +99,17 @@ or another machine from spending the Swarms credits.
     "requested_usdc": "200",
     "other_contributions_usdc": "120",
     "relationship_verified": false,
-    "output_locale": "es-US"
+    "output_locale": "es-US",
+    "recipient_in_contacts": true
   }
 }
 ```
 
 - `transcript` is required: 1 to 2000 characters. The server reads amounts and
   "verified / not verified" from it, in English and Spanish, and those override `case`.
+- `recipient_in_contacts` is `true` or `false`, worked out **on the phone** from the sender's contacts.
+  Only this yes/no is sent, never the contact list or phone numbers. `false` puts the transfer in a Safe Hold.
+  Leave it out and the review only notes that contacts were not checked.
 - `case` is optional. Amounts are strings with up to 2 decimals, at most 100000, and
   invalid values fall back to defaults. `output_locale` must be one of the 47 keys of
   `LANGUAGES` in `app.py`.
@@ -187,6 +191,8 @@ request, otherwise the next one is compared with the old one.
 | `amount_not_stated` | high | No amount was said or supplied; the amount shown is only a placeholder |
 | `amount_guessed` | high | The amount came from a lone number ("born in 1990"), not from "send 80" |
 | `invalid_amount_facts` | high | An amount, the total requested or the other contributions is missing or invalid. Unknown is never treated as zero. |
+| `recipient_not_in_contacts` | high | The recipient is not in the sender's contacts: paying someone you have not saved is how most scams start |
+| `recipient_contacts_unchecked` | low | The app did not send `recipient_in_contacts` |
 | `request_facts_assumed` | low | The total requested and other contributions were not supplied, so sample values were used. Send them in `case`. |
 | `self_correction` | medium | "actually", "I mean", "make it", "mejor dicho"... |
 | `pressure` | medium | "urgent", "don't tell", "gift card", "new number", "otra cuenta"... |
@@ -262,6 +268,33 @@ For the approver screen: the countdown and who still has to sign, read from Sola
 Time comes from Solana's own clock, which is what the program checks. Answers are cached for 5 seconds.
 The response is 404 `no-hold` when nothing is locked there, 404 `not-a-hold` for another kind of account,
 400 `bad-address`, and 502 `solana-rpc` when the Solana node fails. An RPC error is never reported as "no hold".
+
+## Demo for the judges: unknown recipient goes to the Safe Hold
+
+Team members send each other money. Someone who is in your contacts gets it normally; someone who is not
+goes to the Safe Hold. Tested live with real Swarms and Prune:
+
+| Request | Result |
+|---|---|
+| "Send 80 dollars", recipient **in** contacts | `confirm`, no hold |
+| Same request, recipient **not** in contacts | **Safe Hold**: `skeptic_flag`, `watchdog:recipient_not_in_contacts`, `judge:hold` |
+
+1. Save the teammates in each other's contacts in the app, and leave one person out (or have a judge's
+   number be the "stranger").
+2. In the send screen, work out `recipient_in_contacts` from the contact list (in live mode, compare the
+   typed phone number with the saved contacts) and pass it in `case`.
+3. Send to a teammate: it goes through. Send to the stranger: the app shows the Safe Hold, the reasons,
+   and the Judge's sentence: *"The recipient is not in the sender's contacts, so the transfer should be
+   reviewed before signing."*
+4. For an on-chain demo that does not take a day, start the review server with `SAFE_HOLD_SECONDS=120`.
+   A hold under 24 hours needs the policy authority's co-signature, so the server signs that deposit.
+
+In the app, for example:
+
+```ts
+const recipientInContacts = contacts.some((c) => normalizePhone(c.phone) === normalizePhone(typedPhone));
+body: JSON.stringify({ transcript, case: { ...previousCase, recipient_in_contacts: recipientInContacts } })
+```
 
 ## Calling it from the Nest app
 

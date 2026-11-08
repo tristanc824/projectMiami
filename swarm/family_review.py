@@ -42,6 +42,8 @@ SIGNALS: dict[str, tuple[str, str]] = {
     "verified_flipped": ("medium", "The relationship changed from not verified to verified since the last review."),
     "conflicting_amounts": ("high", "The request mentions more than one different amount to send."),
     "amount_mismatch": ("high", "The amount in the person's words and the amount Prune cleaned do not match."),
+    "recipient_not_in_contacts": ("high", "The recipient is not in the sender's contacts. Paying someone you have not saved is how most scams start."),
+    "recipient_contacts_unchecked": ("low", "The app did not say whether the recipient is in the sender's contacts."),
     "negated_instruction": ("high", "The request says not to send (\"don't send 80\"). Ask whether to send anything at all."),
     "amount_not_stated": ("high", "No amount to send was stated or supplied, so the amount shown is only a placeholder."),
     "amount_guessed": ("high", "The amount was guessed from a lone number, not from words like \"send 80\". Confirm it."),
@@ -113,6 +115,7 @@ Translate naturally and do not mix languages unless a proper noun requires it.""
             agent(
                 "Skeptic",
                 """Review only for a wrong amount, the wrong person, or someone pretending to be a relative.
+A recipient who is not in the sender's contacts is a wrong-person risk: flag it.
 State which of those checks the supplied facts support, and name what that check cannot stop.
 A warning that exists only in the app is not a security boundary; say so if the proposed check is only a warning.
 Do not introduce any other threat, feature, fee, exchange rate, delivery time, corridor, provider, custody model, or recovery model.
@@ -213,6 +216,8 @@ def build_task(case: dict[str, Any]) -> str:
             f"- relationship role: {_safe_label(case.get('relationship')) or 'unknown'}",
             f"- purpose: {_safe_label(case.get('purpose')) or 'unknown'}",
             f"- fiat leg: {fiat_leg}",
+            "- recipient is in the sender's contacts: "
+            + {True: "yes", False: "no"}.get(case.get("recipient_in_contacts"), "not checked"),
             *signal_lines(case),
             f"- output language: {_language(case.get('output_language'))}",
             "- corridor: unset",
@@ -273,6 +278,7 @@ def detect_signals(
     amount_mismatch: bool = False,
     negated_instruction: bool = False,
     amount_source: str = "case",
+    recipient_in_contacts: bool | None = None,
     request_facts_assumed: bool = False,
 ) -> list[str]:
     """Deterministic typo and tamper checks on the safe facts. Returns codes from SIGNALS.
@@ -302,6 +308,10 @@ def detect_signals(
         found.add("amount_guessed")
     if negated_instruction:
         found.add("negated_instruction")
+    if recipient_in_contacts is False:
+        found.add("recipient_not_in_contacts")
+    elif recipient_in_contacts is None:
+        found.add("recipient_contacts_unchecked")
     if request_facts_assumed:
         found.add("request_facts_assumed")
 

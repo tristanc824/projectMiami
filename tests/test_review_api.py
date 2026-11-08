@@ -382,6 +382,42 @@ class ReviewApiTest(unittest.TestCase):
         finally:
             app.SOLANA_RPC = saved
 
+    # --- Contacts: paying someone the sender has not saved goes to the Safe Hold ----------------
+
+    def test_recipient_not_in_contacts_goes_to_safe_hold(self) -> None:
+        status, body = self.post("/api/review", {
+            "transcript": "Send 80 dollars. The relationship is verified.",
+            "case": {"recipient_in_contacts": False},
+        })
+        self.assertEqual(status, 200, body)
+        self.assertIn("recipient_not_in_contacts", self.codes(body))
+        self.assertTrue(body["hold_policy"]["required"])
+        self.assertIn("watchdog:recipient_not_in_contacts", body["hold_policy"]["reasons"])
+        self.assertIn("recipient is in the sender's contacts: no", FakeUpstream.swarm_bodies[0]["task"])
+        self.assertIs(body["case"]["recipient_in_contacts"], False)
+
+    def test_known_contact_goes_through(self) -> None:
+        status, body = self.post("/api/review", {
+            "transcript": "Send 80 dollars. The relationship is verified.",
+            "case": {"recipient_in_contacts": True, "requested_usdc": "200", "other_contributions_usdc": "120"},
+        })
+        self.assertEqual(self.codes(body), [])
+        self.assertFalse(body["hold_policy"]["required"])
+        self.assertIn("recipient is in the sender's contacts: yes", FakeUpstream.swarm_bodies[0]["task"])
+
+    def test_unchecked_contacts_is_only_a_note(self) -> None:
+        status, body = self.post("/api/review", {"transcript": "Send 80 dollars. The relationship is verified."})
+        self.assertIn("recipient_contacts_unchecked", self.codes(body))
+        self.assertFalse(body["hold_policy"]["required"], "a low note alone does not hold")
+
+    def test_contacts_flag_only_accepts_booleans(self) -> None:
+        status, body = self.post("/api/review", {
+            "transcript": "Send 80 dollars.",
+            "case": {"recipient_in_contacts": "yes"},
+        })
+        self.assertNotIn("recipient_in_contacts", body["case"])
+        self.assertIn("recipient_contacts_unchecked", self.codes(body))
+
     def test_judge_output_matched_by_agent_name(self) -> None:
         outputs = family_review.extract_outputs({"output": [
             {"role": "User", "content": "task"},
