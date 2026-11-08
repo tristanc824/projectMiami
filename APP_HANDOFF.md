@@ -32,7 +32,7 @@ More features will come; don't build beyond this list for the demo.
 ## The story in the mockups
 Ana lives in Miami. Her mom, Rosa ("Mamá"), lives in Buenos Aires; Tío Luis in Córdoba; Daniel in London. Argentina is the story country because it is the strongest inflation case. Peso amounts use an example rate (about 970 ARS per dollar); **Pyth has no ARS feed**, so a live value needs another source or stays "Example". The savings comparison is sourced: Argentina's 2023 inflation was 211.4% ([ECONOMIC_PROBLEMS.md](./ECONOMIC_PROBLEMS.md)), so $1,000 held in pesos for that year bought about **$321** of what it did in January. Avatars are crops of the Unsplash photos in `web-earth/public/photos/`.
 
-## The 16 screens (in `app-design/nest-app-screens.html`)
+## The screens (in `app-design/nest-app-screens.html`)
 **Start**
 1. **Welcome**: meadow photo with birds, "Protect what matters.", "Dollars. 24/7. No fees.", Create account / I already have one.
 2. **Sign in**: passkey setup with the strongest unlock the phone has. **Face ID** if available (shown in the mockup), otherwise **fingerprint**, otherwise the phone's **PIN**. The screen's title, icon and button follow it: "Sign in with Face ID." / "Sign in with your fingerprint." / "Sign in with your PIN." Every later "Face ID" in these screens means "the phone's unlock" and changes the same way. Many of our users have older Android phones without face unlock, so PIN must work everywhere.
@@ -58,6 +58,12 @@ Ana lives in Miami. Her mom, Rosa ("Mamá"), lives in Buenos Aires; Tío Luis in
 **No Wi-Fi**
 15. **Sent by text**: "Your $250 is on its way to Mamá." / "We sent it by text message." Signed on this phone with Face ID, $0 fee; note for no signal at all.
 16. **Waiting to send**: offline banner, "$80.00 to Tío Luis · Ready to send", payments go out in order on reconnect.
+
+17. **Voice orb**: a small moss circle above the tab bar on Home; first-time tip "Send with your voice". See [VOICE_SEND.md](./VOICE_SEND.md).
+18. **Listening**: scrim, live words in a small card, the orb's rings move with the voice, ✕ to stop.
+19. **Voice confirm**: Nest reads it back ("Send $250 to Mamá?"), fee / arrival / undo rows, approve with the phone's unlock. Voice alone never sends.
+20. **Which one?**: two people match a name; list both with phone last 4 and last payment.
+21. **Didn't catch it**: one line, an example, Try again.
 
 **Main demo flow:** 4 → 8 → 9 → 10 → 11 (normal send), then 8 (new number) → 9 → 12 → hold to send anyway → **10 (Face ID, Undo row says "On")** → 13 → Undo → back to 4 with "Undone · Money back" at the top of Activity. Open with 1 if there's time; 3 is the bonus for "what if she doesn't have the app?"
 

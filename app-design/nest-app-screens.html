@@ -103,6 +103,26 @@
   .note{font-size:12px;color:var(--ink4);line-height:1.5}
   .icon{width:22px;height:22px;flex:none}
   .ic-tile{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:var(--sage1);color:var(--moss);flex:none}
+
+  /* voice send */
+  .orb{position:absolute;right:20px;bottom:104px;width:60px;height:60px;border-radius:50%;background:var(--moss);color:#fff;display:grid;place-items:center;z-index:4;
+    box-shadow:0 10px 24px -8px rgba(22,48,29,.55),0 2px 6px rgba(22,48,29,.25)}
+  .orb svg{width:30px;height:30px}
+  .orb-tip{position:absolute;right:92px;bottom:117px;background:var(--ink);color:#fff;font-size:13px;font-weight:600;padding:8px 12px;border-radius:12px;z-index:4;white-space:nowrap}
+  .orb-tip::after{content:"";position:absolute;right:-5px;top:50%;width:10px;height:10px;background:var(--ink);transform:translateY(-50%) rotate(45deg);border-radius:2px}
+  .voice-wrap{position:absolute;left:0;right:0;bottom:46px;display:flex;flex-direction:column;align-items:center;gap:18px;z-index:3;padding:0 20px}
+  .pop{width:100%;background:var(--white);border-radius:30px;padding:20px 22px;box-shadow:0 30px 60px -24px rgba(17,24,19,.55)}
+  .orb-lg{position:relative;width:88px;height:88px;border-radius:50%;background:var(--moss);color:#fff;display:grid;place-items:center;flex:none}
+  .orb-lg svg{width:42px;height:42px;position:relative;z-index:2}
+  .orb-lg i{position:absolute;border-radius:50%;border:2px solid var(--sage)}
+  .orb-lg i:nth-child(1){inset:-12px;opacity:.6}.orb-lg i:nth-child(2){inset:-26px;opacity:.32}.orb-lg i:nth-child(3){inset:-42px;opacity:.15}
+  .orb-sm{width:44px;height:44px;border-radius:50%;background:var(--moss);color:#fff;display:grid;place-items:center;flex:none}
+  .orb-sm svg{width:22px;height:22px}
+  .live{font-size:24px;font-weight:600;letter-spacing:-.025em;line-height:1.2}
+  .caret{display:inline-block;width:2px;height:24px;background:var(--moss);vertical-align:-4px;margin-left:2px}
+  .dot-live{width:8px;height:8px;border-radius:50%;background:var(--moss);box-shadow:0 0 0 4px var(--sage1)}
+  .xbtn{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.9);display:grid;place-items:center;color:var(--ink6);flex:none}
+  .opt{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:20px;background:var(--page)}
 </style>
 </head>
 <body>
@@ -132,6 +152,8 @@
     <symbol id="share" viewBox="0 0 24 24"><path d="M12 15V3m0 0L8 7m4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="faceid" viewBox="0 0 72 72"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 22V12a6 6 0 0 1 6-6h10M50 6h10a6 6 0 0 1 6 6v10M66 50v10a6 6 0 0 1-6 6H50M22 66H12a6 6 0 0 1-6-6V50"/><path d="M26 27v5M46 27v5M36 29v12h-3M28 48c5 4 11 4 16 0"/></g></symbol>
     <symbol id="bird" viewBox="0 -1 40 16"><path d="M0 7 C6 3 12 2 18 6 C19 7 21 7 22 6 C28 2 34 3 40 7 C34 5 28 6 22 10 L20 11 L18 10 C12 6 6 5 0 7 Z" fill="currentColor"/></symbol>
+    <symbol id="x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
   </defs>
 </svg>
 
@@ -555,5 +577,264 @@
 </section>
 
 <div style="height:80px"></div>
+<!-- ===================== VOICE ===================== -->
+<h2 class="group">Send with your voice</h2>
+<section class="grid">
+  <!-- voice: orb -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><svg width="16" height="12"><use href="#wifi"/></svg><svg width="27" height="13"><use href="#battery"/></svg></span></div>
+      <div class="body">
+        <div class="row between">
+          <span class="brand"><svg class="mark"><use href="#nest"/></svg>Nest</span>
+          <span class="avatar sm ana"></span>
+        </div>
+        <div class="card">
+          <div class="label">Balance</div>
+          <div class="big" style="margin-top:8px">$4,280<span class="c">.12</span></div>
+          <svg viewBox="0 0 300 64" width="100%" height="64" style="margin-top:14px;overflow:visible" aria-label="Your balance over the past month">
+            <path d="M0 44 C30 42 50 46 80 38 S130 34 160 36 S210 24 240 26 S280 18 300 16" fill="none" stroke="#2F5D3A" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="300" cy="16" r="4.5" fill="#2F5D3A" stroke="#fff" stroke-width="2"/>
+          </svg>
+          <div class="row between" style="margin-top:6px;font-size:12px;color:var(--ink4)"><span>Your balance</span><span>Past month</span></div>
+        </div>
+        <div class="actions">
+          <div class="action dark"><svg width="20" height="20"><use href="#send"/></svg>Send</div>
+          <div class="action"><svg width="20" height="20"><use href="#plus"/></svg>Add</div>
+          <div class="action"><svg width="20" height="20"><use href="#down"/></svg>Receive</div>
+        </div>
+        <div>
+          <div class="row between" style="margin-bottom:2px"><span class="label">Activity</span><span class="label">See all</span></div>
+          <div class="list">
+            <div class="item"><span class="avatar rosa"></span><div class="grow"><div class="t1">Mamá</div><div class="t2">Arrived in 0.9s · No fee</div></div><span class="amt">−$250.00</span></div>
+            <div class="item"><span class="avatar dani"></span><div class="grow"><div class="t1">Daniela</div><div class="t2">Received</div></div><span class="amt" style="color:var(--moss)">+$120.00</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab on"><svg width="24" height="24"><use href="#home"/></svg>Home</div>
+        <div class="tab"><svg width="24" height="24"><use href="#shield"/></svg>Security</div>
+        <div class="tab"><svg width="24" height="24"><use href="#user"/></svg>You</div>
+      </div>
+      
+      <div class="orb-tip">Send with your voice</div>
+      <div class="orb" role="button" aria-label="Send money with your voice"><svg><use href="#nest"/></svg></div>
+      <div class="homebar"></div>
+    </div>
+    <figcaption><span class="tag">Voice</span><b>17 · Voice orb.</b> A small circle above the tab bar on Home. The tip shows once, the first time.</figcaption>
+  </figure>
+  <!-- voice: listening -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><svg width="16" height="12"><use href="#wifi"/></svg><svg width="27" height="13"><use href="#battery"/></svg></span></div>
+      <div class="body">
+        <div class="row between">
+          <span class="brand"><svg class="mark"><use href="#nest"/></svg>Nest</span>
+          <span class="avatar sm ana"></span>
+        </div>
+        <div class="card">
+          <div class="label">Balance</div>
+          <div class="big" style="margin-top:8px">$4,280<span class="c">.12</span></div>
+          <svg viewBox="0 0 300 64" width="100%" height="64" style="margin-top:14px;overflow:visible" aria-label="Your balance over the past month">
+            <path d="M0 44 C30 42 50 46 80 38 S130 34 160 36 S210 24 240 26 S280 18 300 16" fill="none" stroke="#2F5D3A" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="300" cy="16" r="4.5" fill="#2F5D3A" stroke="#fff" stroke-width="2"/>
+          </svg>
+          <div class="row between" style="margin-top:6px;font-size:12px;color:var(--ink4)"><span>Your balance</span><span>Past month</span></div>
+        </div>
+        <div class="actions">
+          <div class="action dark"><svg width="20" height="20"><use href="#send"/></svg>Send</div>
+          <div class="action"><svg width="20" height="20"><use href="#plus"/></svg>Add</div>
+          <div class="action"><svg width="20" height="20"><use href="#down"/></svg>Receive</div>
+        </div>
+        <div>
+          <div class="row between" style="margin-bottom:2px"><span class="label">Activity</span><span class="label">See all</span></div>
+          <div class="list">
+            <div class="item"><span class="avatar rosa"></span><div class="grow"><div class="t1">Mamá</div><div class="t2">Arrived in 0.9s · No fee</div></div><span class="amt">−$250.00</span></div>
+            <div class="item"><span class="avatar dani"></span><div class="grow"><div class="t1">Daniela</div><div class="t2">Received</div></div><span class="amt" style="color:var(--moss)">+$120.00</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab on"><svg width="24" height="24"><use href="#home"/></svg>Home</div>
+        <div class="tab"><svg width="24" height="24"><use href="#shield"/></svg>Security</div>
+        <div class="tab"><svg width="24" height="24"><use href="#user"/></svg>You</div>
+      </div>
+      <div class="scrim" style="background:rgba(17,24,19,.46);backdrop-filter:blur(2px)"></div>
+      <div class="voice-wrap">
+        <div class="pop">
+          <div class="row gap8" style="margin-bottom:10px"><span class="dot-live"></span><span class="label" style="font-weight:600;color:var(--moss)">Listening</span></div>
+          <div class="live">Send two hundred fifty dollars to Ma<span class="caret"></span></div>
+        </div>
+        <div class="row" style="width:100%;justify-content:space-between;align-items:center;padding:0 6px">
+          <span style="width:44px"></span>
+          <div class="orb-lg" style="margin:30px 0"><i></i><i></i><i></i><svg><use href="#nest"/></svg></div>
+          <span class="xbtn"><svg width="20" height="20"><use href="#x"/></svg></span>
+        </div>
+        <div class="label" style="color:rgba(255,255,255,.78);margin-top:-6px">Try “Send $250 to Mamá”</div>
+      </div>
+      <div class="homebar"></div>
+    </div>
+    <figcaption><span class="tag">Voice</span><b>18 · Listening.</b> The rings move with your voice. Your words appear as you say them.</figcaption>
+  </figure>
+  <!-- voice: confirm -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><svg width="16" height="12"><use href="#wifi"/></svg><svg width="27" height="13"><use href="#battery"/></svg></span></div>
+      <div class="body">
+        <div class="row between">
+          <span class="brand"><svg class="mark"><use href="#nest"/></svg>Nest</span>
+          <span class="avatar sm ana"></span>
+        </div>
+        <div class="card">
+          <div class="label">Balance</div>
+          <div class="big" style="margin-top:8px">$4,280<span class="c">.12</span></div>
+          <svg viewBox="0 0 300 64" width="100%" height="64" style="margin-top:14px;overflow:visible" aria-label="Your balance over the past month">
+            <path d="M0 44 C30 42 50 46 80 38 S130 34 160 36 S210 24 240 26 S280 18 300 16" fill="none" stroke="#2F5D3A" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="300" cy="16" r="4.5" fill="#2F5D3A" stroke="#fff" stroke-width="2"/>
+          </svg>
+          <div class="row between" style="margin-top:6px;font-size:12px;color:var(--ink4)"><span>Your balance</span><span>Past month</span></div>
+        </div>
+        <div class="actions">
+          <div class="action dark"><svg width="20" height="20"><use href="#send"/></svg>Send</div>
+          <div class="action"><svg width="20" height="20"><use href="#plus"/></svg>Add</div>
+          <div class="action"><svg width="20" height="20"><use href="#down"/></svg>Receive</div>
+        </div>
+        <div>
+          <div class="row between" style="margin-bottom:2px"><span class="label">Activity</span><span class="label">See all</span></div>
+          <div class="list">
+            <div class="item"><span class="avatar rosa"></span><div class="grow"><div class="t1">Mamá</div><div class="t2">Arrived in 0.9s · No fee</div></div><span class="amt">−$250.00</span></div>
+            <div class="item"><span class="avatar dani"></span><div class="grow"><div class="t1">Daniela</div><div class="t2">Received</div></div><span class="amt" style="color:var(--moss)">+$120.00</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab on"><svg width="24" height="24"><use href="#home"/></svg>Home</div>
+        <div class="tab"><svg width="24" height="24"><use href="#shield"/></svg>Security</div>
+        <div class="tab"><svg width="24" height="24"><use href="#user"/></svg>You</div>
+      </div>
+      <div class="scrim" style="background:rgba(17,24,19,.46);backdrop-filter:blur(2px)"></div>
+      <div class="voice-wrap">
+        <div class="pop" style="padding:22px">
+          <div class="row gap12"><span class="avatar lg rosa"></span><div class="grow"><div class="label">You said</div><div class="h2" style="margin-top:2px">Send $250 to Mamá?</div></div></div>
+          <div style="margin-top:14px">
+            <div class="kv"><span>Fee</span><span>$0.00</span></div>
+            <div class="kv"><span>Arrives</span><span>In about a second</span></div>
+            <div class="kv"><span>Undo</span><span>Off. You've paid her before.</span></div>
+          </div>
+          <div class="col" style="gap:4px;margin-top:16px">
+            <button class="btn dark"><svg width="22" height="22" style="color:#fff"><use href="#faceid"/></svg>Send with Face ID</button>
+            <button class="btn ghost">Change it</button>
+          </div>
+          <div class="note" style="text-align:center">Your voice alone never sends money.</div>
+        </div>
+        <div class="row gap12" style="align-items:center"><span class="orb-sm"><svg><use href="#nest"/></svg></span><span class="xbtn"><svg width="20" height="20"><use href="#x"/></svg></span></div>
+      </div>
+      <div class="homebar"></div>
+    </div>
+    <figcaption><span class="tag">Voice</span><b>19 · Confirm.</b> Nest reads it back. You still approve with the phone's unlock: Face ID, fingerprint or PIN.</figcaption>
+  </figure>
+  <!-- voice: clarify -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><svg width="16" height="12"><use href="#wifi"/></svg><svg width="27" height="13"><use href="#battery"/></svg></span></div>
+      <div class="body">
+        <div class="row between">
+          <span class="brand"><svg class="mark"><use href="#nest"/></svg>Nest</span>
+          <span class="avatar sm ana"></span>
+        </div>
+        <div class="card">
+          <div class="label">Balance</div>
+          <div class="big" style="margin-top:8px">$4,280<span class="c">.12</span></div>
+          <svg viewBox="0 0 300 64" width="100%" height="64" style="margin-top:14px;overflow:visible" aria-label="Your balance over the past month">
+            <path d="M0 44 C30 42 50 46 80 38 S130 34 160 36 S210 24 240 26 S280 18 300 16" fill="none" stroke="#2F5D3A" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="300" cy="16" r="4.5" fill="#2F5D3A" stroke="#fff" stroke-width="2"/>
+          </svg>
+          <div class="row between" style="margin-top:6px;font-size:12px;color:var(--ink4)"><span>Your balance</span><span>Past month</span></div>
+        </div>
+        <div class="actions">
+          <div class="action dark"><svg width="20" height="20"><use href="#send"/></svg>Send</div>
+          <div class="action"><svg width="20" height="20"><use href="#plus"/></svg>Add</div>
+          <div class="action"><svg width="20" height="20"><use href="#down"/></svg>Receive</div>
+        </div>
+        <div>
+          <div class="row between" style="margin-bottom:2px"><span class="label">Activity</span><span class="label">See all</span></div>
+          <div class="list">
+            <div class="item"><span class="avatar rosa"></span><div class="grow"><div class="t1">Mamá</div><div class="t2">Arrived in 0.9s · No fee</div></div><span class="amt">−$250.00</span></div>
+            <div class="item"><span class="avatar dani"></span><div class="grow"><div class="t1">Daniela</div><div class="t2">Received</div></div><span class="amt" style="color:var(--moss)">+$120.00</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab on"><svg width="24" height="24"><use href="#home"/></svg>Home</div>
+        <div class="tab"><svg width="24" height="24"><use href="#shield"/></svg>Security</div>
+        <div class="tab"><svg width="24" height="24"><use href="#user"/></svg>You</div>
+      </div>
+      <div class="scrim" style="background:rgba(17,24,19,.46);backdrop-filter:blur(2px)"></div>
+      <div class="voice-wrap">
+        <div class="pop">
+          <div class="label">You said “Send $40 to Daniela”</div>
+          <div class="h2" style="margin-top:4px">Which Daniela?</div>
+          <div class="col" style="gap:8px;margin-top:16px">
+            <div class="opt"><span class="avatar dani"></span><div class="grow"><div class="t1">Daniela Ruiz</div><div class="t2">···· 4418 · Paid you last week</div></div><svg width="18" height="18" style="color:var(--ink4)"><use href="#chev"/></svg></div>
+            <div class="opt"><span class="avatar">DM</span><div class="grow"><div class="t1">Daniela Medina</div><div class="t2">···· 0391 · Paid in March</div></div><svg width="18" height="18" style="color:var(--ink4)"><use href="#chev"/></svg></div>
+          </div>
+        </div>
+        <div class="row gap12" style="align-items:center"><span class="orb-sm"><svg><use href="#nest"/></svg></span><span class="xbtn"><svg width="20" height="20"><use href="#x"/></svg></span></div>
+      </div>
+      <div class="homebar"></div>
+    </div>
+    <figcaption><span class="tag">Voice</span><b>20 · Which one?</b> If a name matches two people, Nest asks instead of guessing.</figcaption>
+  </figure>
+  <!-- voice: missed -->
+  <figure>
+    <div class="phone"><div class="island"></div>
+      <div class="status"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><svg width="16" height="12"><use href="#wifi"/></svg><svg width="27" height="13"><use href="#battery"/></svg></span></div>
+      <div class="body">
+        <div class="row between">
+          <span class="brand"><svg class="mark"><use href="#nest"/></svg>Nest</span>
+          <span class="avatar sm ana"></span>
+        </div>
+        <div class="card">
+          <div class="label">Balance</div>
+          <div class="big" style="margin-top:8px">$4,280<span class="c">.12</span></div>
+          <svg viewBox="0 0 300 64" width="100%" height="64" style="margin-top:14px;overflow:visible" aria-label="Your balance over the past month">
+            <path d="M0 44 C30 42 50 46 80 38 S130 34 160 36 S210 24 240 26 S280 18 300 16" fill="none" stroke="#2F5D3A" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="300" cy="16" r="4.5" fill="#2F5D3A" stroke="#fff" stroke-width="2"/>
+          </svg>
+          <div class="row between" style="margin-top:6px;font-size:12px;color:var(--ink4)"><span>Your balance</span><span>Past month</span></div>
+        </div>
+        <div class="actions">
+          <div class="action dark"><svg width="20" height="20"><use href="#send"/></svg>Send</div>
+          <div class="action"><svg width="20" height="20"><use href="#plus"/></svg>Add</div>
+          <div class="action"><svg width="20" height="20"><use href="#down"/></svg>Receive</div>
+        </div>
+        <div>
+          <div class="row between" style="margin-bottom:2px"><span class="label">Activity</span><span class="label">See all</span></div>
+          <div class="list">
+            <div class="item"><span class="avatar rosa"></span><div class="grow"><div class="t1">Mamá</div><div class="t2">Arrived in 0.9s · No fee</div></div><span class="amt">−$250.00</span></div>
+            <div class="item"><span class="avatar dani"></span><div class="grow"><div class="t1">Daniela</div><div class="t2">Received</div></div><span class="amt" style="color:var(--moss)">+$120.00</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab on"><svg width="24" height="24"><use href="#home"/></svg>Home</div>
+        <div class="tab"><svg width="24" height="24"><use href="#shield"/></svg>Security</div>
+        <div class="tab"><svg width="24" height="24"><use href="#user"/></svg>You</div>
+      </div>
+      <div class="scrim" style="background:rgba(17,24,19,.46);backdrop-filter:blur(2px)"></div>
+      <div class="voice-wrap">
+        <div class="pop" style="text-align:center">
+          <div class="h2">I didn't catch that.</div>
+          <div class="label" style="margin-top:6px">Say who and how much, like “Send $250 to Mamá”.</div>
+          <button class="btn dark" style="margin-top:18px"><svg width="20" height="20"><use href="#mic"/></svg>Try again</button>
+        </div>
+        <div class="row gap12" style="align-items:center"><span class="orb-sm" style="background:var(--ink4)"><svg><use href="#nest"/></svg></span><span class="xbtn"><svg width="20" height="20"><use href="#x"/></svg></span></div>
+      </div>
+      <div class="homebar"></div>
+    </div>
+    <figcaption><span class="tag">Voice</span><b>21 · Didn't catch it.</b> One line, one example, try again.</figcaption>
+  </figure>
+</section>
+
 </body>
 </html>
