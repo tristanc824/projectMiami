@@ -23,7 +23,7 @@ Nest is a dollar account for anyone with a phone. **Protect what matters.**
 | **No transaction fees** | Send it all. Keep it all. | Nest sponsors the network fee (Kora fee relayer); user pays $0. | 5, 9, 10, 11 |
 | **Government-independent** | Your money answers to you. | Not held in one local bank or national banking system. Honest caveat: Circle (USDC issuer) can freeze tokens. | (website) |
 | **Undo** | Scammed? Undo it. | First payment to a new recipient goes into an on-chain escrow (Anchor program) for 24h; sender can cancel. | 8, 13 |
-| **Security** | Only you can move your money. | Passkey / Face ID (no passwords), scam check before risky sends, family safe word, trusted contact. | 2, 10, 12, 14 |
+| **Security** | Only you can move your money. | Passkey with the phone's own unlock: Face ID if the phone has it, else fingerprint, else PIN (no passwords), scam check before risky sends, family safe word, trusted contact. | 2, 10, 12, 14 |
 | **Send without Wi-Fi** | Send money with no Wi-Fi. | The phone signs the payment offline using a Solana durable nonce (see BLOCKCHAIN_STACK.md, offline send queue). With cell signal but no data, it goes by text message to a Nest relay that submits it. With no signal at all, it is saved on the phone and sent in order on reconnect. Honest limit: it can't arrive while the phone has no connection of any kind. | 15, 16 |
 | Claim link | No app needed. | Payment link that opens an account on claim. | 3 |
 
@@ -35,19 +35,19 @@ Ana lives in Miami. Her mom, Rosa ("Mamá"), lives in Buenos Aires; Tío Luis in
 ## The 16 screens (in `app-design/nest-app-screens.html`)
 **Start**
 1. **Welcome**: meadow photo with birds, "Protect what matters.", "Dollars. 24/7. No fees.", Create account / I already have one.
-2. **Face ID**: "Your face is your password." Passkey setup.
+2. **Sign in**: passkey setup with the strongest unlock the phone has. **Face ID** if available (shown in the mockup), otherwise **fingerprint**, otherwise the phone's **PIN**. The screen's title, icon and button follow it: "Sign in with Face ID." / "Sign in with your fingerprint." / "Sign in with your PIN." Every later "Face ID" in these screens means "the phone's unlock" and changes the same way. Many of our users have older Android phones without face unlock, so PIN must work everywhere.
 3. **Claim**: what Rosa sees without Nest: "Ana sent you $250." → "Claim with your phone number".
 
-**Everyday** (tab bar: Home, Save, Security, You)
-4. **Home**: balance in dollars + "≈ ARS 4.15M" chip, Send (the only dark action) / Add / Receive, activity with "Arrived in 0.9s · $0 fee" and "Undone · money returned".
+**Everyday** (tab bar: Home, Security, You)
+4. **Home**: balance in dollars, a single line of the balance over the past month (no peso line), the "≈ ARS 4.15M" chip, Send (the only dark action) / Add / Receive, activity with "Arrived in 0.9s · $0 fee" and "Undone · money returned".
 5. **Receive**: QR code with the Nest mark, @handle, "Share my link".
-6. **Save**: "What $1,000 was worth a year later": $1,000 in Nest vs $321 in pesos (Argentina 2023). Goals ($620, $430, $1,090) are set aside from the $4,280.12 balance. All goals use moss green. New goal.
-7. **Goal**: Rainy day $620 of $1,000, weekly top-up toggle ($25 every Friday), recent top-ups, Withdraw / Add money. No interest. (No round-ups: Nest has no card yet.)
+6. ~~Save~~: removed (Nov 7). No savings goals in the app; the balance itself is the savings.
+7. ~~Goal~~: removed with Save.
 
 **Send to Mamá**
 8. **Send to**: search, faces first, recents; a new number flagged "New · undo on for 24h".
 9. **Amount**: $250, ≈ ARS, chips "$0 fee" and "Arrives in ~1s", keypad, Review.
-10. **Confirm**: bottom sheet with fee, arrival and what she gets; Face ID.
+10. **Confirm**: bottom sheet with fee, arrival and what she gets; confirmed with the phone's unlock (Face ID, fingerprint or PIN).
 11. **Arrived**: Rosa's photo with a check, "Arrived in 0.9s.", "Mamá has it.", receipt timestamped Sunday 9:41 PM.
 
 **When it's a scam**

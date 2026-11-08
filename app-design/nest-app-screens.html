@@ -91,7 +91,7 @@
   .actions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
   .action{height:76px;border-radius:24px;background:var(--white);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;font-size:13px;font-weight:600}
   .action.dark{background:var(--ink);color:#fff}
-  .tabbar{height:84px;background:rgba(243,240,234,.92);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);padding-top:10px;flex:none;backdrop-filter:blur(12px)}
+  .tabbar{height:84px;background:rgba(243,240,234,.92);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(3,1fr);padding-top:10px;flex:none;backdrop-filter:blur(12px)}
   .tab{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--ink4)}
   .tab.on{color:var(--moss)}
   .sheet{position:absolute;inset:auto 0 0 0;background:var(--white);border-radius:34px 34px 0 0;padding:14px 22px 40px;display:flex;flex-direction:column;gap:16px;z-index:3}
@@ -139,7 +139,7 @@
 
 <header class="doc">
   <h1>Nest app screens</h1>
-  <p>Reference for the build. 390 × 844, Figtree, earth palette, as little copy as possible. Story: Ana lives in Miami; her mom Rosa lives in Buenos Aires. Peso amounts use an example rate. The savings comparison uses Argentina's 2023 inflation of 211.4% (INDEC, see ECONOMIC_PROBLEMS.md): $1,000 held in pesos for the year bought about $321 of what it did in January.</p>
+  <p>Reference for the build. 390 × 844, Figtree, earth palette, as little copy as possible. Story: Ana lives in Miami; her mom Rosa lives in Buenos Aires. Peso amounts use an example rate. The app shows no peso devaluation comparison; that story lives in the film and pitch only.</p>
 </header>
 
 <!-- ===================== START ===================== -->
@@ -188,7 +188,7 @@
       </div>
       <div class="homebar"></div>
     </div>
-    <figcaption><span class="tag">Security</span><b>2 · Face ID.</b> Passkey sign-up. No password, no seed phrase.</figcaption>
+    <figcaption><span class="tag">Security</span><b>2 · Sign in.</b> Passkey sign-up. No password, no seed phrase. Uses the phone's best unlock: Face ID if it has it, otherwise fingerprint, otherwise PIN. The wording and icon follow, and so does every "Face ID" on later screens.</figcaption>
   </figure>
 
   <!-- Claim -->
@@ -227,13 +227,11 @@
         <div class="card">
           <div class="label">Balance</div>
           <div class="big" style="margin-top:8px">$4,280<span class="c">.12</span></div>
-          <svg viewBox="0 0 300 64" width="100%" height="64" style="margin-top:14px;overflow:visible" aria-label="Past year: your dollars held their value while the same money in pesos fell">
-            <path d="M0 10 C60 9 120 11 180 9 S260 10 300 10" fill="none" stroke="#2F5D3A" stroke-width="2.5" stroke-linecap="round"/>
-            <path d="M0 10 C40 14 70 22 110 28 S190 44 230 50 S280 56 300 58" fill="none" stroke="#5FA8D6" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 4"/>
-            <circle cx="300" cy="10" r="4.5" fill="#2F5D3A" stroke="#fff" stroke-width="2"/>
-            <circle cx="300" cy="58" r="4" fill="#5FA8D6" stroke="#fff" stroke-width="2"/>
+          <svg viewBox="0 0 300 64" width="100%" height="64" style="margin-top:14px;overflow:visible" aria-label="Your balance over the past month">
+            <path d="M0 44 C30 42 50 46 80 38 S130 34 160 36 S210 24 240 26 S280 18 300 16" fill="none" stroke="#2F5D3A" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="300" cy="16" r="4.5" fill="#2F5D3A" stroke="#fff" stroke-width="2"/>
           </svg>
-          <div class="row between" style="margin-top:6px;font-size:12px;color:var(--ink4)"><span><b style="color:var(--moss);font-weight:600">In dollars</b> · <span style="color:#235C7D">same money in pesos</span></span><span>Past year</span></div>
+          <div class="row between" style="margin-top:6px;font-size:12px;color:var(--ink4)"><span>Your balance</span><span>Past month</span></div>
           <div class="row gap8" style="margin-top:16px">
             <span class="chip green"><svg width="13" height="13"><use href="#leaf"/></svg>Held in US dollars</span>
             <span class="chip sky">≈ ARS 4.15M · example rate</span>
@@ -255,13 +253,12 @@
       </div>
       <div class="tabbar">
         <div class="tab on"><svg width="24" height="24"><use href="#home"/></svg>Home</div>
-        <div class="tab"><svg width="24" height="24"><use href="#sprout"/></svg>Save</div>
         <div class="tab"><svg width="24" height="24"><use href="#shield"/></svg>Security</div>
         <div class="tab"><svg width="24" height="24"><use href="#user"/></svg>You</div>
       </div>
       <div class="homebar"></div>
     </div>
-    <figcaption><span class="tag">Inflation-proof</span><b>4 · Home.</b> One number, one line: your dollars against the same money in pesos.</figcaption>
+    <figcaption><span class="tag">Inflation-proof</span><b>4 · Home.</b> One number and one line: your balance over the past month. No peso comparison in the app.</figcaption>
   </figure>
 
   <!-- Receive -->
@@ -292,73 +289,6 @@
       <div class="homebar"></div>
     </div>
     <figcaption><span class="tag">No fees</span><b>5 · Receive.</b> A QR code and a link. Nothing to explain.</figcaption>
-  </figure>
-
-  <!-- Save -->
-  <figure>
-    <div class="phone"><div class="island"></div>
-      <div class="status"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><svg width="16" height="12"><use href="#wifi"/></svg><svg width="27" height="13"><use href="#battery"/></svg></span></div>
-      <div class="body">
-        <h1 class="h1">Save</h1>
-        <div class="label" style="margin-top:-10px">Goals are set aside from your $4,280.12 balance.</div>
-        <div class="card">
-          <div class="t1">What $1,000 was worth a year later</div>
-          <div class="col gap10" style="margin-top:18px">
-            <div class="row gap10"><span style="width:84px;font-size:14px;color:var(--ink6)">In Nest</span><div class="bar grow" style="height:12px"><i style="width:100%"></i></div><span class="amt" style="width:58px;text-align:right">$1,000</span></div>
-            <div class="row gap10"><span style="width:84px;font-size:14px;color:var(--ink6)">In pesos</span><div class="bar grow" style="height:12px"><i style="width:32%;background:#5FA8D6"></i></div><span class="amt" style="width:58px;text-align:right;color:#235C7D">$321</span></div>
-          </div>
-          <div class="note" style="margin-top:12px">Saved in January 2023. Argentina had 211% inflation that year (INDEC).</div>
-        </div>
-        <div class="list">
-          <div class="item"><span class="ic-tile"><svg class="icon"><use href="#shield"/></svg></span><div class="grow"><div class="row between"><span class="t1">Rainy day</span><span class="amt">$620</span></div><div class="bar" style="margin-top:9px"><i style="width:62%"></i></div></div></div>
-          <div class="item"><span class="ic-tile"><svg class="icon"><use href="#sprout"/></svg></span><div class="grow"><div class="row between"><span class="t1">School fees</span><span class="amt">$430</span></div><div class="bar" style="margin-top:9px"><i style="width:43%"></i></div></div></div>
-          <div class="item"><span class="ic-tile"><svg class="icon"><use href="#home"/></svg></span><div class="grow"><div class="row between"><span class="t1">First home</span><span class="amt">$1,090</span></div><div class="bar" style="margin-top:9px"><i style="width:22%"></i></div></div></div>
-        </div>
-        <button class="btn light" style="margin-top:auto;margin-bottom:12px"><svg width="18" height="18"><use href="#plus"/></svg>New goal</button>
-      </div>
-      <div class="tabbar">
-        <div class="tab"><svg width="24" height="24"><use href="#home"/></svg>Home</div>
-        <div class="tab on"><svg width="24" height="24"><use href="#sprout"/></svg>Save</div>
-        <div class="tab"><svg width="24" height="24"><use href="#shield"/></svg>Security</div>
-        <div class="tab"><svg width="24" height="24"><use href="#user"/></svg>You</div>
-      </div>
-      <div class="homebar"></div>
-    </div>
-    <figcaption><span class="tag">Inflation-proof</span><b>6 · Save.</b> One real comparison, sourced. Sky blue always means local currency.</figcaption>
-  </figure>
-
-  <!-- Vault detail -->
-  <figure>
-    <div class="phone"><div class="island"></div>
-      <div class="status"><span>9:41</span><span class="icons"><svg width="18" height="12"><use href="#signal"/></svg><svg width="16" height="12"><use href="#wifi"/></svg><svg width="27" height="13"><use href="#battery"/></svg></span></div>
-      <div class="body">
-        <div class="row between"><svg width="24" height="24"><use href="#back"/></svg><span class="label">Goal</span><span style="width:24px"></span></div>
-        <div class="col" style="align-items:center;text-align:center;gap:8px;margin-top:6px">
-          <span class="ic-tile" style="width:56px;height:56px;border-radius:18px"><svg width="26" height="26"><use href="#shield"/></svg></span>
-          <div class="h2" style="margin-top:6px">Rainy day</div>
-          <div class="big" style="font-size:48px">$620</div>
-          <div class="label">of $1,000</div>
-        </div>
-        <div class="bar" style="height:10px"><i style="width:62%"></i></div>
-        <div class="card tight">
-          <div class="row between"><div><div class="t1">Weekly top-up</div><div class="t2">$25 every Friday</div></div><span class="toggle"></span></div>
-        </div>
-        <div>
-          <div class="label" style="margin-bottom:2px">This week</div>
-          <div class="list">
-            <div class="item"><div class="grow"><div class="t1">Weekly top-up</div><div class="t2">Friday</div></div><span class="amt" style="color:var(--moss)">+$25.00</span></div>
-            <div class="item"><div class="grow"><div class="t1">Weekly top-up</div><div class="t2">Last Friday</div></div><span class="amt" style="color:var(--moss)">+$25.00</span></div>
-            <div class="item"><div class="grow"><div class="t1">Added</div><div class="t2">Friday</div></div><span class="amt" style="color:var(--moss)">+$50.00</span></div>
-          </div>
-        </div>
-        <div class="row gap10" style="margin-top:auto;padding-bottom:34px">
-          <button class="btn light">Withdraw</button>
-          <button class="btn dark">Add money</button>
-        </div>
-      </div>
-      <div class="homebar"></div>
-    </div>
-    <figcaption><span class="tag">Save</span><b>7 · Vault.</b> A goal, a bar, round-ups. No interest, no yield promises.</figcaption>
   </figure>
 </section>
 
@@ -554,7 +484,6 @@
       </div>
       <div class="tabbar">
         <div class="tab"><svg width="24" height="24"><use href="#home"/></svg>Home</div>
-        <div class="tab"><svg width="24" height="24"><use href="#sprout"/></svg>Save</div>
         <div class="tab on"><svg width="24" height="24"><use href="#shield"/></svg>Security</div>
         <div class="tab"><svg width="24" height="24"><use href="#user"/></svg>You</div>
       </div>
