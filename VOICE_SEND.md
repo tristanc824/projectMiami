@@ -14,7 +14,7 @@ Nov 7, 2026. UI by Caleb's side (screens 17–21 in `app-design/nest-app-screens
 When something is missing or unclear:
 - **Two people match a name:** ask "Which Daniela?" and list both with the last 4 digits of their phone and the last payment (screen 20). Never guess.
 - **Missing amount or person:** ask for just that one thing, and keep listening.
-- **Nothing understood:** "I didn't catch that." with an example and Try again (screen 21).
+- **Nothing understood:** "Sorry, we didn't catch that." with an example and "Say it again" (screen 21).
 
 ## 2. Safety rules (non-negotiable)
 
@@ -26,7 +26,7 @@ When something is missing or unclear:
   - Voice sends above $1,000, or above the user's daily voice limit, open the normal Amount screen instead of the card.
   - Max 3 voice attempts a minute.
 - **The backend only returns a draft.** It never calls the payment endpoint itself.
-- **Security screen:** a row with a toggle, "Send with your voice", on by default. Turning it off hides the orb.
+- **Security screen:** a row with a toggle, "Send by voice", on by default. Turning it off hides the orb.
 
 ## 3. The contract (app ⇄ backend)
 
@@ -151,3 +151,64 @@ Notes:
 - **Currency:** Nest sends US dollars. If the user says pesos or another local currency, don't convert silently: return `clarify.type = "currency"` with a question like "¿En dólares?" / "In dollars?".
 - **Numbers:** handle "doscientos cincuenta", "250", "dos cincuenta" (ask if ambiguous), and "mil" / "un palo" slang → treat slang amounts as ambiguous and ask.
 - **UI strings:** every voice string gets a Spanish version (table coming from Martha). The confirm title stays in the user's language: "Enviar $250.00 a Mamá".
+
+## 7. Spanish copy (by Martha)
+
+Neutral Latin American Spanish (tú) by default. Rioplatense (vos) only where the words change: use it when the locale is `es-AR` or `es-UY`.
+
+| ID | Spanish (neutral) | Rioplatense (vos) |
+|---|---|---|
+| V1.1 | Enviar dinero con la voz | |
+| V1.2 | Empieza a escuchar. | |
+| V1.3 | Toca para enviar dinero con la voz | Tocá para enviar dinero con la voz |
+| V2.1 | Escuchando | |
+| V2.2 | Di algo como “Envíale $250 a Mamá” | Decí algo como “Mandale $250 a Mamá” |
+| V3.1 | Un momento | |
+| V4.1 | Enviar $250.00 a Mamá | |
+| V4.2 | Enviar con Face ID | |
+| V4.3 | Enviar con tu huella | |
+| V4.4 | Enviar con tu código (Android: Enviar con tu PIN) | |
+| V4.5 | Cambiarlo | |
+| V4.6 | Cancelar | |
+| V4.7 | No se envía nada hasta que lo apruebes. | |
+| V5.1 | ¿Cuál Daniela? | |
+| V5.1b | ¿A quién te refieres? | ¿A quién te referís? |
+| V5.2 | Daniela / Último pago $40 · En octubre | |
+| V5.3 | Daniela / Teléfono terminado en 3381 · Nuevo contacto | |
+| V6.1 | ¿Cuánto le quieres enviar a Mamá? | ¿Cuánto le querés enviar a Mamá? |
+| V6.2 (missing person) | ¿A quién le quieres enviar $250? | ¿A quién le querés enviar $250? |
+| V6.3 (said pesos) | Nest envía dólares. ¿Cuántos dólares le quieres enviar a Mamá? (short: ¿En dólares?) | Nest envía dólares. ¿Cuántos dólares le querés enviar a Mamá? |
+| V7.1 | Perdón, no entendimos bien. | |
+| V7.2 | Dilo de nuevo | Decilo de nuevo |
+| V8.1 | Mamá ya tiene tus $250. | |
+| V9.1 | Permite que Nest use tu micrófono | Permití que Nest use tu micrófono |
+| V9.2 | Nest solo escucha después de que tocas el círculo, para saber a quién le quieres pagar. | Nest solo escucha después de que tocás el círculo, para saber a quién le querés pagar. |
+| V9.3 | Continuar | |
+| V10.1 | Enviar con la voz | |
+| V10.2–4 | Cada envío sigue pidiendo Face ID / tu huella / tu código | |
+| readback | ¿Enviar $250 a Mamá? | |
+| Undo end | Tienes 24 horas para deshacer esto. | Tenés 24 horas para deshacer esto. |
+| Text end | Tus $250 van en camino a Mamá. | |
+| Locked | Nest está bloqueado | |
+
+English for the missing-person question (new): "Who do you want to send $250 to?"
+
+**Parser test phrases:**
+- Mandale 250 a mamá
+- Pasale 250 dólares a mamá
+- Transferile doscientos cincuenta a mamá
+- Envíale doscientos cincuenta dólares a mi mamá
+- Quiero mandarle 250 a mami
+- Mándale 250 a mi mamá
+- Hazle una transferencia de 250 a mamá
+- Mandale 250 a mi vieja (→ Mamá)
+- Mandale 250 verdes a mamá (verdes = dollars)
+- Mandale dos lucas a mamá (→ the pesos question)
+
+**Parser rules:**
+- Speech-to-text drops accents: treat mandale = mándale and pasale = pásale.
+- Strip "mi" before names: "a mi mamá" → Mamá.
+- pesos / mangos / lucas / palos → the pesos question (V6.3).
+- dólares / verdes / USD → dollars.
+
+**Open decision (Caleb): "$" or "US$" in Spanish.** In Argentina, Mexico, Colombia, Chile and Uruguay, "$" means pesos. Martha recommends **US$250.00** in every Spanish money string, at least on the confirm card and the readback, because that card is where a misheard amount gets caught. Locale number formats differ too (AR: 250,00; MX: 250.00). An Argentine speaker should proofread the vos column.
