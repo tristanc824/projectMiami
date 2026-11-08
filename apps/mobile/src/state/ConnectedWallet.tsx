@@ -108,11 +108,11 @@ export function ConnectedWallet({ children, status, problem, phone, address, sen
   const [text, setText] = useState<{ address: string; settings: dat.TextPayments } | null>(null);
   const textPayments = text && text.address === address ? text.settings : null;
   useEffect(() => {
-    if (!address) return;
+    if (!address || !addSigner) return; // The website has no text payments, so nothing to fetch.
     let active = true;
     dat.fetchTextPayments(getAccessToken).then(settings => { if (active) setText({ address, settings }); }).catch(() => undefined);
     return () => { active = false; };
-  }, [address, getAccessToken]);
+  }, [address, getAccessToken, addSigner]);
 
   const enableTextPayments = useCallback(async (pin: string) => {
     if (!/^\d{4}$/.test(pin)) throw new Error('Choose a 4-digit PIN.');

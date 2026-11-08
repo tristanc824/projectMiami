@@ -1,6 +1,6 @@
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
-import { Linking, View } from 'react-native';
+import { Linking, Platform, View } from 'react-native';
 import { Text, TextInput } from '../components/Text';
 import { Button, DemoNote, Detail, Icon, Notice, Pill, Screen } from '../components/ui';
 import { formatPhone, textPaymentLink } from '../services/dat';
@@ -10,7 +10,12 @@ import { useColors } from '../theme';
 const money = (cents: number) => `$${(cents / 100).toFixed(cents % 100 ? 2 : 0)}`;
 
 /** Text payments: send and check your balance by SMS from any phone with a signal, with no Wi-Fi or data. */
-export default function TextPaymentsScreen() {
+export default function TextPaymentsRoute() {
+  // Texting needs a phone, so this feature doesn't exist on the website.
+  return Platform.OS === 'web' ? <Redirect href="/" /> : <TextPaymentsScreen />;
+}
+
+function TextPaymentsScreen() {
   const { colors, styles: t } = useColors();
   const live = useLive();
   const settings = live.textPayments;
