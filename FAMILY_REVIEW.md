@@ -35,10 +35,14 @@ transfer and decide.
 
 ```powershell
 $env:SWARMS_API_KEY = "your-key"     # from https://cloud.swarms.world/api-keys
-$env:PRUNE_API_KEY = "your-key"      # from https://withprune.com/sharkbyte ; the model key stays in the Prune vault
+$env:PRUNE_API_KEY = "your-key"      # from https://withprune.com/sharkbyte ; sent as X-Prune-Key, the model key stays in the Prune vault
 python app.py                        # http://127.0.0.1:8000, JSON only
 python app.py --offline              # no keys needed: the checks are real, the agents' text is canned
 ```
+
+Prune runs through its Gemini proxy (`/v1/proxy/gemini/generateContent`, model `gemini-3.5-flash-lite`).
+Set `PRUNE_URL` or `PRUNE_MODEL` to change either without editing code. Each review is one Prune run
+(`X-Prune-Run-Id`), with a $0.05 budget shared by its two calls. A Prune call takes about 8 to 10 seconds.
 
 `GET /api/health` returns `{"ok": true, "offline": false, "swarms": true, "prune": true}`.
 `swarms` and `prune` say whether those keys are set. The values of the keys are never returned.

@@ -17,6 +17,7 @@ import os
 import re
 import sys
 import threading
+import uuid
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
@@ -412,7 +413,9 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
             )
             return
         try:
-            fields = clean_request(transcript)
+            # One Prune run per review, so both Prune calls share its budget.
+            run_id = f"family-review-{uuid.uuid4()}"
+            fields = clean_request(transcript, run_id)
         except GateStop:
             self._json(
                 HTTPStatus.UNPROCESSABLE_ENTITY,
@@ -436,7 +439,7 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
         receipt = None
         if review["verdict"]["decision"] == "confirm":
             try:
-                receipt = seal_sentence(review["verdict"]["sentence"])["receipt"]["receipt_signature"]
+                receipt = seal_sentence(review["verdict"]["sentence"], run_id)["receipt"]["receipt_signature"]
             except (GateStop, KeyError, TypeError):
                 remember(case)
                 body = self._review_body(case, signals, review, prune_view(case, None))

@@ -32,9 +32,11 @@ import re
 import sys
 import urllib.error
 import urllib.request
+import uuid
 
-URL = "https://api.withprune.com/v1/chat/completions"
-MODEL = "gpt-4o-mini"
+# Prune's Gemini proxy. PRUNE_URL and PRUNE_MODEL override these without a code change.
+URL = os.environ.get("PRUNE_URL", "https://api.withprune.com/v1/proxy/gemini/generateContent")
+MODEL = os.environ.get("PRUNE_MODEL", "gemini-3.5-flash-lite")
 RUN_BUDGET_USD = "0.05"
 FIELDS = ("amount", "relationship", "purpose", "fiat_leg")
 
@@ -92,8 +94,11 @@ def _seal_body(sentence: str) -> dict:
     }
 
 
-def _post(feature_id: str, body: dict) -> dict:
-    """POST one chat completion through Prune. Raises on any HTTP failure."""
+def _post(feature_id: str, body: dict, run_id: str | None = None) -> dict:
+    """POST one chat completion through Prune. Raises on any HTTP failure.
+
+    Prune requires X-Prune-Run-Id with a run budget. Pass the same run_id to
+    calls that belong to one review so they share the budget."""
     api_key = os.environ.get("PRUNE_API_KEY", "").strip()
     if not api_key:
         raise ValueError("PRUNE_API_KEY is not set")
@@ -101,11 +106,12 @@ def _post(feature_id: str, body: dict) -> dict:
         URL,
         data=json.dumps(body).encode("utf-8"),
         headers={
-            "Authorization": f"Bearer {api_key}",
+            "X-Prune-Key": api_key,
             "Content-Type": "application/json",
             "User-Agent": "projectmiami-prune-gate/0.1",
             "X-Prune-Feature-Id": feature_id,
             "X-Prune-Run-Budget-Usd": RUN_BUDGET_USD,
+            "X-Prune-Run-Id": run_id or f"family-review-{uuid.uuid4()}",
         },
         method="POST",
     )
@@ -118,14 +124,40 @@ def _http_detail(error: Exception) -> str:
         return "PRUNE_API_KEY is not set"
     if isinstance(error, urllib.error.HTTPError):
         shield = error.headers.get("X-Prune-Shield-Code") if error.headers else None
-        return f"HTTP {error.code}" + (f" shield={shield}" if shield else "")
+        code = None
+        try:
+            body = json.loads(error.read().decode("utf-8", errors="replace"))
+            code = body.get("code") if isinstance(body, dict) else None
+        except (ValueError, OSError):
+            pass
+        detail = f"HTTP {error.code}"
+        if shield:
+            detail += f" shield={shield}"
+        if isinstance(code, str) and code != shield:
+            detail += f" code={code[:60]}"
+        return detail
     return type(error).__name__
 
 
-def clean_request(raw_note: str) -> dict:
+def _reply_text(result: dict) -> str:
+    """The model's text from a Gemini-style reply (candidates) or an OpenAI-style one (choices)."""
+    candidates = result.get("candidates")
+    if isinstance(candidates, list) and candidates:
+        parts = (candidates[0].get("content") or {}).get("parts") if isinstance(candidates[0], dict) else None
+        if isinstance(parts, list):
+            texts = [part["text"] for part in parts if isinstance(part, dict) and isinstance(part.get("text"), str)]
+            if texts:
+                return "".join(texts)
+    return result["choices"][0]["message"]["content"] or ""
+
+
+FENCE = re.compile(r"^\s*```(?:json)?\s*(.*?)\s*```\s*$", re.DOTALL)
+
+
+def clean_request(raw_note: str, run_id: str | None = None) -> dict:
     """Return {amount, relationship, purpose, fiat_leg} or raise GateStop("blocked-in")."""
     try:
-        result = _post("family-request", _clean_body(raw_note))
+        result = _post("family-request", _clean_body(raw_note), run_id)
     except (urllib.error.URLError, OSError, ValueError) as error:
         raise GateStop("blocked-in", _http_detail(error)) from None
 
@@ -133,9 +165,12 @@ def clean_request(raw_note: str) -> dict:
         raise GateStop("blocked-in", "response has no prune_metadata")
 
     try:
-        text = result["choices"][0]["message"]["content"] or ""
-    except (KeyError, IndexError, TypeError):
+        text = _reply_text(result)
+    except (KeyError, IndexError, TypeError, AttributeError):
         raise GateStop("blocked-in", "response has no message content") from None
+    fenced = FENCE.match(text)
+    if fenced:
+        text = fenced.group(1)  # Gemini often wraps JSON in a ```json fence
 
     if DIGIT_RUN.search(text) or IBAN_LIKE.search(text):
         raise GateStop("blocked-in", "cleaned text still holds a phone or account number")
@@ -157,10 +192,10 @@ def clean_request(raw_note: str) -> dict:
     return fields
 
 
-def seal_sentence(sentence: str) -> dict:
+def seal_sentence(sentence: str, run_id: str | None = None) -> dict:
     """Return {sentence, receipt} or raise GateStop("no-receipt")."""
     try:
-        result = _post("family-council", _seal_body(sentence))
+        result = _post("family-council", _seal_body(sentence), run_id)
     except (urllib.error.URLError, OSError, ValueError) as error:
         raise GateStop("no-receipt", _http_detail(error)) from None
 
@@ -189,7 +224,8 @@ def main() -> int:
             print(f"## POST {URL}")
             print(f"X-Prune-Feature-Id: {feature_id}")
             print(f"X-Prune-Run-Budget-Usd: {RUN_BUDGET_USD}")
-            print("Authorization: Bearer <PRUNE_API_KEY, not shown>")
+            print("X-Prune-Run-Id: family-review-<new id per run>")
+            print("X-Prune-Key: <PRUNE_API_KEY, not shown>")
             print(json.dumps(body, indent=2))
             print()
         return 0
