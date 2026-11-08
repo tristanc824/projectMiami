@@ -1,13 +1,19 @@
-import { Platform, Text as NativeText, TextInput as NativeTextInput, type TextInputProps, type TextProps } from 'react-native';
+import { useRef, type ComponentRef } from 'react';
+import { useFormFocus } from './KeyboardForm';
+import { StyleSheet, Text as NativeText, TextInput as NativeTextInput, type TextInputProps, type TextProps, type TextStyle } from 'react-native';
 
-/** The native system font (SF Pro on iOS, Roboto on Android, system-ui on web), used app-wide. */
-export const SYSTEM_FONT = Platform.select({ android: 'sans-serif', default: 'System' });
-
-/** App-wide Text: always the system font; a style can still override fontFamily. */
-export function Text({ style, ...props }: TextProps) {
-  return <NativeText {...props} style={[{ fontFamily: SYSTEM_FONT }, style]} />;
+function typography(style: TextProps['style']): TextStyle {
+  const flat = StyleSheet.flatten(style);
+  const weight = Number(flat?.fontWeight ?? 400);
+  return { fontFamily: weight >= 600 ? 'Figtree-Semibold' : weight >= 500 ? 'Figtree-Medium' : 'Figtree', fontWeight: 'normal' };
 }
 
-export function TextInput({ style, ...props }: TextInputProps) {
-  return <NativeTextInput {...props} style={[{ fontFamily: SYSTEM_FONT }, style]} />;
+export function Text({ style, ...props }: TextProps) {
+  return <NativeText {...props} style={[{ fontSize: 15 }, style, typography(style)]} />;
+}
+
+export function TextInput({ style, onFocus, onBlur, ...props }: TextInputProps) {
+  const input = useRef<ComponentRef<typeof NativeTextInput>>(null);
+  const form = useFormFocus();
+  return <NativeTextInput {...props} ref={input} onFocus={event => { form.focus(input.current); onFocus?.(event); }} onBlur={event => { form.blur(input.current); onBlur?.(event); }} style={[{ fontSize: 16 }, style, typography(style)]} />;
 }

@@ -1,6 +1,6 @@
 # Nest
 
-SharkByte hackathon project. **Nest**: a dollar account for anyone with a phone, on Solana. *Protect what matters.* (The app code and some older docs still say "Guard"; the product is now Nest. See APP_HANDOFF.md.)
+SharkByte hackathon project. **Nest**: a dollar account for anyone with a phone, on Solana. *Protect what matters.* The mobile app now follows the Nest mockups and website. See APP_HANDOFF.md.
 
 ## Run the iPhone / web preview
 
@@ -16,7 +16,7 @@ Use `npm run web` in the same directory for the shared web app.
 
 The backend is in [`apps/api`](./apps/api/HANDOFF.md): a Next.js app (DAT) with Privy SMS login, self-custody Solana wallets, sponsored devnet USDC transfers, and Stripe test-mode deposits. A development build can use it for real devnet money; see "Live mode" in the mobile README. Secrets go in `apps/api/.env.local` and are never committed. See the mobile README for Auth0, signing, EAS, and TestFlight instructions.
 
-- [DESIGN.md](./DESIGN.md) — Cash App / PayPal reference research and the earlier Guard design system.
+- [DESIGN.md](./DESIGN.md) — Current Nest app design system, screen map, and implementation limits.
 
 **Start here if you're building the app:** [APP_HANDOFF.md](./APP_HANDOFF.md). It has the brand, features, copy rules and the 16 app screens ([`app-design/nest-app-screens.html`](./app-design/nest-app-screens.html), open in a browser).
 

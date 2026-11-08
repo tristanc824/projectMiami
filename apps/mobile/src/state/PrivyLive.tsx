@@ -129,15 +129,15 @@ function Session({ children }: { children: ReactNode }) {
     },
     send: (recipient, cents, note) => during(async () => {
       const signature = await dat.transfer(getAccessToken, sign, { recipient: recipient.address }, cents);
-      return addActivity({ kind: 'send', name: dat.formatPhone(recipient.phone), recipientPhone: recipient.phone, amountCents: cents, feeCents: 0, note: note.trim().slice(0, 140) || 'Sent with Guard', signature });
+      return addActivity({ kind: 'send', name: dat.formatPhone(recipient.phone), recipientPhone: recipient.phone, amountCents: cents, feeCents: 0, note: note.trim().slice(0, 140) || 'Sent with Nest', signature });
     }),
     deposit: dollars => during(async () => {
       const signature = await dat.depositTestCard(getAccessToken, dollars);
       return addActivity({ kind: 'add', name: 'Added with test card', amountCents: dollars * 100, feeCents: 0, note: 'Stripe test card · no real charge', signature });
     }),
-    cashOut: cents => during(async () => {
+    cashOut: (cents, destination = 'bank') => during(async () => {
       const signature = await dat.transfer(getAccessToken, sign, { toTreasury: true }, cents);
-      return addActivity({ kind: 'withdraw', name: 'Cash out', amountCents: cents, feeCents: 0, note: 'Bank payout simulated · USDC returned on devnet', signature });
+      return addActivity({ kind: 'withdraw', withdrawalDestination: destination, name: destination === 'apple-cash' ? 'Apple Cash withdrawal' : 'Bank withdrawal', amountCents: cents, feeCents: 0, note: `${destination === 'apple-cash' ? 'Apple Cash' : 'Bank'} payout simulated · USDC returned on devnet`, signature });
     }),
   }), [isReady, user, address, problem, phone, balanceCents, activity, privySendCode, loginWithCode, privyLogout, getAccessToken, during, sign, addActivity]);
 

@@ -1,11 +1,11 @@
 import { createContext, useContext } from 'react';
-import type { Activity } from '../domain/wallet';
+import type { Activity, WithdrawalDestination } from '../domain/wallet';
 import type { Recipient } from '../services/dat';
 
 /**
  * Live mode: Privy SMS login, a self-custody Solana wallet, and real devnet USDC through the DAT backend.
- * It is only available in a Guard development/TestFlight build with Privy and the API configured.
- * Everywhere else (web, Expo Go, unconfigured builds) the status is 'off' and Guard stays in demo mode.
+ * It is only available in a Nest development/TestFlight build with Privy and the API configured.
+ * Everywhere else (web, Expo Go, unconfigured builds) the status is 'off' and Nest stays in demo mode.
  */
 export type LiveStatus = 'off' | 'loading' | 'signed-out' | 'setting-up' | 'ready';
 
@@ -25,7 +25,7 @@ export type LiveContextValue = {
   /** Each returns the new activity id, for the receipt screen. */
   send: (recipient: Recipient, cents: number, note: string) => Promise<string>;
   deposit: (dollars: number) => Promise<string>;
-  cashOut: (cents: number) => Promise<string>;
+  cashOut: (cents: number, destination?: WithdrawalDestination) => Promise<string>;
 };
 
 const unavailable = async (): Promise<never> => { throw new Error('Live mode is not available in this build.'); };
