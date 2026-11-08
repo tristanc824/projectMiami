@@ -24,7 +24,7 @@ export default function RequestScreen() {
   const cents = parseAmount(amount);
   const recipient = normalizePhone(isLive ? live.phone : phone);
   const request = parsePaymentRequest({ mode: isLive ? 'devnet' : 'demo', amount, note, recipient: recipient ?? '' });
-  const url = request ? Linking.createURL('pay', { queryParams: request }) : '';
+  const url = request ? Platform.OS === 'web' ? `${window.location.origin}${process.env.EXPO_BASE_URL || ''}/pay?${new URLSearchParams(request).toString()}` : Linking.createURL('pay', { queryParams: request }) : '';
   const text = cents ? `Nest ${isLive ? 'devnet' : 'demo'} request: ${money(cents)} USDC\n${note}\n${url}` : '';
   const share = async () => {
     try {

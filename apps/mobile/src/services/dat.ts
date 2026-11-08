@@ -3,8 +3,9 @@
  * Money here is real devnet USDC on Solana; deposits use Stripe test mode only.
  */
 
-const baseUrl = (process.env.EXPO_PUBLIC_DAT_API_URL?.trim() || '').replace(/\/+$/, '');
-export const datConfigured = /^https?:\/\/\S+$/.test(baseUrl);
+const configuredUrl = process.env.EXPO_PUBLIC_DAT_API_URL?.trim() || '';
+const baseUrl = configuredUrl === 'same-origin' ? '' : configuredUrl.replace(/\/+$/, '');
+export const datConfigured = configuredUrl === 'same-origin' || /^https?:\/\/\S+$/.test(baseUrl);
 export const explorerUrl = (signature: string) => `https://explorer.solana.com/tx/${signature}?cluster=devnet`;
 /** The server caps test-card deposits (MAX_DEPOSIT_USD, 20 by default). */
 export const MAX_DEPOSIT_DOLLARS = 20;

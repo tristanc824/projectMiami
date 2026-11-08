@@ -1,6 +1,7 @@
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
+import { useLive } from '../../state/live';
 import { type ComponentProps } from 'react';
-import { Pressable, View } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
 import { useKeyboardVisible } from '../../components/KeyboardForm';
 import { Text } from '../../components/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -39,6 +40,8 @@ function NestTabBar({ state, emitter, navigateToTab }: TabBarProps) {
 
 export default function TabsLayout() {
   const { colors } = useColors();
+  const live = useLive();
+  if (Platform.OS === 'web' && process.env.EXPO_PUBLIC_NEST_WEB_WALLET === 'true' && live.status !== 'ready') return <Redirect href="/sign-in" />;
   return <Tabs tabBar={props => <NestTabBar {...props} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.background } }}>
     <Tabs.Screen name="index" options={{ title: 'Home' }} /><Tabs.Screen name="save" options={{ title: 'Save' }} /><Tabs.Screen name="security" options={{ title: 'Security' }} /><Tabs.Screen name="account" options={{ title: 'You' }} />
   </Tabs>;

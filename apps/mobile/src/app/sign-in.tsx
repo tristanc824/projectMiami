@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { Image, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -48,13 +48,14 @@ export default function SignInScreen() {
     finally { setBusy(false); }
   };
   const authenticate = () => run(async () => {
-    if (liveAvailable) { setStep('phone'); return; }
+    if (liveAvailable) { if (live.problem) throw new Error(live.problem); setStep('phone'); return; }
     await signIn(); enterApp();
   });
   const requestCode = () => run(async () => { await live.sendCode(phone); setCode(''); setStep('code'); });
   const verify = () => run(async () => { await live.verifyCode(phone, code); enterApp(); });
   const field = [s.input, { color: colors.white }];
 
+  if (live.status === 'ready' && typeof paymentRequest !== 'string') return <Redirect href="/" />;
   return <View style={s.screen}>
     <StatusBar style="light" />
     <KeyboardFrame><KeyboardScroll bounces={false} showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
@@ -69,10 +70,10 @@ export default function SignInScreen() {
           <Text accessibilityRole="header" style={s.title}>Protect what{'\n'}matters.</Text>
           <Text style={s.description}>Dollars. 24/7. No fees.</Text>
           {error ? <View accessibilityRole="alert" style={s.error}><Text style={s.errorText}>{error}</Text></View> : null}
-          {step === 'start' ? <View style={{ gap: 10 }}>
-            <Button title="Create account" loading={busy} onPress={() => { void authenticate(); }} style={s.signIn} variant="secondary" textColor="#17201A" />
-            <Pressable accessibilityRole="button" accessibilityLabel="Sign in" onPress={() => { void authenticate(); }} style={s.textButton}><Text style={s.demoText}>I already have one</Text></Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Demo" onPress={enterApp} style={s.demo}><Text style={s.demoText}>Explore the demo <Text style={{ color: '#A9C4A1' }}>↗</Text></Text></Pressable>
+          {live.status === 'setting-up' ? <View style={{ gap: 12 }}><Text style={s.demoText}>{live.problem || 'Finishing your wallet setup…'}</Text><Button title="Sign out" variant="secondary" onPress={() => { void run(live.logout); }} /></View> : step === 'start' ? <View style={{ gap: 10 }}>
+            <Button title="Create account" loading={busy || live.status === 'loading'} onPress={() => { void authenticate(); }} style={s.signIn} variant="secondary" textColor="#17201A" />
+            <Pressable accessibilityRole="button" accessibilityLabel="Sign in" disabled={busy || live.status === 'loading'} onPress={() => { void authenticate(); }} style={s.textButton}><Text style={s.demoText}>I already have one</Text></Pressable>
+            {!liveAvailable ? <Pressable accessibilityRole="button" accessibilityLabel="Demo" onPress={enterApp} style={s.demo}><Text style={s.demoText}>Explore the demo <Text style={{ color: '#A9C4A1' }}>↗</Text></Text></Pressable> : null}
           </View> : step === 'phone' ? <View style={{ gap: 12 }}>
             <TextInput accessibilityLabel="Phone number" testID="live-phone" value={phone} onChangeText={setPhone} placeholder="Your phone number" placeholderTextColor="#B8C9B2" keyboardType="phone-pad" textContentType="telephoneNumber" autoComplete="tel" autoFocus style={field} />
             <Button title="Text me a code" loading={busy} disabled={phone.replace(/\D/g, '').length < 10} onPress={() => { void requestCode(); }} style={s.signIn} variant="secondary" textColor="#17201A" />

@@ -5,7 +5,8 @@ import type { Recipient } from '../services/dat';
 /**
  * Live mode: Privy SMS login, a self-custody Solana wallet, and real devnet USDC through the DAT backend.
  * It is only available in a Nest development/TestFlight build with Privy and the API configured.
- * Everywhere else (web, Expo Go, unconfigured builds) the status is 'off' and Nest stays in demo mode.
+ * The integrated website uses Privy's browser SDK for the same accounts.
+ * Standalone web previews, Expo Go, and unconfigured builds keep status 'off' and stay in demo mode.
  */
 export type LiveStatus = 'off' | 'loading' | 'signed-out' | 'setting-up' | 'ready';
 

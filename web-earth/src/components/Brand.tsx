@@ -143,7 +143,7 @@ export function Keep() {
           <h2 className="mt-5 max-w-[12ch] text-[clamp(44px,6.4vw,96px)] font-medium leading-[1] tracking-[-0.035em] text-white">
             Keep her college fund in dollars.
           </h2>
-          <a href="#join" className="mt-10 inline-flex h-14 w-fit items-center gap-2 rounded-full bg-white px-7 text-[16px] font-medium text-ink transition-colors hover:bg-page">
+          <a href="/app/sign-in" className="mt-10 inline-flex h-14 w-fit items-center gap-2 rounded-full bg-white px-7 text-[16px] font-medium text-ink transition-colors hover:bg-page">
             Start saving <ArrowRight size={18} />
           </a>
         </div>
@@ -200,7 +200,7 @@ export function Closing() {
         <h2 className="relative mx-auto max-w-[14ch] text-[clamp(44px,6.4vw,96px)] font-medium leading-[1] tracking-[-0.035em] text-white">Protect what matters.</h2>
         <p className="relative mx-auto mt-5 max-w-[40ch] text-[18px] text-white/75">All you need is your phone.</p>
         <div className="relative mt-10 flex flex-wrap items-center justify-center gap-3">
-          <a href="#top" className="inline-flex h-14 items-center gap-2 rounded-full bg-white px-7 text-[16px] font-medium text-ink transition-colors hover:bg-page">
+          <a href="/app/sign-in" className="inline-flex h-14 items-center gap-2 rounded-full bg-white px-7 text-[16px] font-medium text-ink transition-colors hover:bg-page">
             Open an account <ArrowRight size={18} />
           </a>
           <a href="#top" className="inline-flex h-14 items-center rounded-full border border-white/50 px-7 text-[16px] font-medium text-white transition-colors hover:bg-white/10">Talk to our team</a>

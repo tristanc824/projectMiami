@@ -175,3 +175,9 @@ Keep new real-money integrations behind an explicit, separately tested gateway. 
 ### Dependency advisory status
 
 The initial SDK 57 dependency tree reported 14 advisories, including three high-severity entries. After upgrading to SDK 58, npm reports 12 moderate advisories and no high or critical advisories. Review and resolve the remaining advisories before any production or real-money release; passing the functional checks is not security certification.
+
+## Connected website build
+
+The repository's `npm run website` serves the existing marketing website and this app at `/app` on port 5175. The website build enables `EXPO_PUBLIC_NEST_WEB_WALLET=true`, sets `EXPO_PUBLIC_DAT_API_URL=same-origin`, and exports with `NEST_WEB_BASE_PATH=/app`. It uses `@privy-io/react-auth` for browser SMS login and signing, with the same `ConnectedWallet` account implementation as native. Ordinary `npm run web` previews remain local demos.
+
+Use `npm run test:website` from the repository root for the isolated mocked connected-account browser suite. The browser test SDK replacement is available only at build time and can only export to `dist-website-tests`. Never serve that test export as the real website.

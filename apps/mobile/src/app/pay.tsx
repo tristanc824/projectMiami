@@ -19,7 +19,7 @@ export default function PayScreen() {
   if (!request) return <Screen back title="Request unavailable"><Notice error>This request link is invalid. Ask for a new link.</Notice><Button style={{ marginTop: 20 }} title="Go home" onPress={() => router.replace('/')} /></Screen>;
   const demo = request.mode === 'demo';
   const recipient = formatPhone(request.recipient);
-  const canPay = demo ? live.status === 'off' || live.status === 'signed-out' : live.status === 'ready';
+  const canPay = demo ? live.status === 'off' : live.status === 'ready';
   const openApp = async () => {
     try { await Linking.openURL(`lazo://pay?${new URLSearchParams(request).toString()}`); }
     catch { setError('Open this link on a phone with the Nest development or TestFlight app installed.'); }
@@ -33,8 +33,8 @@ export default function PayScreen() {
     </View>
     <Notice>{demo ? 'This records a demo payment on the sender’s device only. Add demo money first if your balance is $0.' : 'A request for test dollars. Review every detail before you send.'}</Notice>
     {canPay ? <Button style={{ marginTop: 24 }} title="Continue to payment" onPress={() => router.push({ pathname: '/send', params: { amount: request.amount, note: request.note, phone: request.recipient } })} />
-      : !demo && Platform.OS === 'web' ? <Button style={{ marginTop: 24 }} title="Open in Nest" onPress={() => { void openApp(); }} />
       : !demo && live.status !== 'off' ? <Button style={{ marginTop: 24 }} title="Sign in to pay" onPress={() => router.push({ pathname: '/sign-in', params: { paymentRequest: JSON.stringify(request) } })} />
+      : !demo && Platform.OS === 'web' ? <Button style={{ marginTop: 24 }} title="Open in Nest" onPress={() => { void openApp(); }} />
       : <View style={{ marginTop: 16 }}><Notice>{demo ? 'Open this demo link in the web preview or Expo Go to try a demo payment.' : 'Use the Nest development or TestFlight build with live mode configured to pay this request.'}</Notice></View>}
     {demo && canPay ? <Button style={{ marginTop: 10 }} title="Add demo money" variant="secondary" onPress={() => router.push({ pathname: '/money', params: { mode: 'add' } })} /> : null}
     {error ? <View style={{ marginTop: 16 }}><Notice error>{error}</Notice></View> : null}

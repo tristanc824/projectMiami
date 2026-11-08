@@ -26,7 +26,7 @@ export default function HomeScreen() {
   const live = useIsLive();
   const { problem } = useLive();
   if (!experience.ready) return <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center' }}><ActivityIndicator color={colors.green} /></View>;
-  if (!experience.hasEntered) return <Redirect href="/sign-in" />;
+  if (!experience.hasEntered && !live) return <Redirect href="/sign-in" />;
   const [whole, fraction] = money(wallet.balanceCents).split('.');
   const amountSize = Math.min(58, (Math.min(width, 620) - 96) / (.54 * money(wallet.balanceCents).length));
   const pesos = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(wallet.balanceCents / 100 * DEMO_ARS_RATE);
@@ -51,7 +51,7 @@ export default function HomeScreen() {
       <Action icon="arrow-down" label="Receive" onPress={() => router.push('/request')} />
     </View>
     <SectionHeader title="Activity" action="See all" onAction={() => router.push('/activity')} />
-    <View style={[t.card, { paddingVertical: 4 }]}>{wallet.activity.length ? wallet.activity.slice(0, 3).map((item, i) => <View key={item.id}>{i ? <View style={t.divider} /> : null}<ActivityRow item={item} /></View>) : <View style={{ paddingVertical: 22, gap: 8 }}><Text style={[t.heading, { fontSize: 18 }]}>Your next chapter starts here.</Text><Text style={t.muted}>Add a few demo dollars to try your first payment.</Text></View>}</View>
+    <View style={[t.card, { paddingVertical: 4 }]}>{wallet.activity.length ? wallet.activity.slice(0, 3).map((item, i) => <View key={item.id}>{i ? <View style={t.divider} /> : null}<ActivityRow item={item} /></View>) : <View style={{ paddingVertical: 22, gap: 8 }}><Text style={[t.heading, { fontSize: 18 }]}>Your next chapter starts here.</Text><Text style={t.muted}>{live ? 'Payments you make in this browser or device will appear here.' : 'Add a few demo dollars to try your first payment.'}</Text></View>}</View>
     <Pressable accessibilityRole="button" accessibilityLabel="Explore dollar savings" onPress={() => router.push('/save')} style={({ pressed }) => [s.story, { opacity: pressed ? .8 : 1 }]}>
       <View style={{ flex: 1, padding: 20, gap: 8 }}><View style={[t.row, { gap: 6 }]}><NestMark size={18} /><Text style={{ color: colors.green, fontSize: 13, fontWeight: '500' }}>A little peace of mind</Text></View><Text style={[t.heading, { fontSize: 23, lineHeight: 26 }]}>For everything{ '\n' }you’re growing.</Text><Text style={{ color: colors.green, fontSize: 13, fontWeight: '600', marginTop: 4 }}>Find your next goal ↗</Text></View>
       <Image source={require('../../../assets/nest/kitchen.jpg')} resizeMode="cover" style={{ width: 110, height: '100%', minHeight: 180, borderTopLeftRadius: 70, borderBottomLeftRadius: 55 }} accessible={false} />

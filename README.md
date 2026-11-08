@@ -30,3 +30,13 @@ The backend is in [`apps/api`](./apps/api/HANDOFF.md): a Next.js app (DAT) with 
 - [BLOCKCHAIN_STACK.md](./BLOCKCHAIN_STACK.md) — the Solana stack to build with (verified Nov 7), the architecture, devnet pitfalls, and the integrations that impress judges.
 - [UI_INSPIRATION.md](./UI_INSPIRATION.md) — lessons from Zander Whitehurst's 30 most-viewed UI reels.
 - [NEST_FEATURES.md](./NEST_FEATURES.md) — which features to build, the prize stack, the "massive potential" vision, and the app UI direction.
+
+## Website and browser sending
+
+Run `npm run website` from the repository root. This starts the API on port 5184 if needed, exports the connected web app, and opens the website server on port 5175. Visit **http://localhost:5175**, then choose **Log in** or **Open an account**. Nest opens at `/app/sign-in` and uses the same Privy phone account and Solana devnet wallet as the native app. Transfers require a review and wallet signature.
+
+The website proxies `/api` to the local API, so browser transfers do not depend on a hardcoded LAN address or cross-origin permissions. Browser wallets require localhost or HTTPS; an HTTP LAN IP on an iPhone is not a secure browser-wallet origin.
+
+The build reads the public Privy app ID from `apps/api/.env.local` (falling back to the mobile public ID) and checks it matches mobile. Backend secrets remain in the API. After changing app screens, run `npm run build:web-app` and reload the website. Marketing changes still hot reload. `npm run build:website` builds both parts; `npm run website:preview` previews that build with the local API proxy.
+
+`npm run test:website` runs isolated browser login, signing, payment, failure, and request-link tests with mock authentication and mocked API responses. Its export is separate from the real website, and its fake token is never accepted by the real API. Real SMS verification and a user-approved devnet transfer still need a manual account check. Balances are shared through the wallet; activity and contact names remain local to each browser/device. Apple Cash and bank delivery remain simulated.

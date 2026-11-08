@@ -26,12 +26,13 @@ export default function AccountScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [confirmReset, setConfirmReset] = useState(false);
+  const live = useLive();
   useEffect(() => {
+    if (live.status !== 'off') return;
     let active = true;
     void restoreSession().then(value => { if (active) setProfile(value); }).catch(() => undefined);
     return () => { active = false; };
-  }, []);
-  const live = useLive();
+  }, [live.status]);
   const liveAvailable = live.status !== 'off';
   const signedInLive = live.status === 'ready' || live.status === 'setting-up';
   const authenticate = async () => {
