@@ -2,6 +2,11 @@
 
 SharkByte hackathon project. **Nest**: a dollar account for anyone with a phone, on Solana. *Protect what matters.* The mobile app now follows the Nest mockups and website. See APP_HANDOFF.md.
 
+## Family transfer review and hold
+
+The review API with the Watchdog's typo checks (`python app.py`, JSON only), the Swarms review and
+Prune gate (`swarm/`), and the devnet family hold (`node hold/hold.mjs`): see [FAMILY_REVIEW.md](./FAMILY_REVIEW.md).
+
 ## Run the iPhone / web preview
 
 The app is in [`apps/mobile`](./apps/mobile/README.md), built with React Native / Expo. It uses clearly labeled local demo funds. For the iPhone, open it in Expo Go; native Auth0 login and TestFlight use a development/store build.

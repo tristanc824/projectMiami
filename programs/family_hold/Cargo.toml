@@ -1,0 +1,16 @@
+[package]
+name = "family_hold"
+version = "0.1.0"
+edition = "2021"
+# cargo build-sbf in Solana 1.18 compiles with Rust 1.75. Declaring it lets Cargo pick dependency
+# versions that still build there (CI sets the resolver to fall back to compatible versions).
+rust-version = "1.75"
+description = "Lock test USDC until a second family member releases it. The sender can refund alone."
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "family_hold"
+
+[dependencies]
+solana-program = "=1.18.26"
+spl-token = { version = "=4.0.3", features = ["no-entrypoint"] }
