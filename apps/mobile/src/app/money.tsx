@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Keyboard, Pressable, View } from 'react-native';
 import { Text } from '../components/Text';
@@ -51,6 +51,8 @@ export default function MoneyScreen() {
       router.replace({ pathname: '/receipt', params: { id, ...(appleCashDemo ? { animation: 'apple-cash', ...(!connected ? { demo: '1' } : {}) } : {}) } });
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'Please try again.'); submitting.current = false; setBusy(false); }
   };
+  // Cash-out is not part of Nest yet: withdrawals and the Apple Cash demo are hidden.
+  if (mode === 'withdraw') return <Redirect href="/" />;
   return <Screen back title={adding ? 'Add money' : 'Withdraw'} subtitle={adding ? 'A little more possibility.' : 'Choose where your money goes.'} footer={<>
     <Button title={primaryTitle} loading={busy} disabled={!valid} onPress={() => { if (review) { if (appleCashDemo) setConfirmAppleCash(true); else void complete(); } else { Keyboard.dismiss(); setError(''); setReview(true); } }} />
     {review ? <Button title="Edit amount" variant="secondary" style={{ marginTop: 8 }} disabled={busy} onPress={() => { setReview(false); setError(''); }} /> : null}<DemoNote compact />
