@@ -67,7 +67,8 @@ export function ConnectedWallet({ children, status, problem, phone, address, sen
     setBalance({ address, cents: next });
     // Read the chain's history on first load and whenever the balance moves, then once more
     // on the next poll in case the newest transaction wasn't indexed yet.
-    if (previous === null || next !== previous) historyReads.current = 2;
+    if (previous === null) historyReads.current = 1;
+    else if (next !== previous) historyReads.current = 2;
     if (historyReads.current > 0) {
       historyReads.current -= 1;
       try {
@@ -80,8 +81,20 @@ export function ConnectedWallet({ children, status, problem, phone, address, sen
   useEffect(() => {
     if (!address) return;
     void refresh();
-    const timer = setInterval(() => { void refresh(); }, POLL_MS);
-    return () => clearInterval(timer);
+    // Poll only while the page is visible, and never start a read while the last one is running.
+    const hidden = () => typeof document !== 'undefined' && document.hidden;
+    let polling = false;
+    const poll = () => {
+      if (polling || hidden()) return;
+      polling = true;
+      void refresh().finally(() => { polling = false; });
+    };
+    const timer = setInterval(poll, POLL_MS);
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', poll);
+    return () => {
+      clearInterval(timer);
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', poll);
+    };
   }, [address, refresh]);
 
   const during = useCallback(async <T,>(work: () => Promise<T>): Promise<T> => {

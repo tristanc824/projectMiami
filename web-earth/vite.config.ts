@@ -1,6 +1,6 @@
 import { defineConfig, type Plugin, type ViteDevServer } from 'vite';
 import react from '@vitejs/plugin-react';
-import { createReadStream, existsSync, statSync, cpSync } from 'node:fs';
+import { createReadStream, existsSync, statSync, cpSync, renameSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -37,7 +37,17 @@ function nestApp(): Plugin {
     closeBundle() {
       if (!building) return;
       if (app !== path.resolve(root, '../apps/mobile/dist-website')) throw new Error('Refusing to package a test wallet export in the website.');
-      if (existsSync(app)) cpSync(app, path.join(root, 'dist/app'), { recursive: true });
+      if (!existsSync(app)) return;
+      const out = path.join(root, 'dist/app');
+      cpSync(app, out, { recursive: true });
+      // Vercel never uploads folders named node_modules, which is where Expo puts the icon font.
+      renameSync(path.join(out, 'assets/node_modules'), path.join(out, 'assets/vendor'));
+      const js = path.join(out, '_expo/static/js/web');
+      for (const name of readdirSync(js)) {
+        if (!name.endsWith('.js')) continue;
+        const file = path.join(js, name);
+        writeFileSync(file, readFileSync(file, 'utf8').split('/assets/node_modules/').join('/assets/vendor/'));
+      }
     },
   };
 }

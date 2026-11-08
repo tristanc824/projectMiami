@@ -1,7 +1,7 @@
 import { Redirect, Tabs } from 'expo-router';
 import { useLive } from '../../state/live';
 import { type ComponentProps } from 'react';
-import { Platform, Pressable, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, View } from 'react-native';
 import { useKeyboardVisible } from '../../components/KeyboardForm';
 import { Text } from '../../components/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -69,7 +69,11 @@ export default function TabsLayout() {
   const { colors } = useColors();
   const live = useLive();
   const desktop = useDesktop();
-  if (Platform.OS === 'web' && process.env.EXPO_PUBLIC_NEST_WEB_WALLET === 'true' && live.status !== 'ready') return <Redirect href="/sign-in" />;
+  if (Platform.OS === 'web' && process.env.EXPO_PUBLIC_NEST_WEB_WALLET === 'true' && live.status !== 'ready') {
+    // Privy needs a moment to restore the session and wallet on refresh. Wait instead of bouncing through sign-in.
+    if (live.status === 'loading' || (live.status === 'setting-up' && !live.problem)) return <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={colors.green} /></View>;
+    return <Redirect href="/sign-in" />;
+  }
   return <Tabs tabBar={props => <NestTabBar {...props} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.background, paddingLeft: desktop ? SIDEBAR_WIDTH : 0 } }}>
     {/* Save is hidden: no savings goals in the app (Nov 7). The route redirects home. */}
     <Tabs.Screen name="index" options={{ title: 'Home' }} /><Tabs.Screen name="save" options={{ title: 'Save', href: null }} /><Tabs.Screen name="security" options={{ title: 'Security' }} /><Tabs.Screen name="account" options={{ title: 'You' }} />
