@@ -1,7 +1,6 @@
 import React from "react";
 import { AbsoluteFill } from "remotion";
 import { C, FONT } from "../../theme";
-import { NestMark } from "../../ui/NestMark";
 import { DotGrid, FLOAT, FlipPhone, FPhone, head, mix, PhoneAt, Pill, PushScreens, Reveal, Ripple } from "../kit";
 import { CX, HALF_L, HALF_R, onPhone, phoneAt, T } from "../layout";
 import { CAM, clamp01, EASE_IN_OUT, EASE_OUT, hitIn, lineOut, lineT, qpt, settle, tween } from "../motion";
@@ -58,11 +57,16 @@ const Tower = ({ pulses, s, inT }: { pulses: number[]; s: number; inT: number })
   );
 };
 
-/** The text bubble that travels: a small white SMS chip with the Nest mark. */
-const SmsBubble = ({ x, y, s, text = "$250" }: { x: number; y: number; s: number; text?: string }) => (
-  <div style={{ position: "absolute", left: x - 80, top: y - 34, width: 160, height: 68, transform: `scale(${s})`, fontFamily: FONT }}>
-    <div style={{ position: "absolute", inset: 0, borderRadius: "34px 34px 34px 10px", background: C.white, boxShadow: FLOAT, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, fontSize: T.s, fontWeight: 600, color: C.moss }}>
-      <NestMark size={28} color={C.moss} />{text}
+/**
+ * The text that travels. Ana's is the real text command (v4.2: Nest's server sends the money once she
+ * texts her PIN, so nothing claims on-phone signing); Mamá's reply is a plain "Got it".
+ */
+const SmsBubble = ({ x, y, s, text, pin = false }: { x: number; y: number; s: number; text: string; pin?: boolean }) => (
+  <div style={{ position: "absolute", left: x - 170, top: y - 34, width: 340, height: 68, display: "flex", justifyContent: "center", transform: `scale(${s})`, fontFamily: FONT }}>
+    <div style={{ height: 68, padding: "0 26px", borderRadius: "34px 34px 34px 10px", background: C.white, boxShadow: FLOAT, display: "flex", alignItems: "center", gap: 12, fontSize: T.s, fontWeight: 600, color: C.ink, letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>
+      <span style={{ color: C.moss, display: "flex" }}><MessageIcon size={26} /></span>
+      {text}
+      {pin ? <span style={{ color: C.ink4, letterSpacing: "0.12em" }}>••••</span> : null}
     </div>
   </div>
 );
@@ -139,7 +143,7 @@ export const OfflineBody = ({ f }: { f: number }) => {
         <PhoneAt x={PM.x} y={PM.y + (1 - mIn) * 80} style={{ opacity: clamp01(mIn * 2.5) }}>
           <FPhone><SmsScreen inT={got} /></FPhone>
         </PhoneAt>
-        {showSms ? <SmsBubble x={sms.x} y={sms.y} s={smsS} /> : null}
+        {showSms ? <SmsBubble x={sms.x} y={sms.y} s={smsS} text="SEND 250 to Mamá" pin /> : null}
         {showRep ? <SmsBubble x={rep.x} y={rep.y} s={repS} text="Got it" /> : null}
         {f >= L(HIT.mamaGets) && f < L(HIT.mamaGets) + 20 ? <Ripple x={TO_PT.x} y={TO_PT.y} p={(f - L(HIT.mamaGets)) / 20} r0={30} r1={130} /> : null}
         {f >= L(HIT.replyIn) && f < L(HIT.replyIn) + 20 ? <Ripple x={FROM_PT.x} y={FROM_PT.y} p={(f - L(HIT.replyIn)) / 20} r0={30} r1={130} /> : null}

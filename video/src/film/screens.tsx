@@ -251,8 +251,7 @@ export const OfflineSentScreen = () => (
       <H1 style={{ marginTop: 6 }}>Your $250 is on its way to Mamá.</H1>
       <div style={{ fontSize: 17, color: C.ink6, marginTop: -6 }}>We sent it by text message.</div>
       <Card tight style={{ width: "100%", textAlign: "left" }}>
-        <Kv k="Signed" v="On this phone, by fingerprint" />
-        <Kv k="Sent by" v="Text message" />
+        <Kv k="Sent" v="By text message" />
         <Kv k="Fee" v="$0.00" last />
       </Card>
       <Stack><Button>Done</Button></Stack>

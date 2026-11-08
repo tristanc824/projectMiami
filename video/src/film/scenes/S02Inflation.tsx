@@ -116,8 +116,8 @@ export const InflationBody = ({ f }: { f: number }) => {
   const lBuys = lineT(f, B(1), 1);
   const rBuys = lineT(f, B(1.5), 1);
   const rCard = settle(f, B(1));
-  const lTiles = hitIn(f, B(2));
-  const rTiles = hitIn(f, B(2.5));
+  const lTiles = tween(f, [-SC.inflation.swap, 2], [0, 1], EASE_OUT);
+  const rTiles = hitIn(f, B(1)); // v4.1: the right tiles arrive with their card (never an empty white card)
   const ticks = lineT(f, B(2));
   const foot = lineT(f, B(2));
   const month = lineT(f, B(3));
@@ -153,22 +153,19 @@ export const InflationBody = ({ f }: { f: number }) => {
           <div style={{ position: "absolute", left: LX, top: TITLE_Y }}>
             <Reveal t={lTitle}><div style={{ ...head(T.l), height: 50, display: "flex", alignItems: "center" }}>Kept in local currency</div></Reveal>
           </div>
-          {f < 0 ? (
-            <>
-              <div style={{ position: "absolute", left: PUSH_END.x - disc, top: PUSH_END.y - disc, width: disc * 2, height: disc * 2, borderRadius: "50%", background: C.moss, opacity: 1 - iris }} />
-              <div style={{ position: "absolute", left: LX, top: CARD.y, width: CARD.w, height: CARD.h, borderRadius: CARD.r, background: C.white, clipPath: `circle(${irisR.toFixed(1)}px at ${PUSH_END.x - LX}px ${PUSH_END.y - CARD.y}px)`, boxShadow: "0 1px 0 rgba(23,32,26,.04)" }} />
-            </>
-          ) : (
-            <div style={{ position: "absolute", left: LX, top: CARD.y, width: CARD.w, height: CARD.h, borderRadius: CARD.r, background: C.white, boxShadow: "0 1px 0 rgba(23,32,26,.04), 0 24px 48px -28px rgba(22,48,29,0.28)" }} />
-          )}
-          {Array.from({ length: 12 }, (_, i) => {
-            const p = tilePos(LX, i);
-            const k2 = ORDER.indexOf(i);
-            const d = k2 >= 0 ? DROP_AT[k2] : Infinity;
-            const g = f >= d - 1 ? tween(f, [d - 1, d + 9], [0, 1], (t) => t) : 0;
-            const dy = f >= d - 1 ? 10 * tween(f, [d - 1, d + 5], [0, 1], EASE_OUT) : 0;
-            return <Tile key={i} i={i} x={p.x} y={p.y} s={0.55 + 0.45 * lTiles} o={clamp01(lTiles * 3)} gone={g} dy={dy} />;
-          })}
+          {f < 0 ? <div style={{ position: "absolute", left: PUSH_END.x - disc, top: PUSH_END.y - disc, width: disc * 2, height: disc * 2, borderRadius: "50%", background: C.moss, opacity: 1 - iris }} /> : null}
+          {/* v4.1: the card opens with its 12 tiles already inside (no empty white card during the match cut). */}
+          <div style={{ position: "absolute", inset: 0, clipPath: f < 0 ? `circle(${irisR.toFixed(1)}px at ${PUSH_END.x}px ${PUSH_END.y}px)` : undefined }}>
+            <div style={{ position: "absolute", left: LX, top: CARD.y, width: CARD.w, height: CARD.h, borderRadius: CARD.r, background: C.white, boxShadow: f < 0 ? "0 1px 0 rgba(23,32,26,.04)" : "0 1px 0 rgba(23,32,26,.04), 0 24px 48px -28px rgba(22,48,29,0.28)" }} />
+            {Array.from({ length: 12 }, (_, i) => {
+              const p = tilePos(LX, i);
+              const k2 = ORDER.indexOf(i);
+              const d = k2 >= 0 ? DROP_AT[k2] : Infinity;
+              const g = f >= d - 1 ? tween(f, [d - 1, d + 9], [0, 1], (t) => t) : 0;
+              const dy = f >= d - 1 ? 10 * tween(f, [d - 1, d + 5], [0, 1], EASE_OUT) : 0;
+              return <Tile key={i} i={i} x={p.x} y={p.y} s={0.9 + 0.1 * lTiles} o={1} gone={g} dy={dy} />;
+            })}
+          </div>
           <div style={{ position: "absolute", left: LX, top: BUYS_Y }}>
             <Reveal t={lBuys}><div style={body(T.m)}>Groceries it still buys</div></Reveal>
           </div>
