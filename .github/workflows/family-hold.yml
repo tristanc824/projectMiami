@@ -76,8 +76,31 @@ jobs:
             }
             pin proc-macro-crate 3 3.1.0
             pin indexmap 2 2.2.6
+            # solana-program 1.18 uses blake3's `digest` feature; newer blake3 moved to digest 0.11,
+            # whose crypto-common 0.2 / hybrid-array 0.4 are edition 2024 (Cargo 1.75 cannot read them).
+            pin blake3 1 1.5.5
           fi
-          grep -A1 -E 'name = "(borsh|proc-macro-crate|toml_edit|hashbrown|indexmap)"' Cargo.lock
+          grep -A1 -E 'name = "(blake3|digest|crypto-common|proc-macro-crate|toml_edit|indexmap)"' Cargo.lock
+
+      - name: Every locked crate must build with Cargo/Rust 1.75
+        working-directory: programs/family_hold
+        run: |
+          cargo metadata --format-version 1 --locked > "$RUNNER_TEMP/meta.json"
+          # Edition 2024 needs Cargo 1.85; a rust-version above 1.75 fails in build-sbf.
+          bad=$(jq -r '.packages[]
+            | select(.edition == "2024"
+                or ((.rust_version // "0") | split(".") | map(tonumber) | (.[0] > 1 or (.[0] == 1 and .[1] > 75))))
+            | "\(.name)@\(.version) edition=\(.edition) rust-version=\(.rust_version)"' "$RUNNER_TEMP/meta.json")
+          if [ -n "$bad" ]; then
+            echo "These crates cannot build with Solana 1.18's Cargo/Rust 1.75:"
+            echo "$bad"
+            for spec in $(echo "$bad" | cut -d' ' -f1); do
+              echo "== $spec is pulled in by:"
+              cargo tree --locked -i "$spec" -e normal,build --target all | head -15 || true
+            done
+            exit 1
+          fi
+          echo "All $(jq '.packages | length' "$RUNNER_TEMP/meta.json") locked crates support Rust 1.75."
 
       - name: Type-check on the host
         working-directory: programs/family_hold
