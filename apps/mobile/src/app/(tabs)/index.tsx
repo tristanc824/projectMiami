@@ -24,7 +24,7 @@ export default function HomeScreen() {
   const { wallet, ready, storageWarning } = useWallet();
   const experience = useExperience();
   const live = useIsLive();
-  const { problem } = useLive();
+  const { problem, activityReady } = useLive();
   if (!experience.ready) return <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center' }}><ActivityIndicator color={colors.green} /></View>;
   if (!experience.hasEntered && !live) return <Redirect href="/sign-in" />;
   const [whole, fraction] = money(wallet.balanceCents).split('.');
@@ -32,7 +32,7 @@ export default function HomeScreen() {
   const pesos = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(wallet.balanceCents / 100 * DEMO_ARS_RATE);
   return <Screen>
     <View style={[t.between, { marginBottom: 22 }]}>
-      <Brand /><Pressable accessibilityRole="button" accessibilityLabel="Settings" onPress={() => router.push('/account')}><Avatar contact={{ id: 'ana', initials: 'AM' } as typeof contacts[number]} size={42} /></Pressable>
+      <Brand /><Pressable accessibilityRole="button" accessibilityLabel="Settings" onPress={() => router.push('/account')}><Avatar contact={{ id: 'self', initials: '' } as typeof contacts[number]} size={42} /></Pressable>
     </View>
     <View style={s.balanceCard}>
       <View style={t.between}><Text style={t.muted}>Balance</Text><Pill>{live ? 'Test dollars' : 'Demo account'}</Pill></View>
@@ -50,6 +50,8 @@ export default function HomeScreen() {
       <Action icon="add" label="Add" accessibilityLabel="Add money" onPress={() => router.push({ pathname: '/money', params: { mode: 'add' } })} />
       <Action icon="arrow-down" label="Receive" onPress={() => router.push('/request')} />
     </View>
+    <Pressable accessibilityRole="button" accessibilityLabel="Talk to Nest" onPress={() => router.push('/voice')} style={[t.card, { marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 12 }]}><Icon name="mic-outline" size={24} /><View style={{ flex: 1 }}><Text style={t.heading}>Talk to Nest</Text><Text style={t.muted}>Speak a payment. Review before sending.</Text></View><Icon name="chevron-forward" size={18} /></Pressable>
+    {live && !activityReady && !problem ? <Text testID="activity-loading" style={[t.muted, { marginBottom: 12 }]}>Loading recent payments…</Text> : null}
     <SectionHeader title="Activity" action="See all" onAction={() => router.push('/activity')} />
     <View style={[t.card, { paddingVertical: 4 }]}>{wallet.activity.length ? wallet.activity.slice(0, 3).map((item, i) => <View key={item.id}>{i ? <View style={t.divider} /> : null}<ActivityRow item={item} /></View>) : <View style={{ paddingVertical: 22, gap: 8 }}><Text style={[t.heading, { fontSize: 18 }]}>Your next chapter starts here.</Text><Text style={t.muted}>{live ? 'Payments you make in this browser or device will appear here.' : 'Add a few demo dollars to try your first payment.'}</Text></View>}</View>
     <Pressable accessibilityRole="button" accessibilityLabel="Explore dollar savings" onPress={() => router.push('/save')} style={({ pressed }) => [s.story, { opacity: pressed ? .8 : 1 }]}>

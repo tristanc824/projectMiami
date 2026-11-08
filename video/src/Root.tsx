@@ -10,7 +10,7 @@ const FPS = 30;
  */
 export const Root = () => (
   <>
-    <Composition id="NestVertical" component={EndCard} durationInFrames={53 * FPS} fps={FPS} width={1080} height={1920} />
-    <Composition id="NestWide" component={EndCard} durationInFrames={68 * FPS} fps={FPS} width={1920} height={1080} />
+    <Composition id="NestVertical" component={EndCard} defaultProps={{ publicUrl: '' }} durationInFrames={53 * FPS} fps={FPS} width={1080} height={1920} />
+    <Composition id="NestWide" component={EndCard} defaultProps={{ publicUrl: '' }} durationInFrames={68 * FPS} fps={FPS} width={1920} height={1080} />
   </>
 );

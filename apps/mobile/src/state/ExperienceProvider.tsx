@@ -3,7 +3,8 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 
 // This remembers the welcome screen only. It is never an authentication token
 // or a permission to move money; all wallet screens remain a local demo.
-const WELCOME_KEY = 'lazo:welcome:v1';
+// v2: accounts were reset on Nov 8, so every device starts from onboarding again.
+const WELCOME_KEY = 'lazo:welcome:v2';
 const ExperienceContext = createContext({ ready: false, hasEntered: false, enter: () => {} });
 
 export function ExperienceProvider({ children }: { children: ReactNode }) {

@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Keyboard, Pressable, View } from 'react-native';
 import { Text } from '../components/Text';
 import { AppleCashDemoConfirmation } from '../components/AppleCashDemoConfirmation';
@@ -7,7 +7,7 @@ import { AmountInput } from '../components/AmountInput';
 import { Button, DemoNote, Detail, Icon, Notice, Pill, Screen } from '../components/ui';
 import { reservedCents } from '../domain/savings';
 import { DEMO_ARS_RATE, MAX_DEMO_CENTS, money, parseAmount, type WithdrawalDestination } from '../domain/wallet';
-import { MAX_DEPOSIT_DOLLARS } from '../services/dat';
+import { MAX_DEPOSIT_DOLLARS, type FundingStatus } from '../services/dat';
 import { useLive } from '../state/live';
 import { useWallet } from '../state/WalletProvider';
 import { useColors } from '../theme';
@@ -29,12 +29,30 @@ export default function MoneyScreen() {
   const [error, setError] = useState('');
   const submitting = useRef(false);
   const reference = useRef<string | null>(null);
+  const referenceDraft = useRef('');
+  const getFundingStatus = live.getFundingStatus;
+  const [funding, setFunding] = useState<FundingStatus | null>(null);
+  const [fundingError, setFundingError] = useState('');
+  const [checkingFunding, setCheckingFunding] = useState(connected && adding);
+  const refreshFunding = useCallback(async () => {
+    setCheckingFunding(true); setFundingError('');
+    try { setFunding(await getFundingStatus()); }
+    catch { setFunding(null); setFundingError('Could not check test funding. Try again before adding money.'); }
+    finally { setCheckingFunding(false); }
+  }, [getFundingStatus]);
+  useEffect(() => {
+    if (!connected || !adding) return;
+    let active = true;
+    void getFundingStatus().then(value => { if (active) { setFunding(value); setFundingError(''); } }).catch(() => { if (active) setFundingError('Could not check test funding. Try again before adding money.'); }).finally(() => { if (active) setCheckingFunding(false); });
+    return () => { active = false; };
+  }, [connected, adding, getFundingStatus]);
+  const depositCap = funding?.maxDepositDollars ?? MAX_DEPOSIT_DOLLARS;
   const cents = parseAmount(amount);
   const fee = adding || connected ? 0 : 50;
   const available = wallet.balanceCents - (connected ? 0 : reservedCents(wallet.savings));
   const withdrawable = Math.min(MAX_DEMO_CENTS, Math.max(0, available - fee));
-  const wholeDollars = cents !== null && cents % 100 === 0 && cents / 100 <= MAX_DEPOSIT_DOLLARS;
-  const valid = !needsSignIn && ready && cents !== null && (adding ? !connected || wholeDollars : cents + fee <= available);
+  const wholeDollars = cents !== null && cents % 100 === 0 && cents / 100 <= depositCap;
+  const valid = !needsSignIn && ready && cents !== null && (adding ? !connected || wholeDollars && !!funding && cents / 100 <= funding.availableDollars && !checkingFunding : cents + fee <= available);
   const destinationName = destination === 'apple-cash' ? 'Apple Cash' : 'Bank account';
   const primaryTitle = review ? connected ? adding ? 'Add money' : 'Confirm test cash-out' : adding ? 'Confirm demo top-up' : 'Confirm demo withdrawal' : 'Review details';
   const complete = async () => {
@@ -42,16 +60,19 @@ export default function MoneyScreen() {
     Keyboard.dismiss(); submitting.current = true; setBusy(true); setError('');
     try {
       let id: string;
+      const paymentDraft = JSON.stringify([adding, cents, destination]);
+      if (referenceDraft.current !== paymentDraft) { reference.current = null; referenceDraft.current = paymentDraft; }
+      reference.current ??= `${connected ? 'payment' : 'demo'}-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
       if (connected) {
-        id = adding ? await live.deposit(cents / 100) : await live.cashOut(cents, destination);
+        id = adding ? await live.deposit(cents / 100, reference.current) : await live.cashOut(cents, destination, reference.current);
       } else {
         reference.current ??= `demo-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
         id = execute({ id: reference.current, kind: adding ? 'add' : 'withdraw', amountCents: cents, ...(adding ? {} : { withdrawalDestination: destination }), createdAt: new Date().toISOString(), note: adding ? 'Simulated funding · no card charged' : `Simulated withdrawal to ${destinationName} · no payout made` });
       }
-      router.replace({ pathname: '/receipt', params: { id, ...(appleCashDemo ? { animation: 'apple-cash', ...(!connected ? { demo: '1' } : {}) } : {}) } });
+      router.replace({ pathname: '/receipt', params: { id, celebrate: '1', ...(appleCashDemo ? { animation: 'apple-cash', ...(!connected ? { demo: '1' } : {}) } : {}) } });
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'Please try again.'); submitting.current = false; setBusy(false); }
   };
-  return <Screen back title={adding ? 'Add money' : 'Withdraw'} subtitle={adding ? 'A little more possibility.' : 'Choose where your money goes.'} footer={<>
+  return <Screen scrollResetKey={review ? 'review' : 'amount'} back title={adding ? 'Add money' : 'Withdraw'} subtitle={adding ? 'A little more possibility.' : 'Choose where your money goes.'} footer={<>
     <Button title={primaryTitle} loading={busy} disabled={!valid} onPress={() => { if (review) { if (appleCashDemo) setConfirmAppleCash(true); else void complete(); } else { Keyboard.dismiss(); setError(''); setReview(true); } }} />
     {review ? <Button title="Edit amount" variant="secondary" style={{ marginTop: 8 }} disabled={busy} onPress={() => { setReview(false); setError(''); }} /> : null}<DemoNote compact />
   </>}>
@@ -63,15 +84,17 @@ export default function MoneyScreen() {
       </Pressable>)}
     </View>}
     {appleCashDemo && ready && !needsSignIn && withdrawable === 0 && !review ? <View style={{ gap: 10, marginBottom: 14 }}><Text style={t.muted}>Add money to your Nest account to make a withdrawal.</Text><Button title="Add money" variant="secondary" onPress={() => router.push({ pathname: '/money', params: { mode: 'add' } })} /></View> : null}
-    {needsSignIn ? <View style={{ gap: 12, marginBottom: 16 }}><Notice>Sign in to your connected wallet to withdraw from your account balance.</Notice><Button title="Sign in" onPress={() => router.push('/sign-in')} /></View> : null}
+    {needsSignIn ? <View style={{ gap: 12, marginBottom: 16 }}><Notice>{adding ? 'Sign in to your connected wallet to add test dollars.' : 'Sign in to your connected wallet to withdraw from your account balance.'}</Notice><Button title="Sign in" onPress={() => router.push('/sign-in')} /></View> : null}
     {review && cents ? <View style={[t.card, { marginVertical: 22 }]}>
       {!adding ? <Detail label="Destination" value={destinationName} strong /> : null}<Detail label={adding ? 'Add to your balance' : 'Withdrawal amount'} value={money(cents)} /><Detail label={connected ? 'Network fee' : 'Example fee'} value={connected ? 'Paid by Nest' : money(fee)} />
       {!adding && destination === 'bank' && !connected ? <><Detail label="Example exchange rate" value={`1 dollar = ${DEMO_ARS_RATE} ARS`} /><Detail label="Illustrative local amount" value={`${money(Math.round(cents * DEMO_ARS_RATE), 'ARS')} ARS`} /></> : null}
       {!adding ? <Detail label="Payout status" value="Not connected · preview only" /> : null}<View style={t.divider} /><Detail strong label="Account balance after" value={money(adding ? wallet.balanceCents + cents : wallet.balanceCents - cents - fee)} />
     </View> : <AmountInput demo={!connected} compact={!adding} value={amount} onChange={value => { setAmount(value); setError(''); }} detail={!adding ? <View style={{ alignItems: 'center', marginTop: 8 }}><Text style={t.muted}>{ready && !needsSignIn ? `${money(withdrawable)} available to withdraw` : 'Waiting for your account balance…'}</Text><Pressable accessibilityRole="button" accessibilityLabel="Use available balance" disabled={!ready || needsSignIn || withdrawable === 0 || busy} onPress={() => setAmount((withdrawable / 100).toFixed(2))} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: colors.green, fontSize: 14, fontWeight: '500' }}>Use available balance</Text></Pressable></View> : undefined} />}
-    <Notice>{adding ? connected ? `Uses a Stripe test card. Test dollars arrive on devnet. Whole dollars, up to $${MAX_DEPOSIT_DOLLARS}.` : 'Preview only. No card is charged.' : destination === 'apple-cash' ? connected ? 'Uses your Nest account balance. Confirming returns test dollars to the demo treasury on Solana devnet. The Apple Cash payout is simulated; no money arrives in Apple Cash.' : 'Uses your Nest demo account balance. The amount and example fee are deducted from that balance. No real money arrives in Apple Cash.' : connected ? 'Confirming sends test dollars to the demo treasury. No money arrives in a bank account.' : 'Bank withdrawal demo only. The fee and exchange rate are examples; no bank payout is made.'}</Notice>
-    {adding && connected && cents !== null && !wholeDollars ? <View style={{ marginTop: 12 }}><Notice error>Choose a whole-dollar amount from $1 to ${MAX_DEPOSIT_DOLLARS}.</Notice></View> : null}
+    <Notice>{adding ? connected ? `Uses a Stripe test card. Test dollars arrive on devnet. Whole dollars, up to $${depositCap}.` : 'Preview only. No card is charged.' : destination === 'apple-cash' ? connected ? 'Uses your Nest account balance. Confirming returns test dollars to the demo treasury on Solana devnet. The Apple Cash payout is simulated; no money arrives in Apple Cash.' : 'Uses your Nest demo account balance. The amount and example fee are deducted from that balance. No real money arrives in Apple Cash.' : connected ? 'Confirming sends test dollars to the demo treasury. No money arrives in a bank account.' : 'Bank withdrawal demo only. The fee and exchange rate are examples; no bank payout is made.'}</Notice>
+    {adding && connected && cents !== null && !wholeDollars ? <View style={{ marginTop: 12 }}><Notice error>Choose a whole-dollar amount from $1 to ${depositCap}.</Notice></View> : null}
     {!adding && ready && !needsSignIn && cents !== null && !valid ? <View style={{ marginTop: 12 }}><Notice error>{connected ? 'This is more than your available balance.' : 'Your available demo balance must cover the amount and $0.50 example fee. Money in savings goals stays set aside.'}</Notice></View> : null}
+    {adding && connected && (fundingError || funding && cents !== null && cents / 100 > funding.availableDollars) ? <View style={{ marginTop: 12, gap: 12 }}><Notice error>{fundingError || `Only $${funding!.availableDollars} in test funding is available right now. No card payment has been started. The demo team needs to replenish funding for larger amounts.`}</Notice><Button title="Refresh test funding" loading={checkingFunding} variant="secondary" onPress={() => { void refreshFunding(); }} /></View> : null}
+    {adding && connected && checkingFunding ? <Text style={[t.muted, { marginTop: 12 }]}>Checking test funding…</Text> : null}
     {error ? <View style={{ marginTop: 12 }}><Notice error>{error}</Notice></View> : null}
   </Screen>;
 }

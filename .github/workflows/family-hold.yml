@@ -3,7 +3,7 @@
 # Deploy: Actions tab -> "Family hold" -> Run workflow -> deploy = true. It needs two repository
 # secrets, added in Settings -> Secrets and variables -> Actions:
 #   SOLANA_DEPLOYER_KEYPAIR      a devnet keypair (the JSON array) with about 3 devnet SOL
-#   FAMILY_HOLD_PROGRAM_KEYPAIR  the contents of hold/keys/program.json (program id 7NKeo...)
+#   FAMILY_HOLD_PROGRAM_KEYPAIR  the contents of hold/keys/program.json (must match declare_id!)
 # Before deploying for real, set POLICY_AUTHORITY in programs/family_hold/src/lib.rs to your server's key.
 name: Family hold
 

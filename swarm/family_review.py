@@ -8,6 +8,10 @@ holds USDC, and it does not settle the product decisions that remain open.
 from __future__ import annotations
 
 import argparse
+try:
+    from .network import timeout as request_timeout
+except ImportError:  # direct CLI execution
+    from network import timeout as request_timeout
 import hashlib
 import json
 import os
@@ -645,7 +649,7 @@ def request_json(url: str, api_key: str, body: dict[str, Any] | None = None) -> 
         method="GET" if data is None else "POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=120) as response:
+        with urllib.request.urlopen(request, timeout=request_timeout(65)) as response:
             result = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as error:
         if error.code in (401, 403):

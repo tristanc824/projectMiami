@@ -1,0 +1,45 @@
+{
+  "run": "8a751f65-f501-4043-9efe-543e486eb266",
+  "cluster": "devnet",
+  "date": "2026-11-08T14:17:24.991Z",
+  "sender": "2jhwRJN9wWfWMnQGyKKfPvCKtk3mv9BGMrEHVKSZ9EeV",
+  "recipient": "7unzsmGPR4ngStY2EGm25DaXQ7pWRVpHmUbopCzRmXEZ",
+  "state": "7FhnKrS9cZuxtHCvEptnPayLChE4s8sQNnVbsknE72gG",
+  "amountUSDC": "0.01",
+  "review": "Server-signed integration fixture; live model review is verified separately.",
+  "fundDemoWallet": {
+    "signature": "3kUbgA2vjJkJfX99vJbvTbG8q5xFnySuu6ZF2PgjBsFzJMK2X8RXtYzVCaKsQH4b8ZLUm6pkiKUkJpwRGLAUM3qr",
+    "explorer": "https://explorer.solana.com/tx/3kUbgA2vjJkJfX99vJbvTbG8q5xFnySuu6ZF2PgjBsFzJMK2X8RXtYzVCaKsQH4b8ZLUm6pkiKUkJpwRGLAUM3qr?cluster=devnet"
+  },
+  "deposit": {
+    "signature": "2NPt2FQgQJTZxovYC8DfKFLJhVEEamqAY2ki7V2j5rakn14RMYqHY2BffnHzWwLiY5jCrCscPsHt4Uxno6zfxzAb",
+    "explorer": "https://explorer.solana.com/tx/2NPt2FQgQJTZxovYC8DfKFLJhVEEamqAY2ki7V2j5rakn14RMYqHY2BffnHzWwLiY5jCrCscPsHt4Uxno6zfxzAb?cluster=devnet"
+  },
+  "earlyNormalReleaseRejected": 8,
+  "wrongPinRejected": 3,
+  "refund": {
+    "signature": "4hck3CCxKpxas5XQnwAHZuFEWUbBjEHcajTVRjPAXfwLiYUiLCWDeanvUhAYZoG5aFsDQJpCvdX5ZnwxWbYygyvm",
+    "explorer": "https://explorer.solana.com/tx/4hck3CCxKpxas5XQnwAHZuFEWUbBjEHcajTVRjPAXfwLiYUiLCWDeanvUhAYZoG5aFsDQJpCvdX5ZnwxWbYygyvm?cluster=devnet"
+  },
+  "fullRefundVerified": true,
+  "overrideDeposit": {
+    "signature": "5f2hE1xkVvnt7GXwJ7vz9YkYiGBVivecv3Q8mKt13WmvArZfRnycfor9X6HkuqvzzHngQUpUw2uW8XVNs3cFSP4S",
+    "explorer": "https://explorer.solana.com/tx/5f2hE1xkVvnt7GXwJ7vz9YkYiGBVivecv3Q8mKt13WmvArZfRnycfor9X6HkuqvzzHngQUpUw2uW8XVNs3cFSP4S?cluster=devnet"
+  },
+  "earlyOverride": {
+    "signature": "3rPUbG99UHyyonoLw36XF2TQw4hcwRNRBc1bTCXWLNn2k4x1DQYoPHe82So23TtmkizcfY7CdgJz5a1SDejunvX2",
+    "explorer": "https://explorer.solana.com/tx/3rPUbG99UHyyonoLw36XF2TQw4hcwRNRBc1bTCXWLNn2k4x1DQYoPHe82So23TtmkizcfY7CdgJz5a1SDejunvX2?cluster=devnet"
+  },
+  "correctRecipientVerified": true,
+  "returnTestUSDC": {
+    "signature": "5RAA5MHUWounDUWKmp7owxQvi1VN13UUMh8RL3pgyqnc1Hu3BPLgf5sjeJ9idjP9VD5F26AHA74vY5wgStdxQtvJ",
+    "explorer": "https://explorer.solana.com/tx/5RAA5MHUWounDUWKmp7owxQvi1VN13UUMh8RL3pgyqnc1Hu3BPLgf5sjeJ9idjP9VD5F26AHA74vY5wgStdxQtvJ?cluster=devnet"
+  },
+  "treasuryTestUSDCUnchanged": true,
+  "deployment": {
+    "signature": "5ws4kcWvDr4Mhibq9yG7ikxAbzzDgMDkrpJXjHitvMHCotsmVt3wDQNW1og21aiCzWXJcZkeoPZtCQmaRRFGuLen",
+    "explorer": "https://explorer.solana.com/tx/5ws4kcWvDr4Mhibq9yG7ikxAbzzDgMDkrpJXjHitvMHCotsmVt3wDQNW1og21aiCzWXJcZkeoPZtCQmaRRFGuLen?cluster=devnet",
+    "programId": "5ZucuntpueZMRDBEs31gL3HrUpZ13NZRahu7T9rLWzv6",
+    "verifiedExecutable": true
+  }
+}

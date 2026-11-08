@@ -1,0 +1,69 @@
+--- a/video/src/film/scenes/S10Undo.tsx
++++ b/video/src/film/scenes/S10Undo.tsx
+@@ -66,19 +66,20 @@
+   const lblIn = (i: number) => lineT(f, -SC.undo.swap, i);
+   return (
+     <AbsoluteFill style={{ fontFamily: FONT }}>
++      <div style={{ position: 'absolute', top: 24, left: 24, zIndex: 100, padding: '12px 22px', background: '#fff7df', color: '#563d11', borderRadius: 18, fontSize: 26 }}>Design preview · Safe Hold is not deployed to devnet</div>
+       <Cam z={lerp(0.8, 1, inT) * (1 + 4 * go)} ox={RING.x} oy={RING.y} blur={(1 - inT) * 10 + go * 8}>
+         <Drift f={f}>
+           <DotGrid glow={k.glow} />
+           {/* headline */}
+           <div style={{ position: "absolute", left: 0, right: 0, top: HEAD_Y, display: "flex", justifyContent: "center" }}>
+-            <Reveal t={lineT(f, -SC.undo.swap)} out={lineOut(f, L(HIT.undone) - 2)}><div style={head(T.l)}>You have 24 hours to undo this.</div></Reveal>
++            <Reveal t={lineT(f, -SC.undo.swap)} out={lineOut(f, L(HIT.undone) - 2)}><div style={head(T.l)}>More time to check a flagged payment.</div></Reveal>
+           </div>
+           <div style={{ position: "absolute", left: 0, right: 0, top: HEAD_Y, display: "flex", justifyContent: "center" }}>
+             <Reveal t={lineT(f, L(HIT.undone))}><div style={head(T.l, C.moss)}>Undone. Your $500 is back.</div></Reveal>
+           </div>
+           {/* test viewers: "what if they spend it before I undo?" */}
+           <div style={{ position: "absolute", left: 0, right: 0, top: NOTE_Y, display: "flex", justifyContent: "center" }}>
+-            <Reveal t={lineT(f, L(HIT.waitNote))} out={lineOut(f, L(HIT.undone) - 2)}><div style={body(T.m, C.ink6)}>First payments to someone new wait 24 hours.</div></Reveal>
++            <Reveal t={lineT(f, L(HIT.waitNote))} out={lineOut(f, L(HIT.undone) - 2)}><div style={body(T.m, C.ink6)}>A flagged payment can wait in a 24-hour Safe Hold.</div></Reveal>
+           </div>
+           <svg width={1920} height={1080} style={{ position: "absolute", inset: 0, overflow: "visible" }}>
+             <path d={qpath(NEW, ARC_C, YOU)} fill="none" stroke={C.ink} strokeOpacity={0.3} strokeWidth={4} strokeLinecap="round" strokeDasharray="0.1 16" opacity={lblIn(0)} />
+@@ -126,7 +127,7 @@
+           {btn > 0.001 && btnOut < 1 ? (
+             <div style={{ position: "absolute", left: CX - 320, top: BTN_Y, width: 640, height: 96, transform: `translateY(${(btnOut * 40).toFixed(1)}px) scale(${(0.9 + 0.1 * btn) * (1 - press * 0.04)})`, opacity: clamp01(btn * 3) * (1 - btnOut) }}>
+               <div style={{ position: "absolute", inset: 0, borderRadius: 999, background: C.ink, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 16, fontSize: T.m, fontWeight: 600, letterSpacing: "-0.02em", boxShadow: "0 18px 40px -18px rgba(22,48,29,0.6)" }}>
+-                <IcUndo size={36} />Undo and get $500 back
++                <IcUndo size={36} />Preview: undo a held payment
+               </div>
+               <Tap x={320} y={48} t={f - L(HIT.undoTap)} size={110} color="255,255,255" />
+             </div>
+--- a/video/src/film/scenes/S11Security.tsx
++++ b/video/src/film/scenes/S11Security.tsx
+@@ -29,9 +29,9 @@
+ const LAND = [L(HIT.card1), L(HIT.card2), L(HIT.card3)];
+ const FX = [L(HIT.card1Fx), L(HIT.card2Fx), L(HIT.card3Fx)];
+ const CARDS = [
+-  { title: "Only you approve payments", sub: "With your fingerprint or PIN." },
+-  { title: "Lock Nest", sub: "Stops all sends until you unlock." },
+-  { title: "Trusted contact", sub: "Mamá can help you get back in." },
++  { title: "Only you approve payments", sub: "With fingerprint, face or PIN." },
++  { title: "Lock Nest", sub: "Stops outgoing Nest payments." },
++  { title: "Trusted contact", sub: "Saved contact. Recovery is not connected." },
+ ];
+ 
+ const FingerprintVisual = ({ t, fx }: { t: number; fx: number }) => {
+@@ -76,7 +76,7 @@
+         <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: C.ink4 }}><NestMark size={15} color={C.moss} />Nest</div>
+         <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 7 }}>
+           <Avatar who="ana" size={30} />
+-          <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.25, letterSpacing: "-0.01em" }}>Ana made you her trusted contact.</div>
++          <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.25, letterSpacing: "-0.01em" }}>Recovery is not connected yet.</div>
+         </div>
+       </div>
+     </div>
+--- a/video/src/film/scenes/S12Close.tsx
++++ b/video/src/film/scenes/S12Close.tsx
+@@ -167,7 +167,7 @@
+       ) : null}
+       <div style={{ position: "absolute", left: 0, right: 0, top: TAG_TOP, display: "flex", flexDirection: "column", alignItems: "center", fontFamily: FONT, color: "#fff", textShadow: "0 2px 28px rgba(10,22,14,0.35)" }}>
+         <Reveal t={lineT(f, L(HIT.hero), 0, 10)}><div style={{ fontSize: 100, fontWeight: 600, letterSpacing: "-0.045em", lineHeight: 1.1, whiteSpace: "nowrap" }}>Protect what matters.</div></Reveal>
+-        {END_URL ? <Reveal t={lineT(f, L(HIT.hero), 1)} style={{ marginTop: 26 }}><div style={{ fontSize: 44, fontWeight: 500, letterSpacing: "-0.015em", opacity: 0.92 }}>{END_URL}</div></Reveal> : null}
++        <Reveal t={lineT(f, L(HIT.hero), 1)} style={{ marginTop: 26 }}><div style={{ fontSize: 44, fontWeight: 500, letterSpacing: "-0.015em", opacity: 0.92 }}>{END_URL || 'Live demo at the Nest table'}</div></Reveal>
+       </div>
+       <div style={{ position: "absolute", left: 0, right: 0, top: DISC_TOP, display: "flex", justifyContent: "center", fontFamily: FONT }}>
+         <Reveal t={lineT(f, L(HIT.word2) + 4)}>

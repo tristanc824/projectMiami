@@ -1,10 +1,11 @@
+import { requirePaymentUser } from '@/lib/server/paymentAuth';
 import { PublicKey } from '@solana/web3.js';
-import { fail, json, requireUser, route } from '@/lib/server/http';
+import { fail, json, route } from '@/lib/server/http';
 import { prepareTransfer, treasury, usdcBalance } from '@/lib/server/solana.mjs';
 import { toBaseUnits } from '@/lib/money.mjs';
 
 export const POST = route(async (req: Request) => {
-  const me = await requireUser(req);
+  const me = await requirePaymentUser(req);
   if (me instanceof Response) return me;
   const body = await req.json();
   const amount = toBaseUnits(body.amount);

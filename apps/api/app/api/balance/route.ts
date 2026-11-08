@@ -10,5 +10,6 @@ export const GET = route(async (req: Request) => {
   } catch {
     return fail('Invalid address');
   }
-  return json({ balance: Number(await usdcBalance(owner)) / 1e6 });
+  const units = await usdcBalance(owner);
+  return json({ balance: Number(units) / 1e6, balanceCents: Number(units / 10_000n) });
 });

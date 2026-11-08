@@ -6,8 +6,8 @@ const display = Bricolage_Grotesque({ subsets: ['latin'], variable: '--font-disp
 const body = Instrument_Sans({ subsets: ['latin'], variable: '--font-body' });
 
 export const metadata: Metadata = {
-  title: 'DAT',
-  description: 'Digital dollars you hold yourself. Send them to any phone number.',
+  title: 'Nest API',
+  description: 'Backend for the Nest Solana devnet demonstration.',
 };
 export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#F4F1E8' };
 

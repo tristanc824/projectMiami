@@ -1,5 +1,11 @@
 //! A locked family transfer.
 //!
+//! Nest's sender-controlled mode uses sender == approver. Normal release still waits
+//! for release_after. Instruction 3 is a separate, explicit early override, allowed
+//! only for these self-approved holds. Both paths require a fresh sender signature
+//! and the release PIN. Cancellation remains available without the PIN.
+//! The older separate-approver mode is retained; it cannot use instruction 3.
+//!
 //! Deposit moves USDC into a vault and stores a hash of a 6-digit PIN.
 //! Refund sends it back and only the sender may call it. The sender does not
 //! need the PIN. Release sends it to the recipient and requires both the
@@ -48,15 +54,17 @@ use spl_token::{
 
 entrypoint!(process_instruction);
 
-solana_program::declare_id!("7NKeoXoNEgW11tgZKV18PPdktQyFHtYQ4CxJA2ffyC6g");
+solana_program::declare_id!("5ZucuntpueZMRDBEs31gL3HrUpZ13NZRahu7T9rLWzv6");
 
 /// The review server's key. It co-signs every deposit shorter than MIN_SAFE_HOLD_SECONDS.
 /// Its secret lives in hold/keys/policy-authority.json (never committed) and belongs on the server.
-const POLICY_AUTHORITY: Pubkey = solana_program::pubkey!("GFYKxxnMQkBP8m1rx18xd1h1fwy6RDpADK9R5KJoREDF");
+const POLICY_AUTHORITY: Pubkey = solana_program::pubkey!("77m7HCt9N6VBCRiJi3WUUeL2QFbMtKmt9mdv6KbyYCCb");
 
 const DEPOSIT: u8 = 0;
 const REFUND: u8 = 1;
 const RELEASE: u8 = 2;
+// Explicit sender override for self-approved holds; never the default release path.
+const RELEASE_EARLY: u8 = 3;
 const STATE_SIZE: usize = 243;
 const TAG: usize = 0;
 const SENDER: usize = 1;
@@ -104,7 +112,8 @@ fn process_instruction(
     match *tag {
         DEPOSIT => deposit(program_id, accounts, rest),
         REFUND => refund(program_id, accounts),
-        RELEASE => release(program_id, accounts, rest),
+        RELEASE => release(program_id, accounts, rest, false),
+        RELEASE_EARLY => release(program_id, accounts, rest, true),
         _ => Err(ProgramError::Custom(BAD_INSTRUCTION)),
     }
 }
@@ -150,7 +159,7 @@ fn deposit(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Progra
 
     require_signer(fee_payer)?;
     require_signer(sender)?;
-    if sender.key == approver.key || approver.key == recipient.key {
+    if approver.key == recipient.key {
         return Err(ProgramError::Custom(SAME_PERSON));
     }
     if hold_seconds < MIN_SAFE_HOLD_SECONDS {
@@ -288,7 +297,7 @@ fn refund(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     move_and_close(program_id, hold, state, vault, sender_token, mint, sender, token_program)
 }
 
-fn release(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
+fn release(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8], early_override: bool) -> ProgramResult {
     if data.len() != 6 || !data.iter().all(|byte| byte.is_ascii_digit()) {
         return Err(ProgramError::Custom(WRONG_PIN));
     }
@@ -310,9 +319,12 @@ fn release(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Progra
     if hold.approver != *approver.key {
         return Err(ProgramError::Custom(WRONG_APPROVER));
     }
+    if early_override && hold.approver != hold.sender {
+        return Err(ProgramError::Custom(WRONG_APPROVER));
+    }
     if hold.flags & FLAG_SAFE_HOLD != 0 {
         // Safe Hold: the cooling-off must be over, and the sender confirms again.
-        if Clock::get()?.unix_timestamp < hold.release_after {
+        if !early_override && Clock::get()?.unix_timestamp < hold.release_after {
             return Err(ProgramError::Custom(TOO_EARLY));
         }
         require_signer(sender)?;

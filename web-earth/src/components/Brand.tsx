@@ -36,9 +36,9 @@ function Orbit({ className, rotate = -18 }: { className?: string; rotate?: numbe
 /* ---------- Stories: a row of tall cards you can swipe ---------- */
 
 const STORIES = [
-  { img: "/photos/selfie.jpg", tag: "Send home", title: "Mom gets it in about a second.", pos: "50% 35%" },
+  { img: "/photos/selfie.jpg", tag: "Send home", title: "Send to a phone number.", pos: "50% 35%" },
   { img: "/photos/market-pair.jpg", tag: "Dollar savings", title: "Your savings stay in US dollars.", pos: "35% 30%" },
-  { img: "/photos/kitchen.jpg", tag: "Undo", title: "Undo a scam payment within 24 hours.", pos: "60% 30%" },
+  { img: "/photos/kitchen.jpg", tag: "Live on devnet", title: "24-hour Safe Holds for flagged payments.", pos: "60% 30%" },
   { img: "/photos/friends.jpg", tag: "No fees", title: "Split dinner without paying a fee.", pos: "50% 55%" },
   { img: "/photos/phone.jpg", tag: "Independent", title: "Take your account with you when you move.", pos: "45% 40%" },
   { img: "/photos/market.jpg", tag: "No Wi-Fi", title: "Send money with no Wi-Fi.", pos: "50% 30%" },
@@ -78,7 +78,7 @@ const MOMENTS: Moment[] = [
   { img: "/photos/hero.jpg", alt: "A couple laughing together in a sunlit field.", tag: "24/7", title: "Send money on a Sunday night.", shape: "egg", pos: "50% 30%", orbit: "left" },
   { img: "/photos/market.jpg", alt: "A woman at a market stall holding bananas.", tag: "No transaction fees", title: "Every dollar you send gets there.", shape: "pebble", pos: "50% 30%" },
   { img: "/photos/laugh.jpg", alt: "A woman laughing with friends outdoors.", tag: "Independent", title: "Your savings aren't tied to one country's banks.", shape: "pebble", pos: "50% 25%" },
-  { img: "/photos/dinner.jpg", alt: "Friends laughing over dinner.", tag: "Undo", title: "Pay someone new and you have a day to undo it.", shape: "egg", pos: "55% 50%", orbit: "right" },
+  { img: "/photos/dinner.jpg", alt: "Friends laughing over dinner.", tag: "Safe Hold", title: "More time to check an unfamiliar payment.", shape: "egg", pos: "55% 50%", orbit: "right" },
 ];
 
 function MomentCard({ m, className }: { m: Moment; className?: string }) {
@@ -235,10 +235,10 @@ export function Footer() {
         ))}
       </div>
       <p className="mt-8 max-w-[96ch] text-[12px] leading-[1.7] text-ink-400">
-        Balances are held as USDC, a US dollar stablecoin issued by Circle. USDC is not a bank deposit and is not FDIC insured. Circle can freeze tokens in some cases. Undo covers the first payment to a new recipient, for 24 hours. The US dollar also loses value to inflation, usually far less than many local currencies.
+        Balances are held as USDC, a US dollar stablecoin issued by Circle. USDC is not a bank deposit and is not FDIC insured. Circle can freeze tokens in some cases. Safe Hold deposits and Undo refunds are verified on devnet. Completed instant payments cannot be undone. The US dollar also loses value to inflation, usually far less than many local currencies.
       </p>
       <p className="mt-4 max-w-[96ch] text-[12px] leading-[1.7] text-ink-400">
-        Nest is a financial technology company, not a bank. Licensed partners handle cash-out to local currency where available.
+        Nest is a hackathon prototype, not a bank. This demo uses test USDC on Solana devnet. Bank payouts and card spending are not connected.
       </p>
       <div className="mt-8 flex flex-wrap items-center justify-between gap-4 text-[13px] text-ink-400">
         <span>© 2026 Nest</span>

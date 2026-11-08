@@ -41,9 +41,9 @@ import { fileURLToPath, pathToFileURL } from "url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const KEYS = join(HERE, "keys");
-export const PROGRAM_ID = new PublicKey("7NKeoXoNEgW11tgZKV18PPdktQyFHtYQ4CxJA2ffyC6g");
+export const PROGRAM_ID = new PublicKey("5ZucuntpueZMRDBEs31gL3HrUpZ13NZRahu7T9rLWzv6");
 // Must match POLICY_AUTHORITY in programs/family_hold/src/lib.rs.
-export const POLICY_AUTHORITY = new PublicKey(process.env.POLICY_AUTHORITY || "GFYKxxnMQkBP8m1rx18xd1h1fwy6RDpADK9R5KJoREDF");
+export const POLICY_AUTHORITY = new PublicKey(process.env.POLICY_AUTHORITY || "77m7HCt9N6VBCRiJi3WUUeL2QFbMtKmt9mdv6KbyYCCb");
 const RPC = process.env.SOLANA_RPC || "https://api.devnet.solana.com";
 const DECIMALS = 6;
 

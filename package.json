@@ -11,6 +11,11 @@
     "build:web-app": "node scripts/build-web-app.mjs",
     "build:website": "npm run build:web-app && npm --prefix web-earth run build",
     "website:preview": "npm --prefix web-earth run preview",
-    "test:website": "node scripts/test-website.mjs"
+    "test:website": "node scripts/test-website.mjs",
+    "demo:check": "node scripts/check-demo.mjs",
+    "review": "node scripts/run-review.mjs",
+    "review:check": "node scripts/run-review.mjs --check",
+    "review:check:live": "node scripts/run-review.mjs --check --live",
+    "test:review": "python3 -m unittest discover -s tests -v"
   }
 }

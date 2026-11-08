@@ -11,6 +11,8 @@ signs or sends funds. See FAMILY_REVIEW.md for the contract.
 from __future__ import annotations
 
 import argparse
+import contextvars
+import time
 import hmac
 import json
 import os
@@ -25,7 +27,7 @@ from decimal import Decimal
 from typing import Any
 from urllib.parse import urlparse
 
-from swarm import family_review
+from swarm import family_review, network
 from swarm.prune_gate import GateStop, clean_request, seal_sentence
 
 MAX_BODY_BYTES = 32_000
@@ -421,22 +423,33 @@ def scam_patterns(*texts: str) -> list[str]:
 # The last case this server reviewed. The Watchdog compares each new request with it,
 # so an amount or relationship that changes between reviews is noticed. A tab cannot
 # hide a change by editing what it sends: the memory lives here, not in the browser.
-_last_reviewed: dict[str, Any] | None = None
+_review_session = contextvars.ContextVar('review_session', default='legacy')
+_last_reviews: dict[str, tuple[float, dict[str, Any]]] = {}
 _last_lock = threading.Lock()
 
 
 def remember(case: dict[str, Any] | None) -> None:
-    global _last_reviewed
+    session = _review_session.get()
     with _last_lock:
-        _last_reviewed = None if case is None else {
-            "amount_usdc": case.get("amount_usdc"),
-            "relationship_verified": case.get("relationship_verified"),
-        }
+        if case is None:
+            _last_reviews.pop(session, None)
+            return
+        now = time.monotonic()
+        for key, (updated, _) in list(_last_reviews.items()):
+            if now - updated > 1800:
+                del _last_reviews[key]
+        if len(_last_reviews) >= 2000 and session not in _last_reviews:
+            del _last_reviews[min(_last_reviews, key=lambda key: _last_reviews[key][0])]
+        _last_reviews[session] = (now, {
+            'amount_usdc': case.get('amount_usdc'),
+            'relationship_verified': case.get('relationship_verified'),
+        })
 
 
 def last_reviewed() -> dict[str, Any] | None:
     with _last_lock:
-        return None if _last_reviewed is None else dict(_last_reviewed)
+        saved = _last_reviews.get(_review_session.get())
+        return dict(saved[1]) if saved and time.monotonic() - saved[0] < 1800 else None
 
 NEGATION = re.compile(
     r"\b(?:not|never|no|isn'?t|unverified|unknown|unconfirmed|nunca|sin|todavía no|aún no)\b",
@@ -749,7 +762,7 @@ def plain_language_summary(
 
 SOLANA_RPC = os.environ.get("SOLANA_RPC", "https://api.devnet.solana.com")
 HOLD_STATE_SIZE = 243  # programs/family_hold/src/lib.rs
-HOLD_PROGRAM_ID = os.environ.get("HOLD_PROGRAM_ID", "7NKeoXoNEgW11tgZKV18PPdktQyFHtYQ4CxJA2ffyC6g")
+HOLD_PROGRAM_ID = os.environ.get("HOLD_PROGRAM_ID", "5ZucuntpueZMRDBEs31gL3HrUpZ13NZRahu7T9rLWzv6")
 
 
 class NotAHold(LookupError):
@@ -943,6 +956,19 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
+        session = self.headers.get('X-Review-Session', 'legacy')
+        if not re.fullmatch(r'[A-Za-z0-9:_-]{1,160}', session):
+            self._json(HTTPStatus.BAD_REQUEST, {'error': 'bad-session'})
+            return
+        session_token = _review_session.set(session)
+        deadline_token = network.deadline.set(time.monotonic() + 95)
+        try:
+            self._post()
+        finally:
+            network.deadline.reset(deadline_token)
+            _review_session.reset(session_token)
+
+    def _post(self) -> None:
         path = urlparse(self.path).path
         if path not in {"/api/review", "/api/reset"}:
             self.send_error(HTTPStatus.NOT_FOUND)
@@ -1108,6 +1134,8 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
             self.send_header("Vary", "Origin")
 
     def _json(self, status: HTTPStatus, payload: dict[str, Any]) -> None:
+        if status >= 400 and isinstance(payload.get("error"), str):
+            payload = {**payload, "hold_policy": family_review.failed_policy(payload.get("case") or {}, payload["error"])}
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self._cors_headers()
@@ -1167,7 +1195,7 @@ def run_check(live: bool) -> int:
             report(True if found else None, "Swarms model", f"{family_review.MODEL} {'is listed' if found else 'not found in /v1/models/available; set SWARMS_MODEL to a listed model'}")
         except SystemExit as stop:
             report(None, "Swarms model", f"could not list models ({str(stop)[:80]})")
-    report(bool(prune_key) or None, "PRUNE_API_KEY", "set" if prune_key else "not set. Reviews need it; get one at https://withprune.com/sharkbyte")
+    report(bool(prune_key), "PRUNE_API_KEY", "set" if prune_key else "not set. Reviews need it; get one at https://withprune.com/sharkbyte")
 
     if live:
         if not (swarms_key and prune_key):
@@ -1197,7 +1225,7 @@ def run_check(live: bool) -> int:
                         report(False, "Live review", "the response has no hold_policy")
                         raise SystemExit(1)
                     report(
-                        True,
+                        verdict.get("decision") == "confirm" and result["hold_policy"]["required"] is False and bool(result.get("prune", {}).get("receipt")) and result.get("offline") is False,
                         "Live review (Prune, Watchdog, 4 Swarms agents, Prune seal)",
                         f"decision={verdict['decision']} suspicion={verdict['suspicion']} "
                         f"receipt={'yes' if result['prune']['receipt'] else 'no'} "

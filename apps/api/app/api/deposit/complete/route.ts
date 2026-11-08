@@ -1,8 +1,9 @@
-import { fail, json, requireUser, route } from '@/lib/server/http';
+import { requirePaymentUser } from '@/lib/server/paymentAuth';
+import { fail, json, route } from '@/lib/server/http';
 import { fulfill, stripe } from '@/lib/server/stripe';
 
 export const POST = route(async (req: Request) => {
-  const me = await requireUser(req);
+  const me = await requirePaymentUser(req);
   if (me instanceof Response) return me;
   const { id } = await req.json();
   if (typeof id !== 'string') return fail('Missing payment');

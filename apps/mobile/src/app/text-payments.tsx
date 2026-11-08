@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Linking, View } from 'react-native';
+import { Linking, Platform, View } from 'react-native';
 import { Text, TextInput } from '../components/Text';
 import { Button, DemoNote, Detail, Icon, Notice, Pill, Screen } from '../components/ui';
 import { formatPhone, textPaymentLink } from '../services/dat';
@@ -48,7 +48,7 @@ export default function TextPaymentsScreen() {
         {command('HELP', 'Lists these commands.')}
         {command('STOP', 'Turns text payments off until you turn them on here.')}
       </View>
-      <Button style={{ marginTop: 18 }} title="Open Messages" icon="chatbubble-outline" onPress={() => { void Linking.openURL(textPaymentLink(settings.number, 'SEND ')).catch(() => setError('Messages could not be opened.')); }} />
+      <Button style={{ marginTop: 18 }} title="Open Messages" icon="chatbubble-outline" onPress={() => { void Linking.openURL(textPaymentLink(settings.number, 'SEND ', Platform.OS)).catch(() => setError('Messages could not be opened.')); }} />
       <Button style={{ marginTop: 10 }} title="Turn off text payments" variant="secondary" loading={busy} onPress={() => { void run(live.disableTextPayments); }} />
     </>;
   } else {

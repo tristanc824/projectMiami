@@ -4,15 +4,17 @@ import { loadFont } from "@remotion/google-fonts/Figtree";
 const { fontFamily } = loadFont();
 
 /** Beat 12: the Nest mark and tagline over the meadow (storyboard frame 12). */
-export const EndCard = () => {
+export const EndCard = ({ publicUrl = '' }: { publicUrl?: string }) => {
   const frame = useCurrentFrame();
   const rise = interpolate(frame, [0, 24], [24, 0], { extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
   const fade = interpolate(frame, [0, 24], [0, 1], { extrapolateRight: "clamp" });
   const push = interpolate(frame, [0, 150], [1, 1.06], { extrapolateRight: "clamp" });
+  let demoLink = 'Live demo at the Nest table';
+  try { const url = new URL(publicUrl); if (url.protocol === 'https:' && !url.username && !url.password) demoLink = url.toString(); } catch { /* No public deployment has been configured. */ }
   return (
     <AbsoluteFill style={{ backgroundColor: "#16301D", fontFamily }}>
       <Img src={staticFile("meadow.jpg")} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "45% 75%", transform: `scale(${push})` }} />
-      <AbsoluteFill style={{ background: "linear-gradient(to top, rgba(16,26,19,0.45), rgba(16,26,19,0) 55%)" }} />
+      <AbsoluteFill style={{ background: "linear-gradient(rgba(16,26,19,0.35),rgba(16,26,19,0.35)), linear-gradient(to top, rgba(16,26,19,0.45), rgba(16,26,19,0) 55%)" }} />
       <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", color: "white", opacity: fade, transform: `translateY(${rise}px)` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 24, fontSize: 110, fontWeight: 600, letterSpacing: "-0.03em" }}>
           <svg viewBox="0 0 64 64" width={120} height={120}>
@@ -25,6 +27,8 @@ export const EndCard = () => {
           Nest
         </div>
         <div style={{ marginTop: 28, fontSize: 64, fontWeight: 600, letterSpacing: "-0.025em" }}>Protect what matters.</div>
+        <div style={{ marginTop: 32, fontSize: 28, textAlign: 'center', maxWidth: '85%', overflowWrap: 'anywhere' }}>{demoLink}</div>
+        <div style={{ marginTop: 20, fontSize: 24 }}>Solana devnet · Test USDC only</div>
       </AbsoluteFill>
     </AbsoluteFill>
   );

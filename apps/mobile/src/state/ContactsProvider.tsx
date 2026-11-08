@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { decodeContacts, updateContact, type SavedContact } from '../domain/contacts';
 import { normalizePhone } from '../services/dat';
 import { useLive } from './live';
@@ -14,6 +14,8 @@ export function ContactsProvider({ children }: { children: ReactNode }) {
   const [failure, setFailure] = useState<{ owner: string; message: string } | null>(null);
   const problem = failure?.owner === owner ? failure.message : '';
   const current = useRef(state);
+  const activeOwner = useRef(owner);
+  useLayoutEffect(() => { activeOwner.current = owner; }, [owner]);
   const pending = useRef(Promise.resolve());
   const key = owner ? `nest:contacts:v1:${owner}` : '';
   useEffect(() => {
@@ -28,13 +30,13 @@ export function ContactsProvider({ children }: { children: ReactNode }) {
   const ready = !!owner && state.owner === owner;
   const contacts = useMemo(() => ready ? state.contacts : [], [ready, state.contacts]);
   const saveName = useCallback(async (phone: string, name: string) => {
-    if (!owner || current.current.owner !== owner) throw new Error('Your contacts are still loading.');
+    if (!owner || activeOwner.current !== owner || current.current.owner !== owner) throw new Error('Your contacts are still loading.');
     // Serialize writes so a failed disk write never claims the name was saved.
     const work = pending.current.catch(() => undefined).then(async () => {
-      if (current.current.owner !== owner) throw new Error('Your account changed. Please try again.');
+      if (activeOwner.current !== owner || current.current.owner !== owner) throw new Error('Your account changed. Please try again.');
       const next = { owner, contacts: updateContact(current.current.contacts, phone, name) };
       await AsyncStorage.setItem(key, JSON.stringify(next.contacts));
-      if (current.current.owner === owner) { current.current = next; setState(next); setFailure(null); }
+      if (activeOwner.current === owner && current.current.owner === owner) { current.current = next; setState(next); setFailure(null); }
     });
     pending.current = work.catch(() => undefined);
     return work;

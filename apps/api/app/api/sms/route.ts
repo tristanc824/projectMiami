@@ -22,11 +22,13 @@ export async function POST(req: Request) {
   if (event?.type !== 'message.phone.received') return json({ ok: true });
   const { contact, owner, content, message_id: id } = event.data ?? {};
   if (typeof contact !== 'string' || typeof content !== 'string' || owner !== gatewayNumber()) return json({ ok: true });
+  if (typeof id !== 'string' || !id || id.length > 128) return fail('A gateway message ID is required.');
   // httpSMS retries slow deliveries, so handle each message once per server instance.
   if (id && seen.has(id)) return json({ ok: true });
-  if (id) seen.add(id);
+  if (seen.size >= 1000) seen.delete(seen.values().next().value!);
+  seen.add(id);
 
   // Reply right away: httpSMS waits only 5 seconds, and a payment takes longer than that to confirm.
-  after(() => handleText(contact, content).catch((err) => console.error('text payment failed', err)));
+  after(() => handleText(contact, content, undefined, id).catch((err) => console.error('text payment failed', err)).finally(() => { seen.delete(id); }));
   return json({ ok: true });
 }

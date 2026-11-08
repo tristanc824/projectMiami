@@ -26,6 +26,10 @@ provider, and it does not produce fees, exchange rates, or delivery dates.
 from __future__ import annotations
 
 import argparse
+try:
+    from .network import timeout as request_timeout
+except ImportError:  # direct CLI execution
+    from network import timeout as request_timeout
 import json
 import os
 import re
@@ -115,7 +119,7 @@ def _post(feature_id: str, body: dict, run_id: str | None = None) -> dict:
         },
         method="POST",
     )
-    with urllib.request.urlopen(request, timeout=60) as response:
+    with urllib.request.urlopen(request, timeout=request_timeout(25)) as response:
         return json.loads(response.read().decode("utf-8"))
 
 

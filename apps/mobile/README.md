@@ -1,26 +1,12 @@
-# Nest — mobile and web app
+# Nest mobile and browser app
 
-React Native + Expo SDK 58 + TypeScript + Expo Router.
+React Native, Expo SDK 58, TypeScript and Expo Router. The connected native app and website use the same Privy SMS accounts and Solana devnet wallets. All money in this demo is test USDC, with no real-world value.
 
-The app is redesigned around the supplied [Nest mockups](../../app-design/nest-app-screens.html) and [website](../../web-earth/): warm cream, moss green, bundled Figtree fonts, the Nest ring mark, meadow photography, and flat pill controls. [DESIGN.md](../../DESIGN.md) describes the implementation and its limits.
+## Start here
 
-The primary tabs are **Home, Save, Security, You**. Send starts with recipient selection and ends with a review sheet. Receive generates a real scannable QR request link. Activity and the retained family requests are full screens accessible from You.
+For the full website and connected browser app, follow [Website setup](../../README.md#website-and-browser-sending). Install dependencies in `apps/api`, `apps/mobile` and `web-earth`, configure the ignored API `.env.local`, then run `npm run website` at the repository root. Open **http://localhost:5175**; the app is under `/app`. Port 5184 is the API, not the consumer app.
 
-**Demo** opens a local wallet starting at $0; use Add to try payments. Savings goals reserve part of the demo balance, persist on the device, and release funds back to the available balance. Live savings are disabled. Security protections shown in the mockups are labeled as previews until connected; existing Auth0 / Privy sign-in is preserved. Completed devnet transfers cannot be undone.
-
-The app display name and icons are Nest. Existing signing identifiers, callback scheme (`lazo`), API contracts, and storage keys are preserved for compatibility. A native build must be regenerated/rebuilt to pick up its installed display name and icon.
-
-## Withdraw, contacts, and keyboard improvements
-
-Withdraw offers Bank account and Apple Cash, both using the same Nest account balance. Local demo withdrawals deduct the amount and example fee, excluding reserved savings. Connected withdrawals return test USDC to the demo treasury through the existing devnet cash-out flow. Apple Cash and bank delivery remain simulated. Receipts identify the destination, devnet transaction when applicable, and payout status.
-
-Save private names for recipients from Send, receipts, or You → Saved contacts. Previous recipients appear in Send again; saved names work in payment review, receipts, and activity search. Contact books are local and separate for demo mode and each connected wallet.
-
-Forms, sign-in, and bottom sheets adjust for the native keyboard and scroll the focused field into view. A Done toolbar dismisses numeric keyboards. The custom amount keypad yields while typing phone numbers or notes. [UX_AUDIT.md](./UX_AUDIT.md) records the fixes and verification limits.
-
-## Get it on your iPhone tonight
-
-From the repository root:
+For the local demo only:
 
 ```sh
 cd apps/mobile
@@ -28,148 +14,55 @@ npm install
 npm start
 ```
 
-Install Expo Go on the iPhone, put the phone and Mac on the same network, and scan the terminal QR code with the iPhone camera. This runs the full demo without an Apple upload or signing step. `npm start` explicitly selects Expo Go despite the included development-client package.
+Scan the QR code in Expo Go for SDK 58, on the same Wi-Fi as the laptop. `npm run web` here also opens the standalone local demo. It does not enable browser wallet sign-in. A phone hotspot can help when venue Wi-Fi isolates devices.
 
-After an SDK upgrade, restart Metro with `npm start -- --clear`, close and reopen Expo Go, and scan the current QR again. The project now requires Expo Go for SDK 58.
+## Connected native build
 
-If the venue network isolates devices, try your own hotspot. A tunnel requires network access and an additional tunnel dependency; it is not assumed to be installed.
+Copy `.env.example` to `.env` and configure `EXPO_PUBLIC_PRIVY_APP_ID`, `EXPO_PUBLIC_PRIVY_CLIENT_ID`, and `EXPO_PUBLIC_DAT_API_URL` to match the API. The API address must be reachable from the phone. Privy's app client must allow the bundle identifier `com.projectmiami.lazo` and URL scheme `lazo`.
 
-For web:
-
-```sh
-npm run web
-```
-
-The shared screens run in the browser as well. This is the app experience, not a separate marketing website.
-
-The authoritative Expo configuration is `app.config.ts`; generated native folders are intentionally ignored by Git. Original icon assets can be regenerated with `npm run assets`.
-
-## What works
-
-- Home balance, family-request cards, four-tab navigation.
-- Amount keypad, recipient phone entry, notes, review, and confirmation.
-- Add-funds and withdrawal simulations.
-- Exact integer-cent balance arithmetic, insufficient-balance validation, and duplicate-reference protection.
-- Family contributions with overfunding checks.
-- Receipts with honest local/on-chain/provider/payout status separation.
-- Activity search and filters.
-- Local demo persistence and explicit reset.
-- Share/copy sample requests and receipts.
-- Auth0 native and web sign-in code, activated with your configuration.
-
-## Live mode: real devnet wallets
-
-A **development or TestFlight build** can run Nest against the DAT backend in [`apps/api`](../api/HANDOFF.md). Expo Go and web always stay in demo mode, because Privy's Expo SDK needs native modules and doesn't support the web.
-
-| Step | In live mode |
-| --- | --- |
-| Sign in | SMS code through Privy, which creates a self-custody Solana wallet |
-| Balance | Real devnet USDC, refreshed every 4 seconds; incoming payments appear as "Money received" |
-| Send | To any phone number. A number not on Nest yet gets a wallet waiting for its owner |
-| Add | Stripe **test** card (whole dollars, up to $20), then real devnet USDC from the treasury |
-| Withdraw | Real USDC back to the treasury; the bank payout is **simulated** |
-| Receipt | Transaction signature and a Solana Explorer link |
-
-Family goals stay sample data. Network fees are paid by the backend's fee payer, so users hold no SOL.
-
-Setup:
-
-1. Deploy `apps/api` (for example to Vercel with the root directory set to `apps/api`) with the values from its `.env.example`. Get them privately from the project owner.
-2. In the Privy dashboard (the same app as `apps/api`), add an app client under **Configuration > App settings > Clients**. Add the bundle identifier `com.projectmiami.lazo` as an allowed app identifier and `lazo` as an allowed URL scheme.
-3. Fill in `EXPO_PUBLIC_PRIVY_APP_ID`, `EXPO_PUBLIC_PRIVY_CLIENT_ID` and `EXPO_PUBLIC_DAT_API_URL` in `.env` (see `.env.example`), then make a development build as below. Live mode turns on only when all three are set.
-
-For Xcode testing, add the three public `EXPO_PUBLIC_*` live settings above to `apps/mobile/.env` and restart Metro. Both people must use the same Privy app and backend and sign in using their respective phone numbers. A send resolves the recipient’s verified phone number to their wallet; their balance refreshes every four seconds while the app is open and on login. Without these settings, an Xcode build runs the local demo, which cannot credit another device.
-
-In live builds, **Sign in** uses Privy's SMS login instead of Auth0. **Demo** still opens the sample wallet.
-
-Not yet verified on a device: the format of Privy's Expo signature (the app accepts base64 or base58), and whether a person who was sent money before signing up can use that wallet after SMS login.
-
-### Send without data (text payments)
-
-People can send money and check their balance by texting Nest's number from any phone with a cellular signal, with Wi-Fi and data off. The server side is built and tested on devnet. See "Text payments" in [`apps/api/docs/API.md`](../api/docs/API.md).
-
-| Text to Nest's number | What happens |
-| --- | --- |
-| `SEND 5 5555550142 PIN 4821` | Sends $5 and texts both people |
-| `BAL 4821` | Replies with the balance |
-| `HELP` | Lists the commands |
-| `STOP` | Turns text payments off until they're turned on again in the app |
-
-Limits: $10 per payment (enforced by a Privy policy) and $20 a day (enforced by the server). Five wrong PINs turn it off.
-
-**Already done:** the server code, the Privy signer and policy, and the demo Android gateway. The gateway is a phone with an eSIM running httpSMS, which forwards texts to the server.
-
-**For the app team:**
-
-1. Do the live mode setup above: the Privy app client, the three `EXPO_PUBLIC_` values in `.env` (get `EXPO_PUBLIC_DAT_API_URL` and the Privy app ID from the project owner), and a development build.
-2. Install the build on each demo phone and sign in with its phone number.
-3. Go to **You → Send without data**, choose a 4-digit PIN, and tap **Turn on text payments**. This gives Nest's server a limited signer for that wallet. The screen then shows the number to text.
-4. Test it: turn off Wi-Fi and cellular data, then text `BAL` and the PIN to that number. A reply should come back within about 10 seconds.
-
-Payments sent by text appear in the app's Activity as "Sent by text message" the next time the app is online. The app's part is only the one-time setup. Texting works from any phone after that, even without the app.
-
-Not yet verified on a device: turning it on from the app (`useSigners().addSigners` for a Solana wallet).
-
-## What is still simulated
-
-**In demo mode, all money movement is simulated.** Balances, transfers, family goals, and MXN rates are local sample data. No real wallet, on-chain transfer, bank account, card charge, or fiat partner is connected. Demo wallets start at $0; use Add to fund tests or Reset demo to start over. Request links open a payment review with the recipient phone number, amount, and note filled in; demo payments stay on the sender’s device. Web links use the current site address (localhost links require access to that server); Expo Go links require the running Expo server, and development/TestFlight links require Nest installed. Live requests use the signed-in phone number and require a live Nest build to send devnet USDC. Existing version-1 demo data resets once to the empty wallet; subsequent test funds persist. Live mode is described above.
-
-Wallet custody and the actual corridor/provider remain team decisions. This first version intentionally does not decide those through hidden implementation assumptions.
-
-## Auth0 category and setup
-
-The sponsor category is **Best Use of Auth0**. OAuth is an authorization protocol; Auth0 is the provider named in the category. Actual Auth0 API/SDK usage is relevant to the category. A generic OAuth button or merely installing the package does not demonstrate an integration.
-
-The native Auth0 SDK needs a **development or TestFlight build**, not Expo Go. Expo Go remains usable for all demo screens. Without configuration, the account screen explains that sign-in is not connected rather than fabricating a successful login.
-
-1. Create a Native application in your Auth0 tenant for iOS. Use a separate Single Page Application for the web deployment if appropriate for your tenant configuration.
-2. Copy `.env.example` to `.env` and enter the public domain/client ID for the target build. Never add a client secret, seed phrase, private key, or backend secret to an `EXPO_PUBLIC_` variable.
-3. Keep the bundle identifier consistent with your App Store Connect record. Default: `com.projectmiami.lazo`. The custom URL scheme is `lazo`. These internal identifiers are retained from the original scaffold to preserve callbacks and existing signing setup; the display name, Expo slug, icon, and UI now use Nest.
-4. For that default identifier, add this exact callback URL **and logout URL** to the Native application, substituting your real domain:
-
-```text
-lazo://YOUR_DOMAIN/ios/com.projectmiami.lazo/callback
-```
-
-5. For web, allow your actual web origin as the callback/logout URL and allowed web origin (for local development, normally `http://localhost:8081`; include `http://127.0.0.1:8081` if you use it). Use the SPA client ID for the web build's environment.
-6. Rebuild the native app after configuring the domain or changing its scheme/bundle ID. The Auth0 config plugin is only activated when a domain is configured.
-
-Native credentials are handled by Auth0's Credentials Manager; web credentials use the Auth0 SPA SDK's memory cache. The demo ledger in AsyncStorage contains no credentials. Live sign-in cannot be verified without your tenant configuration.
-
-Official references: [Auth0 Expo quickstart](https://auth0.com/docs/quickstart/native/react-native-expo), [Auth0 React Native SDK](https://github.com/auth0/react-native-auth0).
-
-## Signed development build
+Connected wallets, biometric approval and the system contacts picker require a rebuilt development/TestFlight app; Expo Go and an OTA JavaScript update cannot add native modules. `app.config.ts` is authoritative; native directories are generated and Git-ignored. The display name/icon are Nest while signing identifiers and the callback scheme are retained.
 
 ```sh
-npx eas-cli@latest login
-npx eas-cli@latest init
 npm run build:development
+# Or, with a provisioned local iPhone development environment:
+npm run ios
 ```
 
-EAS `development` distribution is an ad hoc development build, not internal TestFlight. Register your phone when prompted. Then start Metro with:
+The SDK 58 build compiles React Native and Expo modules from source to avoid a precompiled-header/linker mismatch. The Hermes compatibility plugin disables the unavailable native CDP debugger adapter in Debug only. Native iOS compilation and the real welcome screen are verified; physical SMS login, biometric enrollment/approval and system contacts still need a device rehearsal.
 
-```sh
-npm run dev-client
-```
+## Current connected behavior
 
-The `simulator` profile is for an iOS Simulator, not a physical phone.
+| Feature | Status |
+| --- | --- |
+| Phone-number sign-in | Privy SMS, then a six-digit app PIN |
+| Native payment approval | Fingerprint, face or app PIN; requires enrollment on supported hardware |
+| Balance and receipts | Devnet USDC, four-second polling; confirmed history from actual token-account deltas |
+| Send | Resolve a phone number to a wallet; explicit review and owner signature; network fees sponsored |
+| Confirmation | Confirmed or pending, with the same transaction ID and Explorer link; pending is not proof of payment |
+| Add money | Stripe test card, whole dollars up to the configured cap (default $1,000), limited by treasury supply |
+| Scam check | Authenticated Swarms/Prune review of unfamiliar recipients; errors stop payment |
+| Lock Nest | Server-enforced freeze for outgoing app/SMS payments; app PIN or protected biometric unlock |
+| Trusted contact | Save another Nest user and call/text them; **contact-only recovery is not available** |
+| Safe Holds | Deployed on devnet; real 24-hour deposit, full Undo refund and sender override verified |
+| Bank payouts and card spending | Not connected; retained withdrawal screens are clearly labeled simulations |
 
-## TestFlight
+Only confirmed successful prior sends make a number a previous recipient. Pending or failed attempts never bypass scam review. A payment already released on Solana cannot be undone. Safe Hold is deployed and its refund is verified; rehearse the physical-phone flow before judging; see [FAMILY_REVIEW.md](../../FAMILY_REVIEW.md).
 
-Confirm the final bundle identifier, account, and App Store Connect record before starting a signed upload. Link the app to your own EAS project; do not invent a project ID.
+The local demo retains savings/family sample screens and withdrawal simulations. They do not authorize live wallet operations. The connected build must not show sample contacts as real users. Currency examples in demo screens are illustrative, not live exchange quotes.
 
-```sh
-npm run build:ios
-npm run submit:ios
-```
+## Contacts and payment links
 
-These use the `testflight` profile with **store distribution**. They require your Apple/Expo credentials and account configuration; no signed upload has been performed by this scaffold.
+Saved names and photos stay on the device and are scoped to each wallet. Default avatars are blank; tap to choose/remove a picture. The native system contact picker requests permission and saves only the number the user confirms; it never uploads the address book. Contacts already function in this demo.
 
-After Apple processes the build and any required compliance answers, add it to an internal TestFlight group. External testing/public links require Apple's beta review. Do not confuse EAS `distribution: internal` with internal TestFlight.
+Receive and contact pages create payment-request links. Copy/share/text opens the relevant system UI without automatically sending a message. Links contain amount, recipient and note, never a signature or authorization. Opening one still requires sign-in, PIN and explicit payment approval.
 
-Export compliance is not automatically declared exempt here. Answer it accurately for the final binary; re-evaluate when wallet/cryptography libraries are added.
+Native sharing requires a public HTTPS `EXPO_PUBLIC_PAYMENT_URL`, such as the deployed app's `/app` URL. No public domain is configured yet, so native sharing remains disabled instead of generating a broken localhost/LAN link. The connected browser build uses its current origin when that setting is empty. Browser wallet login requires localhost or HTTPS.
 
-Official references: [Expo TestFlight guide](https://docs.expo.dev/submit/testflight), [Expo development builds](https://docs.expo.dev/develop/development-builds/introduction/).
+## SMS payments
+
+Users with the limited Nest server signer enabled can send/check balances by text with cellular service and no data. The app and replies show the configured per-payment/daily limits. SMS uses the API’s persistent local SQLite ledger for message IDs, signed transaction checkpoints and daily reservations. It needs Node 24 and persistent storage; ephemeral serverless SMS is not supported. SMS has a separate four-digit PIN; five wrong attempts turn it off. Lock Nest blocks SMS sends. A gateway message ID and a durable signed transaction checkpoint prevent webhook retries from creating a new payment. An unresolved payment retains its original signature; check Activity/Explorer before starting another.
+
+A real gateway requires the httpSMS key, signing key and team Android phone, plus Privy signer/policy configuration in the API. Browser approval tests mock these integrations and do not establish that physical SMS delivery works at the venue.
 
 ## Checks
 
@@ -177,33 +70,26 @@ Official references: [Expo TestFlight guide](https://docs.expo.dev/submit/testfl
 npm run typecheck
 npm run lint
 npm test
-npm run export:web
-npm run export:ios
-npm run test:browser
 ```
 
-Browser tests use installed Google Chrome and a localhost Expo server. The Node/browser processes need local IPC/socket access. They check the end-to-end demo flow; they do not test a Solana transaction, bank payout, or unconfigured Auth0 tenant.
+At the repository root, `npm run demo:check` reports read-only readiness; `npm run test:website` checks connected wallet flows with mocked authentication/payments; `NEST_TEST_REVIEW=true npm run test:website` checks review/hold flows with mocked chain responses. `npm run test:browser` here checks local-demo interactions/layouts. See [UX_AUDIT.md](./UX_AUDIT.md) for exact scope and remaining blockers.
 
-## Files for teammates
+The optional legacy Auth0 implementation is retained for compatibility; it is not the connected Nest wallet login and should not be used in the judging script. No private keys belong in public Expo variables, browser bundles, output or Git.
 
-- `src/app/`: Expo Router screens and navigation.
-- `src/components/`: shared UI and amount keypad.
-- `src/theme.ts`: Nest design tokens.
-- `src/domain/wallet.ts`: pure demo arithmetic and validation.
-- `src/state/WalletProvider.tsx`: local demo state/persistence.
-- `src/services/auth.ts`: Auth0 native/web integration.
-- `app.config.ts`: name, scheme, bundle identifier, conditional Auth0 plugin.
-- `eas.json`: development, simulator, and store-distribution profiles.
-- `../../DESIGN.md`: inspected reference sources and design decisions.
+### Voice payments (submission build)
 
-Keep new real-money integrations behind an explicit, separately tested gateway. Do not turn this demo ledger into a backend source of truth or a spend authorization mechanism.
+Open **Talk to Nest** from Home, or **Use voice** while preparing a send. Tap **Start speaking** and allow microphone/speech permissions. Try “Send one dollar to Alex” using a unique saved contact name, or say “Send one dollar” and enter the recipient’s number. Nest shows the transcript, reads the draft back, and opens the existing payment review. The normal PIN/biometric approval still applies. Unknown recipients still use Swarms/Prune review and the existing Safe Hold availability rules.
 
-### Dependency advisory status
+Voice payments support **English and Spanish**. Select English or Español before speaking. Recognition and readback use `en-US` or `es-MX`. Both support whole-dollar number words (including “fifty” and “cincuenta”); Spanish also accepts decimal commas such as `50,25`. Mixed spoken cents and ambiguous corrections require editing the transcript. Cancellation never sends a payment. A different spoken contact and entered phone cannot silently proceed. Recognition stops on exit/background or after 30 seconds. Typed input remains available when permission, network recognition or device support is unavailable.
 
-The initial SDK 57 dependency tree reported 14 advisories, including three high-severity entries. After upgrading to SDK 58, npm reports 12 moderate advisories and no high or critical advisories. Review and resolve the remaining advisories before any production or real-money release; passing the functional checks is not security certification.
+No extra provider API key is needed. Audio is handled by the device/browser speech service; its provider may process audio. Nest forwards the transcript to the existing safety review. Contacts are matched locally; the address book is not uploaded. The website microphone needs a supported browser on HTTPS or localhost. For spoken replies on an iPhone, turn silent mode off.
 
-## Connected website build
+`expo-speech-recognition` and `expo-speech` require a refreshed native development/TestFlight binary. An existing installed binary cannot gain these native modules through a JavaScript reload alone. Browser microphone event tests use a simulated speech recognizer; a person must still rehearse actual speech on the submission phone.
 
-The repository's `npm run website` serves the existing marketing website and this app at `/app` on port 5175. The website build enables `EXPO_PUBLIC_NEST_WEB_WALLET=true`, sets `EXPO_PUBLIC_DAT_API_URL=same-origin`, and exports with `NEST_WEB_BASE_PATH=/app`. It uses `@privy-io/react-auth` for browser SMS login and signing, with the same `ConnectedWallet` account implementation as native. Ordinary `npm run web` previews remain local demos.
+### Session approval behavior
 
-Use `npm run test:website` from the repository root for the isolated mocked connected-account browser suite. The browser test SDK replacement is available only at build time and can only export to `dist-website-tests`. Never serve that test export as the real website.
+Returning to a signed-in Nest session does not require Face ID or the app PIN. PIN creation remains part of first-time setup. Each send, Safe Hold action, freeze, biometric-setting change, trusted-contact change and own-profile edit still asks for approval. Explicit Lock Nest remains frozen until authenticated unfreezing; ordinary backgrounding does not freeze or lock the session. Expired approval grants are refreshed at the next protected action.
+
+Spanish demo: choose Español, tap Empezar a hablar, say “Envía un dólar” or “Envía cincuenta dólares a [saved name]”, then review the visible amount/recipient. Six browser tests and 45 unit tests passed. Actual acoustic recognition still needs the quick phone rehearsal.
+
+Public payment links are now configured with `EXPO_PUBLIC_PAYMENT_URL=https://nestbank.us/app`. The deployed request page and sign-in handoff were verified without sending money; see [public-link checks](../../audit/PUBLIC_LINKS.md).

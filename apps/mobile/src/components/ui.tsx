@@ -1,13 +1,15 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { useState, type ComponentProps, type ReactNode } from 'react';
+import { useState, useSyncExternalStore, type ComponentProps, type ReactNode } from 'react';
+import { onSecurityGate, securityGateVisible } from '../services/presentation';
 import { ActivityIndicator, Image, Modal, Platform, Pressable, StyleSheet, View, type ColorValue, type StyleProp, type ViewStyle } from 'react-native';
 import { Text } from './Text';
 import { KeyboardFrame, KeyboardScroll, useKeyboardVisible } from './KeyboardForm';
 import { NestMark } from './NestArtwork';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { themedStyles, useColors } from '../theme';
-import { contacts, money, type Activity, type Contact } from '../domain/wallet';
+import { contacts, demoPhones, money, type Activity, type Contact } from '../domain/wallet';
+import { useProfile } from '../state/ProfileProvider';
 import { useContacts } from '../state/ContactsProvider';
 import { useIsLive } from '../state/live';
 
@@ -36,17 +38,13 @@ export function IconButton({ icon, label, onPress }: { icon: IconName; label: st
   const s = useS();
   return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [s.iconButton, { opacity: pressed ? 0.6 : 1 }]}><Icon name={icon} size={21} /></Pressable>;
 }
-const portraits: Record<string, number> = {
-  mama: require('../../assets/nest/avatar-mama.jpg'),
-  diego: require('../../assets/nest/avatar-luis.jpg'),
-  camila: require('../../assets/nest/avatar-daniela.jpg'),
-  ana: require('../../assets/nest/avatar-ana.jpg'),
-};
-export function Avatar({ contact, size = 52 }: { contact: Contact; size?: number }) {
+export function Avatar({ contact, size = 52 }: { contact: Pick<Contact, 'id'>; size?: number }) {
   const { colors } = useColors();
-  const portrait = portraits[contact.id];
-  return <View style={{ height: size, width: size, borderRadius: size / 2, overflow: 'hidden', backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center' }}>
-    {portrait ? <Image accessible={false} source={portrait} resizeMode="cover" style={{ width: size, height: size }} /> : <Text style={{ color: colors.green, fontSize: size * .3, fontWeight: '600' }}>{contact.initials}</Text>}
+  const { photos } = useProfile();
+  const [failed, setFailed] = useState('');
+  const photo = photos[demoPhones[contact.id] ?? contact.id];
+  return <View testID={`avatar-${contact.id}`} style={{ height: size, width: size, borderRadius: size / 2, overflow: 'hidden', backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center' }}>
+    {photo && failed !== photo ? <Image accessible={false} source={{ uri: photo }} onError={() => setFailed(photo)} resizeMode="cover" style={{ width: size, height: size }} /> : <Icon name="person-outline" color={colors.green} size={size * .45} />}
   </View>;
 }
 export function Pill({ children, dark = false }: { children: ReactNode; dark?: boolean }) {
@@ -60,7 +58,7 @@ export function DemoNote({ compact = false }: { compact?: boolean }) {
 }
 /** Height of the floating tab dock; scroll content must clear it plus the home indicator. */
 export const DOCK_HEIGHT = 72;
-export function Screen({ children, title, subtitle, back = false, scroll = true, trailing, footer }: { children?: ReactNode; title?: string; subtitle?: string; back?: boolean; scroll?: boolean; trailing?: ReactNode; footer?: ReactNode }) {
+export function Screen({ children, title, subtitle, back = false, scroll = true, trailing, footer, scrollResetKey }: { children?: ReactNode; title?: string; subtitle?: string; back?: boolean; scroll?: boolean; trailing?: ReactNode; footer?: ReactNode; scrollResetKey?: string }) {
   const { colors, styles: t } = useColors();
   const s = useS();
   const insets = useSafeAreaInsets();
@@ -71,7 +69,7 @@ export function Screen({ children, title, subtitle, back = false, scroll = true,
     {children}
   </View>;
   return <SafeAreaView edges={['top', 'left', 'right']} style={s.screen}><KeyboardFrame offset={insets.top}>
-    {scroll ? <KeyboardScroll contentContainerStyle={{ paddingBottom: footer || keyboardVisible ? 16 : back ? Math.max(insets.bottom, 16) + 24 : DOCK_HEIGHT + Math.max(insets.bottom, 16) + 24 }} showsVerticalScrollIndicator={false}>{content}</KeyboardScroll> : content}
+    {scroll ? <KeyboardScroll key={scrollResetKey} contentContainerStyle={{ paddingBottom: footer || keyboardVisible ? 16 : back ? Math.max(insets.bottom, 16) + 24 : DOCK_HEIGHT + Math.max(insets.bottom, 16) + 24 }} showsVerticalScrollIndicator={false}>{content}</KeyboardScroll> : content}
     {footer ? <View style={{ width: '100%', maxWidth: 620, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 12, paddingBottom: keyboardVisible ? 8 : Math.max(insets.bottom, 12), backgroundColor: colors.background }}>{footer}</View> : null}
   </KeyboardFrame></SafeAreaView>;
 }
@@ -86,10 +84,11 @@ export function ActivityRow({ item }: { item: Activity }) {
   const { nameFor } = useContacts();
   const displayName = nameFor(item.recipientPhone, contact?.name ?? item.name);
   const incoming = item.kind === 'add' || item.kind === 'receive';
-  return <Pressable onPress={() => router.push({ pathname: '/receipt', params: { id: item.id } })} accessibilityRole="button" accessibilityLabel={`${displayName}, ${incoming ? 'received' : 'sent'} ${money(item.amountCents)}, view receipt`} style={({ pressed }) => [s.activityRow, { opacity: pressed ? 0.65 : 1 }]}>
+  const status = item.status === 'pending' ? 'pending' : item.status === 'failed' ? 'failed' : item.status === 'expired' ? 'expired' : null;
+  return <Pressable onPress={() => item.kind === 'hold' && item.holdState ? router.push({ pathname: '/hold', params: { state: item.holdState } }) : router.push({ pathname: '/receipt', params: { id: item.id } })} accessibilityRole="button" accessibilityLabel={`${displayName}, ${status || (item.kind === 'hold' ? 'held' : incoming ? 'received' : 'sent')} ${money(item.amountCents)}, view receipt`} style={({ pressed }) => [s.activityRow, { opacity: pressed ? 0.65 : 1 }]}>
     {contact ? <Avatar contact={contact} size={44} /> : <View style={[s.activityIcon, { backgroundColor: incoming ? colors.mintLight : colors.blue }]}><Icon name={incoming ? 'add' : 'arrow-up-right-box-outline'} size={20} color={colors.green} /></View>}
     <View style={{ flex: 1, gap: 4 }}><Text style={{ color: colors.ink, fontWeight: '600', fontSize: 14 }}>{displayName}</Text><Text numberOfLines={1} style={{ color: colors.muted, fontSize: 13 }}>{item.note}</Text></View>
-    <View style={{ alignItems: 'flex-end', gap: 5 }}><Text style={{ color: incoming ? colors.green : colors.ink, fontWeight: '700', fontSize: 14 }}>{incoming ? '+' : '−'}{money(item.amountCents)}</Text><Text style={{ color: colors.muted, fontSize: 13 }}>{item.live ? 'Devnet' : 'Demo'} · {new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text></View>
+    <View style={{ alignItems: 'flex-end', gap: 5 }}><Text style={{ color: incoming ? colors.green : colors.ink, fontWeight: '700', fontSize: 14 }}>{status ? '' : incoming ? '+' : '−'}{money(item.amountCents)}</Text><Text style={{ color: colors.muted, fontSize: 13 }}>{status ? status[0].toUpperCase() + status.slice(1) : item.live ? 'Devnet' : 'Demo'} · {new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text></View>
   </Pressable>;
 }
 export function Notice({ children, error = false }: { children: ReactNode; error?: boolean }) {
@@ -118,7 +117,8 @@ const useS = themedStyles(colors => ({
 export function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: ReactNode }) {
   const { colors, styles: t } = useColors();
   const insets = useSafeAreaInsets();
-  return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+  const suspended = useSyncExternalStore(onSecurityGate, securityGateVisible, () => false);
+  return <Modal visible={visible && !suspended} transparent animationType={suspended ? 'none' : 'slide'} onRequestClose={onClose}>
     <KeyboardFrame style={{ justifyContent: 'flex-end', backgroundColor: '#17201A66' }}>
       <Pressable accessibilityRole="button" accessibilityLabel="Close sheet" onPress={onClose} style={StyleSheet.absoluteFill} />
       <View accessibilityViewIsModal style={{ width: '100%', maxWidth: 620, maxHeight: '90%', alignSelf: 'center', backgroundColor: colors.background, borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: Math.max(insets.bottom, 24) }}>

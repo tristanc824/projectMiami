@@ -5,6 +5,8 @@ import {
   getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
 import bs58 from 'bs58';
+import nacl from 'tweetnacl';
+import { PendingTransaction } from '../pending.mjs';
 import { USDC_DECIMALS } from '../money.mjs';
 import { assertSponsorable, buildTransferMessage } from '../tx.mjs';
 
@@ -29,19 +31,32 @@ export async function usdcBalance(owner) {
   try {
     const { value } = await connection().getTokenAccountBalance(ata);
     return BigInt(value.amount);
-  } catch {
-    return 0n;
+  } catch (error) {
+    // A missing token account is a zero balance; an RPC failure is not.
+    if (await connection().getAccountInfo(ata) === null) return 0n;
+    throw error;
   }
 }
 
 async function confirm(signature, blockhash, lastValidBlockHeight) {
-  const { value } = await connection().confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
-  if (value.err) throw new Error('Transaction failed on the network');
-  return signature;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12_000);
+  try {
+    const { value } = await connection().confirmTransaction({ signature, blockhash, lastValidBlockHeight, abortSignal: controller.signal }, 'confirmed');
+    if (value.err) throw new Error('Transaction failed on the network');
+    return signature;
+  } finally { clearTimeout(timer); }
+}
+let devnetCheck;
+export async function requireDevnet() {
+  devnetCheck ??= connection().getGenesisHash().then(hash => {
+    if (hash !== 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG') throw new Error('Nest payments are available on Solana devnet only.');
+  }).catch(error => { devnetCheck = undefined; throw error; });
+  return devnetCheck;
 }
 
 // Treasury pays its own fees: this stands in for a deposit provider delivering USDC.
-export async function sendFromTreasury(recipient, amount) {
+export async function prepareTreasuryTransfer(recipient, amount) {
   const from = treasury();
   if ((await usdcBalance(from.publicKey)) < amount) throw new Error('TREASURY_LOW');
   const source = getAssociatedTokenAddressSync(USDC_MINT, from.publicKey);
@@ -58,7 +73,39 @@ export async function sendFromTreasury(recipient, amount) {
     }).compileToV0Message(),
   );
   tx.sign([from]);
-  return confirm(await connection().sendTransaction(tx), blockhash, lastValidBlockHeight);
+  return { transaction: Buffer.from(tx.serialize()).toString('base64'), signature: bs58.encode(tx.signatures[0]), blockhash, lastValidBlockHeight };
+}
+
+// The chain signature is deterministic for these signed bytes. Check it before every replay.
+export async function sendConfirmed(tx, blockhash, lastValidBlockHeight) {
+  await requireDevnet();
+  const signature = bs58.encode(tx.signatures[0]);
+  const status = async () => (await connection().getSignatureStatuses([signature], { searchTransactionHistory: true })).value[0];
+  const successful = value => value && !value.err && ['confirmed', 'finalized'].includes(value.confirmationStatus);
+  let previous;
+  try { previous = await status(); } catch { throw new PendingTransaction(signature, lastValidBlockHeight); }
+  if (previous?.err) throw Object.assign(new Error('This transaction failed on Solana. Start a new payment.'), { code: 'TRANSACTION_FAILED', signature });
+  if (successful(previous)) return signature;
+  try {
+    await connection().sendTransaction(tx, { skipPreflight: false, maxRetries: 2 });
+    return await confirm(signature, blockhash, lastValidBlockHeight);
+  } catch {
+    let observed;
+    try { observed = await status(); } catch { throw new PendingTransaction(signature, lastValidBlockHeight); }
+    if (successful(observed)) return signature;
+    if (observed?.err) throw Object.assign(new Error('This transaction failed on Solana. Check Activity before starting a new payment.'), { code: 'TRANSACTION_FAILED', signature });
+    throw new PendingTransaction(signature, lastValidBlockHeight);
+  }
+}
+
+export async function submitTreasuryTransfer(prepared) {
+  const tx = VersionedTransaction.deserialize(Buffer.from(prepared.transaction, 'base64'));
+  if (bs58.encode(tx.signatures[0]) !== prepared.signature) throw new Error('Funding transaction reference mismatch.');
+  return sendConfirmed(tx, prepared.blockhash, prepared.lastValidBlockHeight);
+}
+
+export async function sendFromTreasury(recipient, amount) {
+  return submitTreasuryTransfer(await prepareTreasuryTransfer(recipient, amount));
 }
 
 export async function prepareTransfer(owner, recipient, amount) {
@@ -71,7 +118,7 @@ export async function prepareTransfer(owner, recipient, amount) {
     amount,
     blockhash,
   });
-  return { message: Buffer.from(message.serialize()).toString('base64'), lastValidBlockHeight };
+  return { message: Buffer.from(message.serialize()).toString('base64'), lastValidBlockHeight, transactionSignature: bs58.encode(nacl.sign.detached(message.serialize(), feePayer().secretKey)) };
 }
 
 // The user's signature is required: without it the network rejects the transaction, so this cannot move their funds.
@@ -83,7 +130,9 @@ export async function submitTransfer(owner, messageB64, signatureB64, lastValidB
     mint: USDC_MINT,
   });
   const tx = new VersionedTransaction(message);
-  tx.addSignature(owner, Buffer.from(signatureB64, 'base64'));
+  const ownerSignature = Buffer.from(signatureB64, 'base64');
+  if (ownerSignature.length !== 64 || !nacl.sign.detached.verify(message.serialize(), ownerSignature, owner.toBytes())) throw new Error('Invalid wallet signature');
+  tx.addSignature(owner, ownerSignature);
   tx.sign([payer]);
-  return confirm(await connection().sendTransaction(tx), message.recentBlockhash, lastValidBlockHeight);
+  return sendConfirmed(tx, message.recentBlockhash, lastValidBlockHeight);
 }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { bytesToBase64, centsToAmount, formatPhone, normalizePhone, normalizeSignature } from '../src/services/dat';
+import { bytesToBase64, centsToAmount, spendableCents, formatPhone, normalizePhone, normalizeSignature } from '../src/services/dat';
 
 const sig = Uint8Array.from({ length: 64 }, (_, i) => (i * 37 + 11) % 256);
 const sigB64 = Buffer.from(sig).toString('base64');
@@ -46,4 +46,20 @@ test('phone numbers follow the backend rules', () => {
   assert.equal(normalizePhone('+44 20 7946 0958'), '+442079460958');
   for (const bad of ['', '555-0142', '+1234', 'abc']) assert.equal(normalizePhone(bad), null);
   assert.equal(formatPhone('+15555550142'), '(555) 555-0142');
+});
+
+
+test('available cents never round devnet USDC dust up into an unspendable balance', () => {
+  assert.equal(spendableCents(30.919999), 3091);
+  assert.equal(spendableCents(1.15), 115);
+  assert.equal(spendableCents(0.009999), 0);
+  assert.equal(spendableCents(0.01), 1);
+  for (const value of [NaN, Infinity, -1]) assert.throws(() => spendableCents(value));
+});
+
+test('text links keep iOS and Android message bodies intact without sending a message', async () => {
+  const { textPaymentLink } = await import('../src/services/dat');
+  const body = 'Nest link: https://nest.example/app/pay?amount=50&note=hello + love 🪺';
+  assert.equal(textPaymentLink('+13055550100', body, 'ios'), `sms:+13055550100&body=${encodeURIComponent(body)}`);
+  assert.equal(textPaymentLink('+13055550100', body, 'android'), `sms:+13055550100?body=${encodeURIComponent(body)}`);
 });

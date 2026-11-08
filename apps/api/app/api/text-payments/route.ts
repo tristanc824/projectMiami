@@ -1,5 +1,5 @@
 import { fail, json, requireUser, route } from '@/lib/server/http';
-import { userById } from '@/lib/server/privy';
+import { requirePaymentUser } from '@/lib/server/paymentAuth';
 import { hashPin, setTextSettings, signerConfig, textPaymentsReady } from '@/lib/server/signer.mjs';
 import { TEXT_LIMITS } from '@/lib/sms.mjs';
 import { gatewayNumber, type MetaUser } from '@/lib/server/textPayments';
@@ -10,11 +10,11 @@ const cents = (units: bigint) => Number(units / 10_000n);
 export const GET = route(async (req: Request) => {
   const me = await requireUser(req);
   if (me instanceof Response) return me;
-  const user = (await userById(me.id)) as MetaUser;
+  const user = me.profile as MetaUser;
   const available = textPaymentsReady() && !!gatewayNumber();
   return json({
     available,
-    on: available && !!user.custom_metadata?.tp_on,
+    on: !!user.custom_metadata?.tp_on,
     number: gatewayNumber(),
     ...signerConfig(),
     perPaymentCents: cents(TEXT_LIMITS.perPayment),
@@ -24,10 +24,10 @@ export const GET = route(async (req: Request) => {
 
 // Turn on with { on: true, pin } after the app adds Nest's signer, or off with { on: false }.
 export const POST = route(async (req: Request) => {
-  const me = await requireUser(req);
-  if (me instanceof Response) return me;
   const body = await req.json().catch(() => ({}));
-  const user = (await userById(me.id)) as MetaUser;
+  const me = body?.on === false ? await requireUser(req) : await requirePaymentUser(req);
+  if (me instanceof Response) return me;
+  const user = me.profile as MetaUser;
   if (body.on === false) {
     await setTextSettings(user, { tp_on: false });
     return json({ on: false });

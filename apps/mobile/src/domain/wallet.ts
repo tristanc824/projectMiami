@@ -1,15 +1,19 @@
 import { initialSavings, reservedCents, validSavings, type SavingsGoal } from './savings';
 import { formatPhone, normalizePhone } from '../services/dat';
 
+// Reserved fictional numbers used only by the local demo.
+export const demoPhones: Record<string, string> = { mama: '+13055550101', diego: '+13055550102', camila: '+13055550103' };
+
 export type WithdrawalDestination = 'bank' | 'apple-cash';
 
 /** Demo-only ledger. No wallet keys, RPC requests, bank calls, or real transfers. */
 export type Contact = { id: string; name: string; shortName: string; fullName: string; initials: string; location: string; color: string };
 export type Activity = {
-  id: string; kind: 'send' | 'add' | 'withdraw' | 'receive'; name: string;
+  id: string; kind: 'send' | 'add' | 'withdraw' | 'receive' | 'hold'; name: string;
   amountCents: number; feeCents: number; note: string; createdAt: string; contactId?: string; recipientPhone?: string;
   /** Live mode only: a real devnet transaction. Demo activity never has these. */
-  live?: boolean; signature?: string; withdrawalDestination?: WithdrawalDestination;
+  live?: boolean; signature?: string; holdState?: string; withdrawalDestination?: WithdrawalDestination;
+  status?: 'pending' | 'failed' | 'expired'; lastValidBlockHeight?: number;
 };
 export type FamilyGoal = { id: string; name: string; description: string; targetCents: number; fundedCents: number; contactId: string };
 export type WalletState = { version: 2; balanceCents: number; activity: Activity[]; goals: FamilyGoal[]; savings?: SavingsGoal[] };

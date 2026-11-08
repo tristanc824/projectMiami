@@ -8,6 +8,78 @@ Everything here lives in `app.py`, `swarm/`, `tests/`, `hold/` and `programs/fam
 None of it touches `apps/`, `web-earth/` or the site, so it merges with `main` and
 `calebs-output` without conflicts.
 
+
+## Current Nest app integration (sender-controlled holds)
+
+This section supersedes the older separate-approver CLI design below **for the Nest app**.
+
+- A recipient saved in this device’s Nest contacts **or** present in its previous successful sends is known. The app keeps the normal payment confirmation and sends immediately, without a Swarms/Prune call or a hold.
+- An unfamiliar recipient goes through the authenticated review API. A review failure never authorizes a payment. A successful review returns a server-signed receipt bound to the sender wallet, recipient wallet, exact amount, review hash, and expiry. The raw recipient address goes only to the Nest server; it is not forwarded to the models.
+- After reviewing the warning and choosing a 6-digit release PIN, the sender explicitly confirms a **24-hour on-chain Safe Hold**. The sender is also the approver. The recipient cannot spend the held funds.
+- The sender can cancel at any time without the PIN, release with the PIN after the wait, or explicitly override the wait after a warning to call/text the person using a trusted number. Release is manual; there is no automatic payout job.
+- Normal release is instruction 2 and retains the 24-hour check. **Instruction 3** is a separate early override, valid only when `sender == approver`. It still requires a fresh sender signature and the PIN. The legacy separate-approver holds cannot use it. This requires deploying the updated program, not just updating the app.
+- **Deployed and verified on Solana devnet on November 8, 2026 at 9:16 AM ET.** Program: `5ZucuntpueZMRDBEs31gL3HrUpZ13NZRahu7T9rLWzv6`. [Deployment transaction](https://explorer.solana.com/tx/5ws4kcWvDr4Mhibq9yG7ikxAbzzDgMDkrpJXjHitvMHCotsmVt3wDQNW1og21aiCzWXJcZkeoPZtCQmaRRFGuLen?cluster=devnet). The binary was rebuilt with Solana 1.18.26 and `--locked`; Cargo.lock is unchanged. The ignored program keypair matches all client references. `POLICY_AUTHORITY` and the upgrade authority are the server fee payer, `77m7HCt9N6VBCRiJi3WUUeL2QFbMtKmt9mdv6KbyYCCb`.
+- **Real devnet refund verified:** a disposable sender deposited 0.01 Circle devnet USDC into a full 24-hour self-approved hold, then Undo refunded the entire amount and closed state/vault. [Deposit](https://explorer.solana.com/tx/2NPt2FQgQJTZxovYC8DfKFLJhVEEamqAY2ki7V2j5rakn14RMYqHY2BffnHzWwLiY5jCrCscPsHt4Uxno6zfxzAb?cluster=devnet) · [Refund](https://explorer.solana.com/tx/4hck3CCxKpxas5XQnwAHZuFEWUbBjEHcajTVRjPAXfwLiYUiLCWDeanvUhAYZoG5aFsDQJpCvdX5ZnwxWbYygyvm?cluster=devnet). Normal release before 24 hours returned error 8; wrong PIN returned error 3; a second deposit and explicit correct-PIN sender override paid the correct recipient. The test USDC was returned to the treasury, leaving its USDC balance unchanged. [Machine-readable proof](audit/hold-devnet-proof.json).
+- Initial stdin-signer and public-RPC upload failures were resolved using a temporary owner-only signer file and the privately configured dedicated devnet RPC, with deployment requests throttled locally. No private keys or RPC credentials were logged or committed. The integration test used a server-signed review fixture; browser review tests and previous live provider checks are separate from this chain proof. Rehearse the combined physical-phone flow before judging.
+
+### Rebuilt program verification (November 8, 2026)
+
+An isolated Solana 1.18.26 validator loaded the rebuilt binary and passed:
+
+- Self-approved deposit locks the exact amount for 86,400 seconds.
+- Normal release before the wait returns error 8.
+- Explicit early override with the wrong PIN returns error 3.
+- Missing sender signature is rejected.
+- Undo refunds the entire held amount to the sender and closes the state.
+- A second deposit and explicit correct-PIN override pay the recipient and close the state.
+
+The invalid-signature test accepts Solana 1.18's RPC rejection as well as the newer validator response shape. These local runtime results are supplemented by the real devnet refund proof above. The CLI's empty bundled `syscalls.txt` caused build warnings for standard syscalls; the runtime exercised those calls successfully. The app’s 24-hour devnet flow now passed the deposit/refund and explicit-override checks. The separate legacy 20-second CLI demo was not run; its local policy-authority key file is absent.
+
+### Deployment operator command
+
+The [devnet-only deployment script](scripts/deploy-hold-devnet.mjs) completed the initial deployment. It refuses an existing program account, so do not re-run it to perform an unreviewed upgrade. It rebuilds with `--locked`, validates program ID/policy authority/devnet genesis, uses a temporary owner-only signer file, and removes that file afterward. The dedicated RPC URL stays in ignored `apps/api/.env.local`. The local deployment throttle is [scripts/devnet-rpc-proxy.mjs](scripts/devnet-rpc-proxy.mjs).
+
+The explicit devnet integration test is `node --import ../mobile/node_modules/tsx/dist/loader.mjs scripts/test-hold-devnet.mts --run` from `apps/api`. It uses disposable wallets and 0.01 test USDC; it is not part of ordinary unit tests. Do not run it against mainnet. Public proofs are in `audit/hold-devnet-proof.json`; test wallet keys remain ignored in `hold/keys/`.
+
+### Keys and startup on this computer
+
+Put only `SWARMS_API_KEY` and `PRUNE_API_KEY` in the Git-ignored, owner-readable `.env.review.local` at the repository root. The Gemini provider key stays in Prune’s vault. Then:
+
+```sh
+npm run review:check          # connectivity, credentials, credits and model availability
+npm run review:check:live     # one paid, clean provider round-trip; requires a cleared result and Prune receipt
+npm run review               # starts Python on the local port configured by REVIEW_API_URL (8011 here)
+```
+
+The npm launcher also uses the macOS system CA bundle when Python’s certificate bundle is missing; it never disables TLS verification.
+
+`REVIEW_API_URL` in `apps/api/.env.local` points to this Python server. If using `REVIEW_API_TOKEN`, put the same token in both server env files. `EXPO_PUBLIC_FAMILY_REVIEW=on` enables the app integration. Swarms/Prune secrets must never use `EXPO_PUBLIC_` names.
+
+The app API signs short-lived review/action receipts using `REVIEW_SIGNING_SECRET`, falling back to the existing server-only `PRIVY_APP_SECRET`. Wallets sign on the client; the server only adds the existing fee-payer signature. Hold transactions are simulated before asking the wallet to sign and again before submission. Mainnet and other clusters are rejected by genesis hash. The hold uses the app’s devnet USDC mint; the legacy CLI uses its own test mint.
+
+### API additions
+
+- `POST /api/review`: authenticated; requires `session`, `recipient`, `amountCents`, transcript and case. Per-user/per-draft history replaces the previous global reset. Provider calls share a 95-second deadline.
+- `GET /api/holds`: authenticated active holds for the sender/recipient, or deployment availability. `?state=...` fetches one participating wallet’s hold.
+- `POST /api/holds`: `{ step: 'prepare', action: 'deposit', reviewTicket, pin }`, or `{ step: 'prepare', action: 'refund' | 'release' | 'release-early', state, pin?, verified? }`. Early release requires `verified: true` after the explicit UI warning. Prepare returns a simulated message and signed action receipt. Submit accepts only `{ step: 'submit', preparedTicket, signature }`; it never co-signs an arbitrary client-supplied transaction.
+
+A known-recipient history is currently local to the browser/device, consistent with the app’s existing activity storage. A new device does not invent a previous payment history.
+
+### Verification commands
+
+```sh
+npm run test:review
+npm --prefix apps/api test
+npm --prefix apps/api run test:holds
+cd apps/mobile && node --import tsx --test tests/*.test.ts
+# From the repository root:
+NEST_TEST_REVIEW=true npm run test:website -- --output=test-results-review
+```
+
+The program was compiled with `cargo build-sbf` and tested on a local validator using throwaway wallets: exact deposit, normal premature release error 8, wrong PIN error 3, missing-signature rejection, full cancellation refund, and explicit sender override to the correct recipient all passed. `apps/api/test/hold-runtime.mjs` reproduces those checks against `http://127.0.0.1:18999`; it deliberately cannot target devnet. No user wallet or real funds are used.
+
+Live Swarms/Prune provider verification passed in the preceding audit using the configured server-only keys. A real devnet hold still needs the updated program rebuilt and deployed through the project’s deployment signer. Source/binary build success and local execution do not establish that devnet deployment has happened.
+
 ## Start here (5 minutes)
 
 ```powershell
@@ -295,7 +367,7 @@ slow path, never the fast one.
 | `required: false` (`needs_policy_cosign: true`) | `hold_seconds: 0`, the `review_hash` | sender **and the policy authority** |
 
 - The authority's public key is `POLICY_AUTHORITY` in `programs/family_hold/src/lib.rs`
-  (`GFYKxxnMQkBP8m1rx18xd1h1fwy6RDpADK9R5KJoREDF`). Its secret is `hold/keys/policy-authority.json` on
+  (`77m7HCt9N6VBCRiJi3WUUeL2QFbMtKmt9mdv6KbyYCCb`). Its secret is `hold/keys/policy-authority.json` on
   Chad's machine. It is never committed, and it belongs on the server (for example `apps/api`, which already
   has `@solana/web3.js`), never on a phone. To use your own key, generate one, put its public key in
   `POLICY_AUTHORITY`, and rebuild.
@@ -454,7 +526,7 @@ versions that still build there (blake3 1.5.5, jobserver 0.1.32, proc-macro-crat
 Keep that lockfile; if you run `cargo update`, CI's "Every locked crate must build with Cargo/Rust 1.75"
 step names any crate that breaks it and what pulls it in.
 
-**It is not deployed yet.** To deploy to devnet: set `POLICY_AUTHORITY` in `src/lib.rs` to the server's
+**Deployment completed November 8; see the verified program and transaction proofs above.** For a new initial deployment only: set `POLICY_AUTHORITY` in `src/lib.rs` to the server's
 key, add the `SOLANA_DEPLOYER_KEYPAIR` (a devnet keypair with about 3 SOL) and
 `FAMILY_HOLD_PROGRAM_KEYPAIR` (`hold/keys/program.json`) repository secrets, then run the workflow by hand
 with `deploy` ticked. Keys live in `hold/keys/`, which Git ignores.

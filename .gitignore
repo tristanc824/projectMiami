@@ -6,12 +6,14 @@ node_modules/
 dist/
 dist-*/
 .next/
+.next-*/
 .vercel/
 *.tsbuildinfo
 apps/mobile/ios/
 apps/mobile/android/
 playwright-report/
 test-results/
+test-results-*/
 *.ipa
 *.xcarchive
 __pycache__/
@@ -19,3 +21,7 @@ __pycache__/
 hold/keys/
 target/
 *.so
+.data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm

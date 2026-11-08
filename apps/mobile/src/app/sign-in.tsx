@@ -89,7 +89,7 @@ export default function SignInScreen() {
         </View>
       </View>
     </KeyboardScroll></KeyboardFrame>
-    <Sheet title="Get back in" visible={recovery} onClose={() => setRecovery(false)}><Text style={{ color: colors.ink, fontSize: 16, lineHeight: 24, marginBottom: 20 }}>Still have access to your phone number? Sign in on your new phone to recover your connected account. If you lost your number, contact your account provider. Demo balances stay on the device where you created them.</Text><Button title="Back to sign in" onPress={() => { setRecovery(false); void authenticate(); }} /></Sheet>
+    <Sheet title="Get back in" visible={recovery} onClose={() => setRecovery(false)}><Text style={{ color: colors.ink, fontSize: 16, lineHeight: 24, marginBottom: 20 }}>Still have access to your phone number? Sign in on your new phone using your SMS code. Recovery without that number is not available in this build. Saving a trusted contact does not enable account recovery yet. Demo balances stay on the device where you created them.</Text><Button title="Back to sign in" onPress={() => { setRecovery(false); void authenticate(); }} /></Sheet>
   </View>;
 }
 

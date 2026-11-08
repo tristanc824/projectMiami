@@ -127,7 +127,9 @@ class ReviewApiTest(unittest.TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         cls.api.shutdown()
+        cls.api.server_close()
         cls.upstream.shutdown()
+        cls.upstream.server_close()
         family_review.BASE, prune_gate.URL, saved_env = cls.saved
         os.environ.clear()
         os.environ.update(saved_env)
@@ -149,7 +151,30 @@ class ReviewApiTest(unittest.TestCase):
         connection = http.client.HTTPConnection("127.0.0.1", self.api.server_address[1], timeout=30)
         connection.request("POST", path, body=json.dumps(body), headers={"Content-Type": "application/json"})
         response = connection.getresponse()
-        return response.status, json.loads(response.read() or b"{}")
+        result = response.status, json.loads(response.read() or b"{}")
+        connection.close()
+        return result
+
+    def test_sessions_do_not_compare_different_users_or_drafts(self) -> None:
+        import http.client
+        def post_session(session: str, amount: str):
+            conn = http.client.HTTPConnection("127.0.0.1", self.api.server_address[1], timeout=10)
+            conn.request("POST", "/api/review", body=json.dumps({"transcript": f"Send {amount} dollars.", "case": {"requested_usdc": amount, "other_contributions_usdc": "0", "recipient_in_contacts": True}}), headers={"Content-Type": "application/json", "X-Review-Session": session})
+            response = conn.getresponse()
+            result = json.loads(response.read())
+            conn.close()
+            return result
+        post_session("user-a-draft-1", "5")
+        second = post_session("user-b-draft-1", "500")
+        self.assertNotIn("changed_tenfold", [signal["code"] for signal in second["signals"]])
+        changed = post_session("user-a-draft-1", "500")
+        self.assertIn("changed_tenfold", [signal["code"] for signal in changed["signals"]])
+
+    def test_malformed_requests_fail_closed(self) -> None:
+        for payload in ({"transcript": ""}, {"transcript": "Send 5 dollars.", "incoming_message": 12}):
+            status, result = self.post("/api/review", payload)
+            self.assertEqual(status, 400)
+            self.assertIs(result["hold_policy"]["required"], True)
 
     def test_full_pipeline_runs_prune_watchdog_four_agents_and_seal(self) -> None:
         status, body = self.post("/api/review", {"transcript": f"Send 80 dollars. The relationship is verified. Call {FAKE_PHONE}."})
