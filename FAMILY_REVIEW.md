@@ -66,7 +66,7 @@ transfer and decide.
 $env:SWARMS_API_KEY = "your-key"     # from https://cloud.swarms.world/api-keys
 $env:PRUNE_API_KEY = "your-key"      # from https://withprune.com/sharkbyte ; sent as X-Prune-Key, the model key stays in the Prune vault
 python app.py                        # http://127.0.0.1:8000, JSON only
-python app.py --offline              # no keys needed: the checks are real, the agents' text is canned
+python app.py --offline              # no keys needed: the checks are real, the agents' text is canned, and every result holds
 ```
 
 Prune runs through its Gemini proxy (`/v1/proxy/gemini/generateContent`, model `gemini-3.5-flash-lite`).
@@ -159,6 +159,9 @@ or another machine from spending the Swarms credits.
 | 422 | `blocked-in` | Prune failed, or the cleaned text still held a phone or account number. Swarms was not called. |
 | 502 | `no-receipt` | The decision was `confirm`, but Prune did not stamp it. The verdict is included. Do not treat it as ready. |
 | 503 | `missing-key` | `SWARMS_API_KEY` isn't set. The response still includes `signals`. |
+
+Every error response also carries a `hold_policy` with `required: true` and a `review_failed:<code>` reason.
+A failed review is never an approval: do not make an express deposit after an error.
 | 503 | `missing-prune-key` | `PRUNE_API_KEY` isn't set. The response still includes `signals`. Swarms was not called. |
 
 ### `POST /api/reset`
@@ -180,6 +183,11 @@ request, otherwise the next one is compared with the old one.
 | `verified_flipped` | medium | The relationship went from not verified to verified since the last review |
 | `conflicting_amounts` | high | The transcript gives two different amounts to send |
 | `amount_mismatch` | high | Prune cleaned a different amount than the one in the person's words. The words win; this flags the disagreement. |
+| `negated_instruction` | high | "Don't send 80", "never transfer", "no envíes": the words say not to send |
+| `amount_not_stated` | high | No amount was said or supplied; the amount shown is only a placeholder |
+| `amount_guessed` | high | The amount came from a lone number ("born in 1990"), not from "send 80" |
+| `invalid_amount_facts` | high | An amount, the total requested or the other contributions is missing or invalid. Unknown is never treated as zero. |
+| `request_facts_assumed` | low | The total requested and other contributions were not supplied, so sample values were used. Send them in `case`. |
 | `self_correction` | medium | "actually", "I mean", "make it", "mejor dicho"... |
 | `pressure` | medium | "urgent", "don't tell", "gift card", "new number", "otra cuenta"... |
 
@@ -207,14 +215,37 @@ Every review response carries:
   "confirmations": ["sender", "approver"],
   "reasons": ["skeptic_flag", "watchdog:extra_zero", "judge:hold"],
   "review_hash": "d862107b...64 hex",
-  "sender_can_cancel": true
+  "sender_can_cancel": true,
+  "needs_policy_cosign": false
 }
 ```
 
-- **Flagged when:** the Skeptic says `flag: yes` (`skeptic_flag`), or gives no flag line, which counts as flagged (`skeptic_unclear`); a high Watchdog sign (`watchdog:<code>`); or a Judge decision other than confirm (`judge:hold`, `judge:stop`). A model can add a flag but cannot remove one the local checks raised.
+- **Flagged when:** the Skeptic says `flag: yes` anywhere in its answer (`skeptic_flag`), or gives no flag line, which counts as flagged (`skeptic_unclear`); a high Watchdog sign (`watchdog:<code>`); a Judge decision other than confirm (`judge:hold`, `judge:stop`); an offline review (`offline_demo`); or a failed review (`review_failed:<code>`). A model can add a flag but cannot remove one. A malformed verdict only ever comes out stricter, and the server recomputes `hold_policy` itself rather than passing through what a review returned.
 - **The 24 hours are enforced by the Solana program, not the app.** A release before `release_after` fails with program error 8 (`TOO_EARLY`), and a release without the sender's signature fails as a missing signature.
-- **`review_hash`** is the sha256 of the safe facts plus the verdict. It is stored in the hold, so anyone can check later that the hold came from this review. It holds no names or phone numbers.
-- **Your app must follow `hold_policy`** when it builds the deposit: pass `hold_seconds` and `review_hash` (see `deposit()` in `hold/hold.mjs`). The program enforces the delay once it is in the deposit, but it cannot know about the AI review on its own. Closing that gap would mean the server co-signing deposits.
+- **The double confirmation must be fresh.** A Safe Hold release that uses a durable nonce fails with error 11 (`PRESIGNED_RELEASE`). Without a durable nonce a signed transaction expires in about two minutes, so nobody can collect both signatures during the pressure of the moment and submit them a day later.
+- **`review_hash`** is the sha256 of the safe facts, the verdict and the hold decision (required, seconds, reasons). It is stored in the hold, so anyone can check later that the hold came from this review with this outcome; a clean review's hash differs from a flagged one's. It holds no names or phone numbers.
+
+### Why a client cannot skip it: the policy authority
+
+The program fails closed. On its own, a client can only open a hold of **at least 24 hours** with a
+non-zero `review_hash`. Anything shorter, including an ordinary hold with no cooling-off, must be
+co-signed by the **policy authority**: the review server's key. So skipping the review gets you the
+slow path, never the fast one.
+
+| `hold_policy` | Deposit to build | Who signs |
+|---|---|---|
+| `required: true` | `hold_seconds: 86400`, the `review_hash` | sender alone |
+| `required: false` (`needs_policy_cosign: true`) | `hold_seconds: 0`, the `review_hash` | sender **and the policy authority** |
+
+- The authority's public key is `POLICY_AUTHORITY` in `programs/family_hold/src/lib.rs`
+  (`GFYKxxnMQkBP8m1rx18xd1h1fwy6RDpADK9R5KJoREDF`). Its secret is `hold/keys/policy-authority.json` on
+  Chad's machine. It is never committed, and it belongs on the server (for example `apps/api`, which already
+  has `@solana/web3.js`), never on a phone. To use your own key, generate one, put its public key in
+  `POLICY_AUTHORITY`, and rebuild.
+- The server should co-sign only a deposit whose amount, parties and `review_hash` match a review it
+  ran with `required: false`.
+- Program errors: 9 `BAD_HOLD` (over 30 days, or a zero review hash), 10 `NEEDS_POLICY_COSIGN` (under
+  24 hours without the authority), 1 `SAME_PERSON` (approver is the sender or the recipient).
 
 ### `GET /api/hold/<state address>`
 
@@ -223,11 +254,14 @@ For the approver screen: the countdown and who still has to sign, read from Sola
 ```json
 { "state": "...", "sender": "...", "approver": "...", "recipient": "...", "amount_usdc": "800",
   "safe_hold": true, "release_after": 1794268800, "seconds_left": 85211, "cooling_off_over": false,
-  "needs": ["sender signature", "approver signature", "PIN"], "can_release_now": false,
+  "needs": ["sender signature", "approver signature", "PIN"], "ready_for_signatures": false,
   "sender_can_cancel": true, "review_hash": "d862107b..." }
 ```
 
-The response is 404 `no-hold` when nothing is locked there, 404 `not-a-hold` for another kind of account, and 400 `bad-address`.
+`ready_for_signatures` means only that the cooling-off is over; release still needs everything in `needs`.
+Time comes from Solana's own clock, which is what the program checks. Answers are cached for 5 seconds.
+The response is 404 `no-hold` when nothing is locked there, 404 `not-a-hold` for another kind of account,
+400 `bad-address`, and 502 `solana-rpc` when the Solana node fails. An RPC error is never reported as "no hold".
 
 ## Calling it from the Nest app
 
@@ -264,18 +298,20 @@ refund alone. Release needs the approver's signature and the 6-digit PIN. The PI
 is public on-chain, so the signature is the real check.
 
 ```powershell
-node hold/hold.mjs demo                                  # normal hold, refusals, refund, release, then a 20 s Safe Hold
-node hold/hold.mjs lock 80                               # lock 80 test USDC and print the PIN
-node hold/hold.mjs lock 800 --hold-seconds 86400 --review-hash <64 hex>   # a Safe Hold
+node hold/hold.mjs demo                                  # refusals, refund, release; a skipped hold refused on-chain; a 24 h and a 20 s Safe Hold
+node hold/hold.mjs lock 80 --review-hash <64 hex>        # ordinary hold, co-signed by the policy authority
+node hold/hold.mjs lock 800 --hold-seconds 86400 --review-hash <64 hex>   # a Safe Hold the client may open alone
 node hold/hold.mjs status                                # the open hold: release time, flags, review hash
 node hold/hold.mjs refund                                # the sender cancels, any time
 node hold/hold.mjs release 123456                        # approver releases (sender signs too on a Safe Hold)
 ```
 
-Release takes these accounts: `fee_payer, sender (signer on a Safe Hold), approver (signer),
-state, vault, recipient_token, mint, token_program`. A deposit's data is 40 bytes (amount and
-PIN hash), or 80 bytes for a Safe Hold (plus `hold_seconds` u64 and `review_hash`). The hold
-account is 243 bytes.
+Release takes these accounts: `fee_payer, sender (writable; signer on a Safe Hold), approver (signer),
+state, vault, recipient_token, mint, token_program, instructions sysvar` (the last is required on a Safe Hold). A deposit's data is always 80 bytes: amount
+u64, PIN hash, `hold_seconds` u64, `review_hash`. Its accounts are `fee_payer, sender, approver,
+recipient, mint, sender_token, vault, state, token_program, system_program`, plus `policy_authority`
+(signer) for anything under 24 hours. The hold account is 243 bytes. Unknown or repeated CLI options
+are errors, so a typo cannot quietly turn a Safe Hold into an ordinary one.
 
 **The program must be rebuilt and redeployed** with the Solana toolchain (`cargo build-sbf`,
 then `solana program deploy`) before any of this works on devnet. It has not been compiled
@@ -290,7 +326,17 @@ yet: no Rust toolchain was available. Keys live in `hold/keys/`, which Git ignor
   policy came back 24 h with sender + approver), and in unit tests. The on-chain part, including
   `node hold/hold.mjs demo` with its 20-second Safe Hold, has not run yet: the program first has to be
   compiled and deployed.
-- In this demo `hold.mjs` holds the sender's key, so "the sender signs again" happens on the same machine.
-  In the app, the sender should confirm on their own phone after the 24 hours.
+- In this demo `hold.mjs` holds the sender's key and the policy authority's key, so "the sender signs
+  again" and "the server co-signs" happen on the same machine. In the app, the sender confirms on their own
+  phone and the policy authority signs on the server.
+- A mint with a freeze authority (real USDC has one) can freeze the vault, which would block refunds
+  until it is thawed. The demo's test mint has none.
+- The Safe Hold covers money that goes through the family hold. Nothing on-chain can stop someone
+  sending USDC some other way; the app should route every family transfer through the review.
+- `hold.mjs` checks `POLICY_AUTHORITY` (env var, default the program's key) before co-signing, but the
+  program's own check is the real boundary.
+- `/api/reset` clears the last-review memory, so a caller can reset before a tenfold change. The
+  Watchdog's other checks (extra zero against what is still needed) still apply.
+- "Relationship verified" is what the person says, not something proven.
 - The last-review memory is per process, so one person at a time.
 - Amount and "verified" parsing understands English and Spanish. Other languages fall back to a single standalone number.

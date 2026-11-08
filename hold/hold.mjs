@@ -6,9 +6,10 @@
  * matches. The token is a test mint, not Circle USDC.
  *
  *   node hold/hold.mjs demo             lock, test the refusals, refund, lock, release, then a Safe Hold
- *   node hold/hold.mjs lock <amount> [--hold-seconds N] [--review-hash HEX]
- *                                       lock <amount> test USDC and print the PIN; with --hold-seconds
- *                                       it is a Safe Hold (cooling-off, then sender + approver sign)
+ *   node hold/hold.mjs lock <amount> --review-hash HEX [--hold-seconds N]
+ *                                       lock <amount> test USDC and print the PIN. N >= 86400 is a Safe
+ *                                       Hold the client may open alone; anything shorter (0 = ordinary
+ *                                       hold) needs the policy authority's co-signature
  *   node hold/hold.mjs status           show the open hold, its release time and whether it is flagged
  *   node hold/hold.mjs refund           the sender cancels the current lock, any time
  *   node hold/hold.mjs release <pin>    the approver releases it (and the sender signs again on a Safe Hold)
@@ -17,6 +18,7 @@ import {
   Connection,
   Keypair,
   PublicKey,
+  SYSVAR_INSTRUCTIONS_PUBKEY,
   SystemProgram,
   Transaction,
   TransactionInstruction,
@@ -40,8 +42,16 @@ import { fileURLToPath, pathToFileURL } from "url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const KEYS = join(HERE, "keys");
 export const PROGRAM_ID = new PublicKey("7NKeoXoNEgW11tgZKV18PPdktQyFHtYQ4CxJA2ffyC6g");
+// Must match POLICY_AUTHORITY in programs/family_hold/src/lib.rs.
+export const POLICY_AUTHORITY = new PublicKey(process.env.POLICY_AUTHORITY || "GFYKxxnMQkBP8m1rx18xd1h1fwy6RDpADK9R5KJoREDF");
 const RPC = process.env.SOLANA_RPC || "https://api.devnet.solana.com";
 const DECIMALS = 6;
+
+function loadExisting(name) {
+  const path = join(KEYS, name);
+  if (!existsSync(path)) return null;
+  return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(path, "utf8"))));
+}
 
 function loadOrCreate(name) {
   mkdirSync(KEYS, { recursive: true, mode: 0o700 });
@@ -109,11 +119,24 @@ const REVIEW_HASH = 210;
 const FLAGS = 242;
 const FLAG_SAFE_HOLD = 1;
 const MAX_HOLD_SECONDS = 30 * 24 * 60 * 60;
+const MIN_SAFE_HOLD_SECONDS = 24 * 60 * 60;
+
+function isoOrNull(unixSeconds) {
+  const date = new Date(unixSeconds * 1000);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+}
+
+/** Solana's own clock, which is what the program checks. */
+export async function chainTime(connection) {
+  const time = await connection.getBlockTime(await connection.getSlot("confirmed"));
+  return time ?? Math.floor(Date.now() / 1000);
+}
 
 /** Reads a hold account. Returns null when no hold is open. */
 export async function readHold(connection, state) {
   const info = await connection.getAccountInfo(state);
   if (!info) return null;
+  if (!info.owner.equals(PROGRAM_ID)) throw new Error("That account is not a family hold (wrong owner).");
   const data = info.data;
   if (data.length !== STATE_SIZE) throw new Error(`Unexpected hold size ${data.length}; redeploy the program and its client together.`);
   const key = (at) => new PublicKey(data.subarray(at, at + 32)).toBase58();
@@ -127,30 +150,53 @@ export async function readHold(connection, state) {
     mint: key(97),
     amount: data.readBigUInt64LE(161).toString(),
     safeHold,
-    releaseAfter: safeHold ? new Date(releaseAfter * 1000).toISOString() : null,
+    releaseAfter: safeHold ? isoOrNull(releaseAfter) : null,
+    releaseAfterUnix: safeHold ? releaseAfter : null,
     reviewHash: data.subarray(REVIEW_HASH, REVIEW_HASH + 32).toString("hex"),
     needs: safeHold ? ["cooling-off over", "sender signature", "approver signature", "PIN"] : ["approver signature", "PIN"],
   };
 }
 
-export async function deposit({ connection, feePayer, sender, approver, recipient, mint, amount, pin, holdSeconds = 0, reviewHash = null }) {
+/**
+ * Locks `amount` base units. Always sends the full 80-byte format with a review hash.
+ * holdSeconds >= 86400 is a Safe Hold anyone may open; anything shorter (0 = an ordinary hold)
+ * must be co-signed by `policyAuthority`, the review server's key, or the program refuses it.
+ * `unchecked` skips this client's own guard; the demo uses it to show the program refuses too.
+ */
+export async function deposit({
+  connection, feePayer, sender, approver, recipient, mint, amount, pin,
+  holdSeconds = 0, reviewHash, policyAuthority = null, unchecked = false,
+}) {
   await requireProgram(connection);
   const senderAta = getAssociatedTokenAddressSync(mint, sender.publicKey);
   const [state] = statePda(sender.publicKey, approver, recipient, mint);
   const [vault] = vaultPda(state);
+  const amountOk =
+    typeof amount === "bigint" ||
+    (typeof amount === "number" && Number.isSafeInteger(amount)) ||
+    (typeof amount === "string" && /^\d+$/.test(amount));
+  if (!amountOk) throw new Error("Amount must be base units: a BigInt, a safe integer or a digit string");
+  const units = BigInt(amount);
+  if (units <= 0n || units > 0xffffffffffffffffn) throw new Error("Amount out of range");
+  if (typeof pin !== "string") throw new Error("PIN must be a string of 6 digits");
   const amountBytes = Buffer.alloc(8);
-  amountBytes.writeBigUInt64LE(BigInt(amount));
+  amountBytes.writeBigUInt64LE(units);
   const seconds = Number(holdSeconds);
   if (!Number.isInteger(seconds) || seconds < 0 || seconds > MAX_HOLD_SECONDS) throw new Error("Hold seconds must be 0 to 30 days");
-  const review = reviewHash ? Buffer.from(reviewHash, "hex") : Buffer.alloc(32);
-  if (review.length !== 32) throw new Error("Review hash must be 64 hex characters");
-  let extra = Buffer.alloc(0);
-  if (seconds > 0 || reviewHash) {
-    extra = Buffer.alloc(40);
-    extra.writeBigUInt64LE(BigInt(seconds), 0);
-    review.copy(extra, 8);
+  if (typeof reviewHash !== "string" || !/^[0-9a-f]{64}$/i.test(reviewHash) || /^0+$/.test(reviewHash)) {
+    throw new Error("A non-zero 64-hex review hash is required (hold_policy.review_hash from the review)");
   }
-  const signature = await send(connection, feePayer, [sender], instruction(0, [
+  const cosigned = seconds < MIN_SAFE_HOLD_SECONDS;
+  if (cosigned && !policyAuthority && !unchecked) {
+    throw new Error("Holds shorter than 24 hours need the policy authority's co-signature (the review server).");
+  }
+  if (policyAuthority && !policyAuthority.publicKey.equals(POLICY_AUTHORITY)) {
+    throw new Error(`That is not the policy authority this program trusts (${POLICY_AUTHORITY.toBase58()}).`);
+  }
+  const extra = Buffer.alloc(40);
+  extra.writeBigUInt64LE(BigInt(seconds), 0);
+  Buffer.from(reviewHash, "hex").copy(extra, 8);
+  const keys = [
     { pubkey: feePayer.publicKey, isSigner: true, isWritable: true },
     { pubkey: sender.publicKey, isSigner: true, isWritable: false },
     { pubkey: approver, isSigner: false, isWritable: false },
@@ -161,7 +207,10 @@ export async function deposit({ connection, feePayer, sender, approver, recipien
     { pubkey: state, isSigner: false, isWritable: true },
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-  ], Buffer.concat([amountBytes, pinHash(pin), extra])));
+  ];
+  if (policyAuthority) keys.push({ pubkey: policyAuthority.publicKey, isSigner: true, isWritable: false });
+  const signers = policyAuthority ? [sender, policyAuthority] : [sender];
+  const signature = await send(connection, feePayer, signers, instruction(0, keys, Buffer.concat([amountBytes, pinHash(pin), extra])));
   return { signature, state: state.toBase58() };
 }
 
@@ -183,11 +232,15 @@ export async function refund({ connection, feePayer, sender, state, vault, sende
  * Releases a hold to the recipient. `sender` is a public key, or the sender's Keypair when the
  * sender confirms again: a Safe Hold needs both the sender's and the approver's signatures.
  */
-export async function release({ connection, feePayer, sender, approver, state, vault, recipientAta, mint, pin }) {
+export async function release({ connection, feePayer, sender, approver, state, vault, recipientAta, mint, pin, unchecked = false }) {
   await requireProgram(connection);
-  if (!/^\d{6}$/.test(pin)) throw new Error("PIN must be 6 digits");
+  if (typeof pin !== "string" || !/^\d{6}$/.test(pin)) throw new Error("PIN must be a string of 6 digits");
   const senderSigns = typeof sender?.secretKey !== "undefined";
   const senderKey = senderSigns ? sender.publicKey : sender;
+  if (!senderSigns && !unchecked) {
+    const hold = await readHold(connection, state);
+    if (hold?.safeHold) throw new Error("This is a Safe Hold: the sender must sign the release too.");
+  }
   const signature = await send(connection, feePayer, senderSigns ? [approver, sender] : [approver], instruction(2, [
     { pubkey: feePayer.publicKey, isSigner: true, isWritable: true },
     { pubkey: senderKey, isSigner: senderSigns, isWritable: true },
@@ -197,6 +250,8 @@ export async function release({ connection, feePayer, sender, approver, state, v
     { pubkey: recipientAta, isSigner: false, isWritable: true },
     { pubkey: mint, isSigner: false, isWritable: false },
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    // A Safe Hold release checks this to refuse pre-signed (durable-nonce) transactions.
+    { pubkey: SYSVAR_INSTRUCTIONS_PUBKEY, isSigner: false, isWritable: false },
   ], Buffer.from(pin, "ascii")));
   return signature;
 }
@@ -219,19 +274,19 @@ async function balance(connection, mint, owner) {
 }
 
 // Program error codes from programs/family_hold/src/lib.rs.
-const ERR = { WRONG_SENDER: 2, WRONG_PIN: 3, WRONG_APPROVER: 6, TOO_EARLY: 8 };
+const ERR = { SAME_PERSON: 1, WRONG_SENDER: 2, WRONG_PIN: 3, WRONG_APPROVER: 6, TOO_EARLY: 8, BAD_HOLD: 9, NEEDS_POLICY_COSIGN: 10 };
 
 // Passes only when the program refuses with this exact code, so an unrelated failure
 // (no SOL, a network error, a wrong account) cannot pass as a working check.
 function expectFail(promise, code) {
-  const wanted = code === "signature" ? "missing required signature" : `custom program error: 0x${code.toString(16)}`;
+  const wanted = code === "signature" ? /missing required signature|MissingRequiredSignature/i : `custom program error: 0x${code.toString(16)}`;
   return promise.then(
     () => {
       throw new Error("that transaction was accepted");
     },
     (error) => {
       const text = [error?.message, ...(error?.logs ?? [])].join(" ");
-      if (!text.includes(wanted)) throw error;
+      if (typeof wanted === "string" ? !text.includes(wanted) : !wanted.test(text)) throw error;
       return "rejected";
     },
   );
@@ -257,8 +312,13 @@ async function setup() {
 
   const start = await connection.getBalance(feePayer.publicKey);
   if (start < 1_000_000_000) {
-    const sig = await connection.requestAirdrop(feePayer.publicKey, 1_000_000_000);
-    await connection.confirmTransaction(sig, "confirmed");
+    // Devnet airdrops are rate-limited. A failure is not fatal: a refund costs a fraction of this.
+    try {
+      const sig = await connection.requestAirdrop(feePayer.publicKey, 1_000_000_000);
+      await connection.confirmTransaction(sig, "confirmed");
+    } catch (error) {
+      console.warn(`Airdrop failed (${error.message || error}); continuing with ${start / 1e9} SOL.`);
+    }
   }
 
   const mint = loadOrCreate("mint.json");
@@ -296,7 +356,14 @@ async function holdIsOpen(ctx) {
   return Boolean(await ctx.connection.getAccountInfo(ctx.state));
 }
 
-async function lock(ctx, amount, { holdSeconds = 0, reviewHash = null } = {}) {
+function policyAuthorityKey() {
+  // Stands in for the review server, which holds this key in production.
+  const key = loadExisting("policy-authority.json");
+  if (!key) throw new Error("hold/keys/policy-authority.json is missing: holds under 24 hours need the policy authority.");
+  return key;
+}
+
+async function lock(ctx, amount, { holdSeconds = 0, reviewHash, cosign = holdSeconds < MIN_SAFE_HOLD_SECONDS, unchecked = false } = {}) {
   if (await holdIsOpen(ctx)) {
     throw new Error("A hold between these family members is already open. Run refund or release first.");
   }
@@ -305,6 +372,8 @@ async function lock(ctx, amount, { holdSeconds = 0, reviewHash = null } = {}) {
   const result = await deposit({
     holdSeconds,
     reviewHash,
+    policyAuthority: cosign ? policyAuthorityKey() : null,
+    unchecked,
     connection: ctx.connection,
     feePayer: ctx.feePayer,
     sender: ctx.sender,
@@ -344,7 +413,8 @@ async function demo() {
   }
   const before = await balance(ctx.connection, ctx.mint, ctx.recipient.publicKey);
 
-  const first = await lock(ctx, amount);
+  const demoHash = createHash("sha256").update("hold.mjs demo review").digest("hex");
+  const first = await lock(ctx, amount, { reviewHash: demoHash });
   console.log("Give this PIN to the approver. The sender does not need it to cancel.");
   console.log("PIN", first.pin);
   console.log("locked", first.state);
@@ -360,7 +430,7 @@ async function demo() {
   const afterRefund = await balance(ctx.connection, ctx.mint, ctx.sender.publicKey);
   console.log("sender balance after refund", afterRefund.toString());
 
-  const second = await lock(ctx, amount);
+  const second = await lock(ctx, amount, { reviewHash: demoHash });
   await release(releaseArgs(ctx, second.pin));
   const received = (await balance(ctx.connection, ctx.mint, ctx.recipient.publicKey)) - before;
   console.log("recipient received", received.toString());
@@ -368,13 +438,27 @@ async function demo() {
 
   // Safe Hold: a flagged transfer waits out a cooling-off (20 s here, 24 h in the app), then
   // needs the sender and the approver to sign.
-  const coolOff = 20;
-  const safe = await lock(ctx, amount, { holdSeconds: coolOff, reviewHash: "ab".repeat(32) });
+  // A client on its own cannot skip the review: an express hold without the co-signature is refused on-chain.
+  const skipped = await expectFail(lock(ctx, amount, { reviewHash: demoHash, cosign: false, unchecked: true }), ERR.NEEDS_POLICY_COSIGN);
+  console.log("express hold without the policy authority", skipped);
+  // ...but it can always open the full 24-hour Safe Hold alone. The sender cancels it here.
+  await lock(ctx, amount, { holdSeconds: MIN_SAFE_HOLD_SECONDS, reviewHash: demoHash, cosign: false });
+  const fullHold = await readHold(ctx.connection, ctx.state);
+  console.log("client-only 24 h Safe Hold until", fullHold.releaseAfter);
+  await refund(refundArgs(ctx));
+  console.log("sender cancelled it");
+
+  const coolOff = 20; // co-signed short Safe Hold, so the demo does not wait a day
+  const safe = await lock(ctx, amount, { holdSeconds: coolOff, reviewHash: demoHash });
   console.log("safe hold", JSON.stringify(await readHold(ctx.connection, ctx.state)));
   const tooEarly = await expectFail(release(releaseArgs(ctx, safe.pin, ctx.approver, true)), ERR.TOO_EARLY);
   console.log("release during the cooling-off", tooEarly);
-  await new Promise((resolve) => setTimeout(resolve, (coolOff + 5) * 1000));
-  const approverAlone = await expectFail(release(releaseArgs(ctx, safe.pin, ctx.approver, false)), "signature");
+  // Wait on Solana's clock, which is what the program checks.
+  const safeHold = await readHold(ctx.connection, ctx.state);
+  while ((await chainTime(ctx.connection)) <= safeHold.releaseAfterUnix) {
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+  }
+  const approverAlone = await expectFail(release({ ...releaseArgs(ctx, safe.pin, ctx.approver, false), unchecked: true }), "signature");
   console.log("approver alone after the cooling-off", approverAlone);
   const beforeSafe = await balance(ctx.connection, ctx.mint, ctx.recipient.publicKey);
   await release(releaseArgs(ctx, safe.pin, ctx.approver, true));
@@ -383,21 +467,38 @@ async function demo() {
   if (safeReceived !== amount) throw new Error("the safe hold did not release the locked amount");
 }
 
-function option(args, name) {
-  const at = args.indexOf(name);
-  return at === -1 ? null : args[at + 1];
+// Strict option parsing: an unknown, repeated or valueless option is an error, never ignored,
+// so a typo cannot silently turn a Safe Hold into an ordinary hold.
+function parseOptions(args, allowed) {
+  const options = {};
+  for (let i = 0; i < args.length; i += 2) {
+    const name = args[i];
+    const value = args[i + 1];
+    if (!allowed.includes(name)) throw new Error(`Unknown option ${name}. Allowed: ${allowed.join(", ")}`);
+    if (name in options) throw new Error(`${name} given twice`);
+    if (value === undefined || value.startsWith("--")) throw new Error(`${name} needs a value`);
+    options[name] = value;
+  }
+  return options;
 }
 
 const commands = {
   demo: () => demo(),
   async lock(amountText, ...args) {
     const amount = toUnits(amountText);
-    const holdSeconds = Number(option(args, "--hold-seconds") ?? 0);
-    const reviewHash = option(args, "--review-hash");
-    if (reviewHash !== null && !/^[0-9a-f]{64}$/i.test(reviewHash)) throw new Error("--review-hash must be 64 hex characters");
+    const options = parseOptions(args, ["--hold-seconds", "--review-hash"]);
+    const secondsText = options["--hold-seconds"] ?? "0";
+    if (!/^\d+$/.test(secondsText)) throw new Error("--hold-seconds must be a whole number of seconds");
+    const holdSeconds = Number(secondsText);
+    const reviewHash = options["--review-hash"];
+    if (!reviewHash) throw new Error("--review-hash is required: pass hold_policy.review_hash from the review");
+    if (!/^[0-9a-f]{64}$/i.test(reviewHash) || /^0+$/.test(reviewHash)) throw new Error("--review-hash must be 64 hex characters, not all zero");
     const ctx = await setup();
     const { state, pin } = await lock(ctx, amount, { holdSeconds, reviewHash });
     console.log("locked", state);
+    if (holdSeconds < MIN_SAFE_HOLD_SECONDS) {
+      console.log("Co-signed by the policy authority (in the app, the review server signs this).");
+    }
     if (holdSeconds > 0) {
       const hold = await readHold(ctx.connection, ctx.state);
       console.log(`SAFE HOLD until ${hold.releaseAfter}. Then the sender and the approver must both sign. The sender can cancel any time.`);
@@ -415,11 +516,13 @@ const commands = {
     if (!(await holdIsOpen(ctx))) throw new Error("No hold is open.");
     console.log("refunded", await refund(refundArgs(ctx)));
   },
-  async release(pin) {
+  async release(pin, ...extra) {
+    if (extra.length) throw new Error(`Unexpected arguments: ${extra.join(" ")}. Usage: release <6-digit PIN>`);
+    if (!/^\d{6}$/.test(String(pin ?? ""))) throw new Error("Usage: release <6-digit PIN>");
     const ctx = await setup();
     const hold = await readHold(ctx.connection, ctx.state);
     if (!hold) throw new Error("No hold is open.");
-    if (hold.safeHold && Date.now() < Date.parse(hold.releaseAfter)) {
+    if (hold.safeHold && (await chainTime(ctx.connection)) < hold.releaseAfterUnix) {
       throw new Error(`Safe Hold: the cooling-off ends at ${hold.releaseAfter}. The sender can cancel before then.`);
     }
     // On a Safe Hold the sender confirms again: this demo holds the sender's key, so it signs here.
@@ -433,10 +536,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   if (Object.hasOwn(commands, command)) {
     commands[command](...rest).catch((error) => {
       console.error(error.message || error);
-      process.exit(1);
+      // exitCode, not exit(): exiting with an RPC socket still open crashes Node on Windows.
+      process.exitCode = 1;
     });
   } else {
-    console.error("Usage: node hold/hold.mjs demo | lock <amount> [--hold-seconds N] [--review-hash HEX] | status | refund | release <pin>");
+    console.error("Usage: node hold/hold.mjs demo | lock <amount> --review-hash HEX [--hold-seconds N] | status | refund | release <pin>");
     process.exit(1);
   }
 }

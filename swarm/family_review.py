@@ -42,6 +42,11 @@ SIGNALS: dict[str, tuple[str, str]] = {
     "verified_flipped": ("medium", "The relationship changed from not verified to verified since the last review."),
     "conflicting_amounts": ("high", "The request mentions more than one different amount to send."),
     "amount_mismatch": ("high", "The amount in the person's words and the amount Prune cleaned do not match."),
+    "negated_instruction": ("high", "The request says not to send (\"don't send 80\"). Ask whether to send anything at all."),
+    "amount_not_stated": ("high", "No amount to send was stated or supplied, so the amount shown is only a placeholder."),
+    "amount_guessed": ("high", "The amount was guessed from a lone number, not from words like \"send 80\". Confirm it."),
+    "invalid_amount_facts": ("high", "An amount, the total requested, or the other contributions is missing or invalid."),
+    "request_facts_assumed": ("low", "The total requested and other contributions were not supplied; sample values were used."),
     "self_correction": ("medium", "The speaker corrected themselves while giving the request."),
     "pressure": ("medium", "The request pushes for speed or secrecy, or asks for a new way to pay."),
 }
@@ -266,24 +271,39 @@ def detect_signals(
     self_correction: bool = False,
     pressure: bool = False,
     amount_mismatch: bool = False,
+    negated_instruction: bool = False,
+    amount_source: str = "case",
+    request_facts_assumed: bool = False,
 ) -> list[str]:
-    """Deterministic typo and tamper checks on the safe facts. Returns codes from SIGNALS."""
+    """Deterministic typo and tamper checks on the safe facts. Returns codes from SIGNALS.
+
+    Fails closed: a missing or invalid fact is a high sign, never a zero or a model's guess."""
     found: set[str] = set()
     amount = _decimal(case.get("amount_usdc"))
     requested = _decimal(case.get("requested_usdc"))
     others = _decimal(case.get("other_contributions_usdc"))
 
-    if requested is not None and others is not None and others > requested:
-        found.add("contributions_exceed_request")
-    if amount is not None and amount > 0 and requested is not None:
-        needed = requested - (others or Decimal(0))
+    if amount is None or amount <= 0 or requested is None or others is None:
+        found.add("invalid_amount_facts")
+    else:
+        if others > requested:
+            found.add("contributions_exceed_request")
+        needed = requested - others
         if needed > 0:
             if amount >= needed * Decimal("9.5"):
                 found.add("extra_zero")
-            elif _ratio_near(needed, amount, (10, 100), Decimal(0)):
+            elif _ratio_near(needed, amount, (10, 100), Decimal("0.02")):
                 found.add("missing_zero")
             elif amount > needed:
                 found.add("above_needed")
+    if amount_source == "default":
+        found.add("amount_not_stated")
+    elif amount_source == "guessed":
+        found.add("amount_guessed")
+    if negated_instruction:
+        found.add("negated_instruction")
+    if request_facts_assumed:
+        found.add("request_facts_assumed")
 
     if previous:
         before = _decimal(previous.get("amount_usdc"))
@@ -308,15 +328,22 @@ def detect_signals(
 
 
 def apply_checks(verdict: dict[str, Any], codes: list[str]) -> dict[str, Any]:
-    """The model may not confirm past a high warning sign, or report less suspicion than the checks found."""
-    result = dict(verdict)
+    """The model may not confirm past a high warning sign, or report less suspicion than the checks found.
+
+    An unknown decision becomes "hold" and an unknown suspicion becomes "high": a malformed verdict
+    can only make the result stricter, never crash before the hold is applied."""
+    result = dict(verdict) if isinstance(verdict, dict) else {}
+    if result.get("decision") not in {"confirm", "hold", "stop"}:
+        result["decision"] = "hold"
+    if result.get("suspicion") not in SUSPICION_LEVELS:
+        result["suspicion"] = "high"
     if any(code in HIGH_SIGNALS for code in codes):
         floor = "high"
     elif codes:
         floor = "low"
     else:
         floor = "none"
-    if SUSPICION_LEVELS.index(result.get("suspicion", "none")) < SUSPICION_LEVELS.index(floor):
+    if SUSPICION_LEVELS.index(result["suspicion"]) < SUSPICION_LEVELS.index(floor):
         result["suspicion"] = floor
     result["held_by_checks"] = floor == "high" and result.get("decision") == "confirm"
     if result["held_by_checks"]:
@@ -369,7 +396,7 @@ def offline_review(case: dict[str, Any]) -> dict[str, Any]:
     return {
         "outputs": outputs,
         "verdict": verdict,
-        "hold_policy": hold_policy(case, outputs, verdict),
+        "hold_policy": hold_policy(case, outputs, verdict, offline=True),
         "credit_cost": None,
         "attempts": 1,
         "offline": True,
@@ -377,15 +404,21 @@ def offline_review(case: dict[str, Any]) -> dict[str, Any]:
 
 
 def skeptic_flag(text: str) -> bool | None:
-    """The Skeptic's last "flag: yes|no" line, or None when it gave none."""
-    found = SKEPTIC_FLAG.findall(text or "")
-    return None if not found else found[-1].lower() == "yes"
+    """True when any "flag: yes" line appears, False only when every flag line says no, None when there is none.
+
+    Fails closed: "flag: yes" followed by "flag: no" is still flagged."""
+    found = [answer.lower() for answer in SKEPTIC_FLAG.findall(text or "")]
+    if not found:
+        return None
+    return "yes" in found
 
 
-def review_hash(case: dict[str, Any], verdict: dict[str, Any]) -> str:
-    """sha256 of the safe facts and the verdict. It goes on-chain with a Safe Hold, so anyone can
-    check later that this hold came from this review. No names or numbers beyond amounts are in it."""
+def review_hash(case: dict[str, Any], verdict: dict[str, Any], decision: dict[str, Any] | None = None) -> str:
+    """sha256 of the safe facts, the verdict and the hold decision. It goes on-chain with the hold, so
+    anyone can check later that this hold came from this review, with this outcome. A clean review's
+    hash cannot be reused for a flagged hold, or the other way round. No names or numbers beyond amounts."""
     facts = {
+        "hold": decision or {},
         "amount_usdc": case.get("amount_usdc"),
         "requested_usdc": case.get("requested_usdc"),
         "other_contributions_usdc": case.get("other_contributions_usdc"),
@@ -399,13 +432,21 @@ def review_hash(case: dict[str, Any], verdict: dict[str, Any]) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def hold_policy(case: dict[str, Any], outputs: dict[str, str], verdict: dict[str, Any]) -> dict[str, Any]:
+def hold_policy(
+    case: dict[str, Any], outputs: dict[str, str], verdict: dict[str, Any], offline: bool = False
+) -> dict[str, Any]:
     """Whether this transfer must go into a Safe Hold, and why.
 
     Flagged when the Skeptic says "flag: yes" (or gives no flag line: fail closed), when the
-    Watchdog's local checks found a high sign, or when the Judge did not confirm. A model can
-    add a flag; it cannot remove one the local checks raised."""
+    Watchdog's local checks found a high sign, when the Judge did not confirm, or when the review
+    ran offline with canned text. A model can add a flag; it cannot remove one the local checks raised."""
     reasons: list[str] = []
+    if offline:
+        reasons.append("offline_demo")
+    if not isinstance(outputs, dict):
+        outputs = {}
+    if not isinstance(verdict, dict):
+        verdict = {}
     flag = skeptic_flag(outputs.get("Skeptic", ""))
     if flag is None:
         reasons.append("skeptic_unclear")
@@ -415,14 +456,33 @@ def hold_policy(case: dict[str, Any], outputs: dict[str, str], verdict: dict[str
     if verdict.get("decision") != "confirm":
         reasons.append(f"judge:{verdict.get('decision')}")
     required = bool(reasons)
-    return {
+    decision = {
         "required": required,
         "hold_seconds": SAFE_HOLD_SECONDS if required else 0,
+        "reasons": reasons,
+    }
+    return {
+        **decision,
         "hold_hours": round(SAFE_HOLD_SECONDS / 3600, 2) if required else 0,
         "confirmations": ["sender", "approver"] if required else ["approver"],
-        "reasons": reasons,
-        "review_hash": review_hash(case, verdict),
+        "review_hash": review_hash(case, verdict, decision),
         "sender_can_cancel": True,
+        # A clean review is not a deposit on its own: the server's policy authority co-signs the
+        # express (no cooling-off) deposit. A client alone can only make a 24-hour Safe Hold.
+        "needs_policy_cosign": not required,
+    }
+
+
+def failed_policy(case: dict[str, Any], reason: str) -> dict[str, Any]:
+    """The hold decision when the review itself failed: hold. A failed review is never an approval."""
+    decision = {"required": True, "hold_seconds": SAFE_HOLD_SECONDS, "reasons": [f"review_failed:{reason}"]}
+    return {
+        **decision,
+        "hold_hours": round(SAFE_HOLD_SECONDS / 3600, 2),
+        "confirmations": ["sender", "approver"],
+        "review_hash": review_hash(case, {"decision": "hold", "suspicion": "high"}, decision),
+        "sender_can_cancel": True,
+        "needs_policy_cosign": False,
     }
 
 
@@ -498,20 +558,18 @@ def extract_outputs(result: dict[str, Any]) -> dict[str, str]:
     turns = result.get("output")
     if not isinstance(turns, list):
         return {}
-    by_role: dict[str, str] = {}
+    by_role: dict[str, list[str]] = {name: [] for name in AGENT_NAMES}
     for turn in turns:
         text = _content(turn)
         role = turn.get("role") if isinstance(turn, dict) else None
-        if text is not None and role in AGENT_NAMES:
-            by_role[role] = text
-    if all(name in by_role for name in AGENT_NAMES):
-        return {name: by_role[name] for name in AGENT_NAMES}
-    if len(turns) < len(AGENT_NAMES):
+        if text is not None and role in by_role:
+            by_role[role].append(text)
+    # Fail closed on ambiguous output: every agent must have spoken, the Judge exactly once.
+    # Roles that are not agent names are never guessed from position.
+    if any(not texts for texts in by_role.values()) or len(by_role["Judge"]) != 1:
         return {}
-    tail = [_content(turn) for turn in turns[-len(AGENT_NAMES):]]
-    if any(text is None for text in tail):
-        return {}
-    return dict(zip(AGENT_NAMES, tail))  # type: ignore[arg-type]
+    # Every Skeptic turn is kept, so an earlier "flag: yes" cannot be hidden by a later "flag: no".
+    return {name: "\n\n".join(texts) for name, texts in by_role.items()}
 
 
 JSON_FENCE = re.compile(r"^\s*```(?:json)?\s*(.*?)\s*```\s*$", re.DOTALL)

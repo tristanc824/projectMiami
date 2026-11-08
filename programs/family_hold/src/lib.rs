@@ -14,6 +14,18 @@
 //! its release time, and release then needs the sender to sign again as well
 //! as the approver: a double confirmation after the pressure of the moment
 //! has passed. The sender can still refund at any time.
+//!
+//! Fail closed: a client on its own can only open a Safe Hold of at least 24
+//! hours with a non-zero review hash. Anything shorter, including an ordinary
+//! hold with no cooling-off, needs the policy authority (the review server) to
+//! co-sign the deposit. Skipping the review therefore gets you the slow path,
+//! never the fast one. Replace POLICY_AUTHORITY with your server's key before
+//! you deploy.
+//!
+//! A Safe Hold release may not use a durable nonce. Without one, a signed
+//! transaction expires within about two minutes, so both signatures must be
+//! made at release time, after the cooling-off. Nobody can collect them during
+//! the pressure of the moment and submit them a day later.
 
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -27,7 +39,7 @@ use solana_program::{
     pubkey::Pubkey,
     rent::Rent,
     system_instruction,
-    sysvar::Sysvar,
+    sysvar::{instructions as tx_instructions, Sysvar},
 };
 use spl_token::{
     instruction as token_ix,
@@ -37,6 +49,10 @@ use spl_token::{
 entrypoint!(process_instruction);
 
 solana_program::declare_id!("7NKeoXoNEgW11tgZKV18PPdktQyFHtYQ4CxJA2ffyC6g");
+
+/// The review server's key. It co-signs every deposit shorter than MIN_SAFE_HOLD_SECONDS.
+/// Its secret lives in hold/keys/policy-authority.json (never committed) and belongs on the server.
+const POLICY_AUTHORITY: Pubkey = solana_program::pubkey!("GFYKxxnMQkBP8m1rx18xd1h1fwy6RDpADK9R5KJoREDF");
 
 const DEPOSIT: u8 = 0;
 const REFUND: u8 = 1;
@@ -56,6 +72,8 @@ const REVIEW_HASH: usize = 210; // sha256 of the review that flagged the transfe
 const FLAGS: usize = 242;
 const FLAG_SAFE_HOLD: u8 = 1;
 const MAX_HOLD_SECONDS: u64 = 30 * 24 * 60 * 60;
+const MIN_SAFE_HOLD_SECONDS: u64 = 24 * 60 * 60;
+const DEPOSIT_DATA_LEN: usize = 80; // amount u64, PIN hash, hold seconds u64, review hash
 
 const BAD_INSTRUCTION: u32 = 0;
 const SAME_PERSON: u32 = 1;
@@ -67,6 +85,10 @@ const WRONG_APPROVER: u32 = 6;
 const WRONG_OWNER: u32 = 7;
 const TOO_EARLY: u32 = 8;
 const BAD_HOLD: u32 = 9;
+const NEEDS_POLICY_COSIGN: u32 = 10;
+const PRESIGNED_RELEASE: u32 = 11;
+/// System instruction 4 is AdvanceNonceAccount: the mark of a durable-nonce transaction.
+const ADVANCE_NONCE_ACCOUNT: [u8; 4] = [4, 0, 0, 0];
 
 fn process_instruction(
     program_id: &Pubkey,
@@ -88,28 +110,26 @@ fn process_instruction(
 }
 
 fn deposit(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
-    // 40 bytes: amount, PIN hash. 80 bytes: also a Safe Hold delay and the review hash.
-    if data.len() != 40 && data.len() != 80 {
+    // Always 80 bytes: amount, PIN hash, hold seconds, review hash. There is no short
+    // format, so no deposit can leave out the hold decision.
+    if data.len() != DEPOSIT_DATA_LEN {
         return Err(ProgramError::InvalidInstructionData);
     }
     let amount = u64::from_le_bytes(data[..8].try_into().unwrap());
     let pin_hash: [u8; 32] = data[8..40].try_into().unwrap();
+    let hold_seconds = u64::from_le_bytes(data[40..48].try_into().unwrap());
+    let review_hash: [u8; 32] = data[48..80].try_into().unwrap();
     if amount == 0 {
         return Err(ProgramError::InvalidInstructionData);
     }
-    let (hold_seconds, review_hash) = if data.len() == 80 {
-        let seconds = u64::from_le_bytes(data[40..48].try_into().unwrap());
-        let review: [u8; 32] = data[48..80].try_into().unwrap();
-        (seconds, review)
-    } else {
-        (0, [0u8; 32])
-    };
-    if hold_seconds > MAX_HOLD_SECONDS {
+    if hold_seconds > MAX_HOLD_SECONDS || review_hash == [0u8; 32] {
         return Err(ProgramError::Custom(BAD_HOLD));
     }
     let (release_after, flags) = if hold_seconds > 0 {
         let now = Clock::get()?.unix_timestamp;
-        (now + hold_seconds as i64, FLAG_SAFE_HOLD)
+        let seconds = i64::try_from(hold_seconds).map_err(|_| ProgramError::Custom(BAD_HOLD))?;
+        let release_after = now.checked_add(seconds).ok_or(ProgramError::ArithmeticOverflow)?;
+        (release_after, FLAG_SAFE_HOLD)
     } else {
         (0, 0)
     };
@@ -125,11 +145,23 @@ fn deposit(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Progra
     let state = next_account_info(account_info_iter)?;
     let token_program = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
+    // Optional 11th account: the policy authority, required below for anything under 24 hours.
+    let policy_authority = next_account_info(account_info_iter).ok();
 
     require_signer(fee_payer)?;
     require_signer(sender)?;
-    if sender.key == approver.key {
+    if sender.key == approver.key || approver.key == recipient.key {
         return Err(ProgramError::Custom(SAME_PERSON));
+    }
+    if hold_seconds < MIN_SAFE_HOLD_SECONDS {
+        // An ordinary hold, or a Safe Hold shorter than 24 hours (a demo), only with the
+        // review server's co-signature. Without it, the client gets the full Safe Hold or nothing.
+        let cosigned = policy_authority
+            .map(|account| account.is_signer && *account.key == POLICY_AUTHORITY)
+            .unwrap_or(false);
+        if !cosigned {
+            return Err(ProgramError::Custom(NEEDS_POLICY_COSIGN));
+        }
     }
     if *token_program.key != spl_token::id() || *system_program.key != solana_program::system_program::id() {
         return Err(ProgramError::IncorrectProgramId);
@@ -269,6 +301,8 @@ fn release(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Progra
     let recipient_token = next_account_info(account_info_iter)?;
     let mint = next_account_info(account_info_iter)?;
     let token_program = next_account_info(account_info_iter)?;
+    // 9th account: the instructions sysvar, required for a Safe Hold release (see below).
+    let instructions_sysvar = next_account_info(account_info_iter).ok();
 
     require_signer(fee_payer)?;
     require_signer(approver)?;
@@ -282,6 +316,18 @@ fn release(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Progra
             return Err(ProgramError::Custom(TOO_EARLY));
         }
         require_signer(sender)?;
+        // Fresh signatures only: refuse a durable-nonce transaction, which could have been
+        // signed during the pressure of the moment and held back until the deadline.
+        let sysvar = instructions_sysvar.ok_or(ProgramError::NotEnoughAccountKeys)?;
+        if *sysvar.key != tx_instructions::ID {
+            return Err(ProgramError::InvalidArgument);
+        }
+        let first = tx_instructions::load_instruction_at_checked(0, sysvar)?;
+        if first.program_id == solana_program::system_program::id()
+            && first.data.get(..4) == Some(&ADVANCE_NONCE_ACCOUNT[..])
+        {
+            return Err(ProgramError::Custom(PRESIGNED_RELEASE));
+        }
     }
     if hash(data).to_bytes() != hold.pin_hash {
         return Err(ProgramError::Custom(WRONG_PIN));

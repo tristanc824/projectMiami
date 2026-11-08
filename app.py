@@ -20,6 +20,7 @@ import threading
 import uuid
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from decimal import Decimal
 from typing import Any
 from urllib.parse import urlparse
 
@@ -92,7 +93,15 @@ SAFE_CASE_DEFAULTS: dict[str, Any] = {
 
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "[::1]", "::1"}
 
-PHONE_LIKE = re.compile(r"(?<!\d)\+?\d(?:[\s\-.()]*\d){6,}(?!\d)")
+# Seven or more digits, as in a phone or account number. A "$" right before it marks money,
+# so "$10000.00" is kept as an amount.
+PHONE_LIKE = re.compile(r"(?<![\d$])\+?\d(?:[\s\-.()]*\d){6,}(?!\d)")
+# An instruction not to send: "don't send 80", "never transfer", "no envíes".
+NEGATED_COMMAND = re.compile(
+    r"\b(?:don'?t|do not|never|not|can'?t|cannot|won'?t|shouldn'?t|no|nunca)\s+(?:\w+\s+){0,2}?"
+    r"(?:send|transfer|pay|sending|make|prepare|envíes|enviar|envíe|mandes|mandar|transfieras|transferir|pagues|pagar)\b",
+    re.IGNORECASE,
+)
 
 # A whole number token: "1,000" or "80.50". The lookahead refuses a prefix, so
 # "80.999" or "80.5.2" is not read as a smaller amount.
@@ -157,21 +166,29 @@ def _safe_amount(value: Any) -> str | None:
     text = str(value).strip().replace(",", "")
     if not re.fullmatch(r"\d+(?:\.\d{1,2})?", text):
         return None
-    amount = float(text)
+    amount = Decimal(text)
     if amount < 0 or amount > 100_000:
         return None
-    return text
+    return format(amount.normalize(), "f")  # canonical: "080.50" -> "80.5"
 
 
 def safe_case(source: Any) -> dict[str, Any]:
     """Copy only facts that the Swarms task is allowed to receive."""
     result = dict(SAFE_CASE_DEFAULTS)
+    # Internal markers, removed by check_case before anything leaves the server.
+    result["_amount_source"] = "default"
+    result["_request_defaulted"] = True
     if not isinstance(source, dict):
         return result
+    supplied = set()
     for field in ("amount_usdc", "requested_usdc", "other_contributions_usdc"):
         amount = _safe_amount(source.get(field))
         if amount is not None:
             result[field] = amount
+            supplied.add(field)
+    if "amount_usdc" in supplied:
+        result["_amount_source"] = "case"
+    result["_request_defaulted"] = not {"requested_usdc", "other_contributions_usdc"} <= supplied
     relationship = source.get("relationship_verified")
     if relationship is True or relationship is False:
         result["relationship_verified"] = relationship
@@ -206,7 +223,10 @@ def transcript_notes(transcript: str) -> dict[str, Any]:
         if amount is not None:
             amounts.add(float(amount))
     stated = False
+    negated = False
     for sentence in re.split(r"[.!?;\n]+", text):
+        if NEGATED_COMMAND.search(sentence):
+            negated = True
         if re.search(
             rf"\b(?:{RELATIONSHIP_WORDS})\b.{{0,40}}?(?:\bverified\b|\bverificad[oa]\b)", sentence, re.IGNORECASE
         ) and not NEGATION.search(sentence):
@@ -216,6 +236,7 @@ def transcript_notes(transcript: str) -> dict[str, Any]:
         "stated_verified": stated,
         "self_correction": bool(SELF_CORRECTION.search(text)),
         "pressure": bool(PRESSURE.search(text)),
+        "negated_instruction": negated,
     }
 
 
@@ -223,8 +244,15 @@ def check_case(case: dict[str, Any], transcript: str) -> dict[str, Any]:
     """Attach the Watchdog's local typo and tamper signals to a prepared case."""
     checked = dict(case)
     mismatch = bool(checked.pop("prune_amount_disagrees", False))
+    source = checked.pop("_amount_source", "case")
+    defaulted = bool(checked.pop("_request_defaulted", False))
     checked["signals"] = family_review.detect_signals(
-        checked, previous=last_reviewed(), amount_mismatch=mismatch, **transcript_notes(transcript)
+        checked,
+        previous=last_reviewed(),
+        amount_mismatch=mismatch,
+        amount_source=source,
+        request_facts_assumed=defaulted,
+        **transcript_notes(transcript),
     )
     return checked
 
@@ -244,16 +272,21 @@ def apply_voice_facts(case: dict[str, Any], transcript: str) -> dict[str, Any]:
             if amount is not None:
                 updated[field] = amount
                 matched_fields.add(field)
+    if "amount_usdc" in matched_fields:
+        updated["_amount_source"] = "spoken"
+    if {"requested_usdc", "other_contributions_usdc"} <= matched_fields:
+        updated["_request_defaulted"] = False
 
-    # For languages without a local verb pattern, accept one standalone numeric
-    # amount after removing phone-like digit runs. Ambiguous multi-number speech
-    # is left unchanged for the person to edit rather than guessed.
+    # For languages without a local verb pattern, take one standalone number as the
+    # amount, but only as a guess: the Watchdog flags amount_guessed, so it is held
+    # until a person confirms it ("born in 1990" is a number, not a transfer).
     if not matched_fields:
         candidates = re.findall(r"(?<![\d.,])\d{1,6}(?:\.\d{1,2})?(?![\d.,]*\d)", number_text)
         if len(candidates) == 1:
             amount = _safe_amount(candidates[0])
             if amount is not None:
                 updated["amount_usdc"] = amount
+                updated["_amount_source"] = "guessed"
 
     # Fail closed: a sentence that mentions verification with any negation
     # ("not yet verified", "never been verified") marks it unverified. Only a
@@ -342,6 +375,8 @@ def b58encode(raw: bytes) -> str:
 
 
 def b58decode(text: str) -> bytes:
+    if len(text) > 44:  # a 32-byte address is at most 44 base58 characters
+        raise ValueError("not base58")
     number = 0
     for char in text:
         index = B58_ALPHABET.find(char)
@@ -367,36 +402,77 @@ def decode_hold(state: str, data: bytes, now: float) -> dict[str, Any]:
         "recipient": key(65),
         "mint": key(97),
         "amount_units": int.from_bytes(data[161:169], "little"),
-        "amount_usdc": f"{int.from_bytes(data[161:169], 'little') / 1_000_000:g}",
+        "amount_usdc": format((Decimal(int.from_bytes(data[161:169], "little")) / 1_000_000).normalize(), "f"),
         "safe_hold": safe_hold,
         "release_after": release_after if safe_hold else None,
         "seconds_left": max(0, int(release_after - now)) if safe_hold else 0,
         "cooling_off_over": cooling_off_over,
         "needs": (["sender signature", "approver signature", "PIN"] if safe_hold else ["approver signature", "PIN"]),
-        "can_release_now": cooling_off_over,
+        # The cooling-off is over; release still needs every signature in "needs".
+        "ready_for_signatures": cooling_off_over,
         "sender_can_cancel": True,
         "review_hash": data[210:242].hex(),
     }
 
 
+def solana_rpc(method: str, params: list[Any]) -> Any:
+    """One JSON-RPC call. An RPC error is raised, never mistaken for "nothing there"."""
+    import urllib.request
+
+    body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode("utf-8")
+    request = urllib.request.Request(SOLANA_RPC, data=body, headers={"Content-Type": "application/json"}, method="POST")
+    with urllib.request.urlopen(request, timeout=30) as response:
+        reply = json.loads(response.read())
+    if not isinstance(reply, dict) or "error" in reply or "result" not in reply:
+        raise RuntimeError(f"Solana RPC {method} failed")
+    return reply["result"]
+
+
+def cluster_time() -> float:
+    """Solana's own clock, which is what the program checks; this machine's clock only if that fails."""
+    import time
+
+    try:
+        block_time = solana_rpc("getBlockTime", [solana_rpc("getSlot", [{"commitment": "confirmed"}])])
+        if isinstance(block_time, int):
+            return float(block_time)
+    except Exception:  # noqa: BLE001 - fall back to local time
+        pass
+    return time.time()
+
+
+_hold_cache: dict[str, tuple[float, dict[str, Any] | None]] = {}
+_hold_cache_lock = threading.Lock()
+HOLD_CACHE_SECONDS = 5.0
+
+
 def fetch_hold(state: str) -> dict[str, Any] | None:
-    """Reads one hold from Solana. None when no hold is open at that address."""
+    """Reads one hold from Solana. None when no hold is open at that address.
+
+    Answers are cached for a few seconds per address, so a busy approver screen cannot turn
+    into one RPC call per request."""
     import base64
     import time
-    import urllib.request
 
     if len(b58decode(state)) != 32:
         raise ValueError("not a Solana address")
-    body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "getAccountInfo",
-                       "params": [state, {"encoding": "base64", "commitment": "confirmed"}]}).encode("utf-8")
-    request = urllib.request.Request(SOLANA_RPC, data=body, headers={"Content-Type": "application/json"}, method="POST")
-    with urllib.request.urlopen(request, timeout=30) as response:
-        value = json.loads(response.read()).get("result", {}).get("value")
+    with _hold_cache_lock:
+        cached = _hold_cache.get(state)
+        if cached and time.monotonic() - cached[0] < HOLD_CACHE_SECONDS:
+            return cached[1]
+    result = solana_rpc("getAccountInfo", [state, {"encoding": "base64", "commitment": "confirmed"}])
+    value = result.get("value") if isinstance(result, dict) else None
     if not value:
-        return None
-    if value.get("owner") != HOLD_PROGRAM_ID:
-        raise NotAHold("the account is not owned by the family-hold program")
-    return decode_hold(state, base64.b64decode(value["data"][0]), time.time())
+        hold = None
+    else:
+        if value.get("owner") != HOLD_PROGRAM_ID:
+            raise NotAHold("the account is not owned by the family-hold program")
+        hold = decode_hold(state, base64.b64decode(value["data"][0]), cluster_time())
+    with _hold_cache_lock:
+        if len(_hold_cache) > 1000:
+            _hold_cache.clear()
+        _hold_cache[state] = (time.monotonic(), hold)
+    return hold
 
 
 def allowed_origins() -> set[str]:
@@ -443,6 +519,9 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
                 hold = fetch_hold(address)
             except NotAHold:
                 self._json(HTTPStatus.NOT_FOUND, {"error": "not-a-hold", "state": address})
+                return
+            except RuntimeError:
+                self._json(HTTPStatus.BAD_GATEWAY, {"error": "solana-rpc"})
                 return
             except ValueError:
                 self._json(HTTPStatus.BAD_REQUEST, {"error": "bad-address"})
@@ -524,23 +603,23 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
         if not api_key:
             self._json(
                 HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "missing-key", "case": local, "signals": local_signals, "prune": prune_view(local, None)},
+                {"error": "missing-key", "case": local, "signals": local_signals, "prune": prune_view(local, None), "hold_policy": family_review.failed_policy(local, "missing-key")},
             )
             return
         if not os.environ.get("PRUNE_API_KEY", "").strip():
             self._json(
                 HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "missing-prune-key", "case": local, "signals": local_signals, "prune": prune_view(local, None)},
+                {"error": "missing-prune-key", "case": local, "signals": local_signals, "prune": prune_view(local, None), "hold_policy": family_review.failed_policy(local, "missing-prune-key")},
             )
             return
         try:
             # One Prune run per review, so both Prune calls share its budget.
             run_id = f"family-review-{uuid.uuid4()}"
             fields = clean_request(transcript, run_id)
-        except GateStop:
+        except Exception:  # noqa: BLE001 - GateStop or anything unexpected from Prune: fail closed
             self._json(
                 HTTPStatus.UNPROCESSABLE_ENTITY,
-                {"error": "blocked-in", "case": local, "signals": local_signals, "prune": prune_view(local, None)},
+                {"error": "blocked-in", "case": local, "signals": local_signals, "prune": prune_view(local, None), "hold_policy": family_review.failed_policy(local, "blocked-in")},
             )
             return
         case = check_case(apply_prune_fields(prepared, fields, transcript), transcript)
@@ -551,10 +630,12 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
             reason = str(stop)
             status = HTTPStatus.PAYMENT_REQUIRED if reason == "budget" else HTTPStatus.BAD_GATEWAY
             safe_reason = reason if reason in {"budget", "bad-verdict", "swarms-auth"} else "swarms-api"
-            self._json(status, {"error": safe_reason, "case": case, "signals": signals, "prune": prune_view(case, None)})
+            self._json(status, {"error": safe_reason, "case": case, "signals": signals, "prune": prune_view(case, None),
+                                "hold_policy": family_review.failed_policy(case, safe_reason)})
             return
         except Exception:  # noqa: BLE001 - an unexpected API shape must not drop the connection
-            self._json(HTTPStatus.BAD_GATEWAY, {"error": "swarms-api", "case": case, "signals": signals, "prune": prune_view(case, None)})
+            self._json(HTTPStatus.BAD_GATEWAY, {"error": "swarms-api", "case": case, "signals": signals, "prune": prune_view(case, None),
+                                                "hold_policy": family_review.failed_policy(case, "swarms-api")})
             return
 
         receipt = None
@@ -578,6 +659,12 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
         review: dict[str, Any],
         prune: dict[str, Any],
     ) -> dict[str, Any]:
+        # Never pass a hold decision through: recompute it here from the case, the agents' text and
+        # the verdict, so a missing or malformed policy can only come out stricter.
+        review = dict(review)
+        review["hold_policy"] = family_review.hold_policy(
+            case, review.get("outputs") or {}, review.get("verdict") or {}, offline=bool(review.get("offline"))
+        )
         return {
             "case": case,
             "signals": signals,
@@ -644,7 +731,7 @@ def run_check(live: bool) -> int:
     case = check_case(apply_voice_facts({}, sample), sample)
     review = family_review.offline_review(case)
     report(
-        case["signals"] == ["extra_zero"] and review["verdict"]["decision"] == "hold",
+        "extra_zero" in case["signals"] and review["verdict"]["decision"] == "hold" and review["hold_policy"]["required"],
         "Watchdog local checks",
         "800 instead of 80 is flagged extra_zero and held",
     )
@@ -686,7 +773,11 @@ def run_check(live: bool) -> int:
             VoiceReviewHandler.log_message = lambda *args: None  # type: ignore[method-assign]
             threading.Thread(target=server.serve_forever, daemon=True).start()
             try:
-                body = json.dumps({"transcript": "Send 80 dollars. The relationship is verified."}).encode("utf-8")
+                # A complete, clean request: it should confirm with no Safe Hold.
+                body = json.dumps({
+                    "transcript": "Send 80 dollars. The relationship is verified.",
+                    "case": {"requested_usdc": "200", "other_contributions_usdc": "120"},
+                }).encode("utf-8")
                 request = urllib.request.Request(
                     f"http://127.0.0.1:{server.server_address[1]}/api/review",
                     data=body,
@@ -697,11 +788,15 @@ def run_check(live: bool) -> int:
                     with urllib.request.urlopen(request, timeout=300) as response:
                         result = json.loads(response.read())
                     verdict = result["verdict"]
+                    if not isinstance(result.get("hold_policy"), dict) or "required" not in result["hold_policy"]:
+                        report(False, "Live review", "the response has no hold_policy")
+                        raise SystemExit(1)
                     report(
                         True,
                         "Live review (Prune, Watchdog, 4 Swarms agents, Prune seal)",
                         f"decision={verdict['decision']} suspicion={verdict['suspicion']} "
-                        f"receipt={'yes' if result['prune']['receipt'] else 'no'} cost={result['credit_cost']}",
+                        f"receipt={'yes' if result['prune']['receipt'] else 'no'} "
+                        f"safe_hold={result['hold_policy']['required']} cost={result['credit_cost']}",
                     )
                 except urllib.error.HTTPError as error:
                     detail = json.loads(error.read() or b"{}").get("error", "")

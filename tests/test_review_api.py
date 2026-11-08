@@ -60,6 +60,9 @@ class FakeUpstream(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        if self.path == "/rpc-error":  # a Solana node answering with a JSON-RPC error
+            self._send(200, {"jsonrpc": "2.0", "id": 1, "error": {"code": -32005, "message": "node is behind"}})
+            return
         if self.path == "/prune":
             FakeUpstream.prune_bodies.append(body)
             FakeUpstream.prune_headers.append(dict(self.headers))
@@ -271,11 +274,11 @@ class ReviewApiTest(unittest.TestCase):
         self.assertEqual(hold["amount_usdc"], "80")
         self.assertTrue(hold["safe_hold"])
         self.assertEqual(hold["seconds_left"], 86_400)
-        self.assertFalse(hold["can_release_now"])
+        self.assertFalse(hold["ready_for_signatures"])
         self.assertEqual(hold["needs"], ["sender signature", "approver signature", "PIN"])
         self.assertEqual(hold["review_hash"], "ab" * 32)
         later = app.decode_hold("state", bytes(data), now=1_000_000 + 86_401)
-        self.assertTrue(later["can_release_now"])
+        self.assertTrue(later["ready_for_signatures"])
 
     def test_hold_endpoint_rejects_a_bad_address(self) -> None:
         import http.client
@@ -283,6 +286,101 @@ class ReviewApiTest(unittest.TestCase):
         connection = http.client.HTTPConnection("127.0.0.1", self.api.server_address[1], timeout=30)
         connection.request("GET", "/api/hold/not-an-address!")
         self.assertEqual(connection.getresponse().status, 400)
+
+    # --- Council round 2: every fix has a test --------------------------------------------
+
+    def codes(self, body: dict) -> list[str]:
+        return [signal["code"] for signal in body["signals"]]
+
+    def test_negated_instruction_is_held(self) -> None:
+        status, body = self.post("/api/review", {"transcript": "Don't send 80 dollars. The relationship is verified."})
+        self.assertIn("negated_instruction", self.codes(body))
+        self.assertTrue(body["hold_policy"]["required"])
+
+    def test_a_lone_number_is_only_a_guess(self) -> None:
+        status, body = self.post("/api/review", {"transcript": "My cousin was born in 1990."})
+        self.assertIn("amount_guessed", self.codes(body))
+        self.assertTrue(body["hold_policy"]["required"])
+
+    def test_no_amount_at_all_is_held(self) -> None:
+        status, body = self.post("/api/review", {"transcript": "Please help my niece with school."})
+        self.assertIn("amount_not_stated", self.codes(body))
+        self.assertTrue(body["hold_policy"]["required"])
+
+    def test_dollar_amount_is_not_mistaken_for_a_phone_number(self) -> None:
+        status, body = self.post("/api/review", {"transcript": "Send $10000.00 now."})
+        self.assertEqual(body["case"]["amount_usdc"], "10000")
+
+    def test_flag_yes_then_no_still_holds(self) -> None:
+        FakeUpstream.skeptic_line = "\nflag: yes\nOn reflection:\nflag: no"
+        status, body = self.post("/api/review", {"transcript": "Send 80 dollars. The relationship is verified."})
+        self.assertTrue(body["hold_policy"]["required"])
+        self.assertIn("skeptic_flag", body["hold_policy"]["reasons"])
+
+    def test_clean_and_flagged_reviews_have_different_hashes(self) -> None:
+        _, clean = self.post("/api/review", {"transcript": "Send 80 dollars. The relationship is verified."})
+        self.post("/api/reset", {})
+        FakeUpstream.skeptic_line = "\nflag: yes"
+        _, flagged = self.post("/api/review", {"transcript": "Send 80 dollars. The relationship is verified."})
+        self.assertNotEqual(clean["hold_policy"]["review_hash"], flagged["hold_policy"]["review_hash"])
+        self.assertTrue(clean["hold_policy"]["needs_policy_cosign"])
+        self.assertFalse(flagged["hold_policy"]["needs_policy_cosign"])
+
+    def test_error_responses_hold_rather_than_approve(self) -> None:
+        os.environ["SWARMS_API_KEY"] = "wrong-key"
+        status, body = self.post("/api/review", {"transcript": "Send 80 dollars."})
+        self.assertEqual(body["error"], "swarms-auth")
+        self.assertTrue(body["hold_policy"]["required"])
+        self.assertEqual(body["hold_policy"]["reasons"], ["review_failed:swarms-auth"])
+
+    def test_offline_review_never_reads_as_approval(self) -> None:
+        case = app.check_case(app.apply_voice_facts({}, "Send 80 dollars. The relationship is verified."), "Send 80 dollars.")
+        review = family_review.offline_review(case)
+        self.assertTrue(review["hold_policy"]["required"])
+        self.assertIn("offline_demo", review["hold_policy"]["reasons"])
+
+    def test_ambiguous_agent_output_fails_closed(self) -> None:
+        twice = family_review.extract_outputs({"output": [
+            {"role": "PlainSpeaker", "content": "a"},
+            {"role": "Skeptic", "content": "flag: yes"},
+            {"role": "Watchdog", "content": "c"},
+            {"role": "Judge", "content": "{}"},
+            {"role": "Skeptic", "content": "flag: no"},
+        ]})
+        self.assertTrue(family_review.skeptic_flag(twice["Skeptic"]), "the earlier flag: yes is kept")
+        two_judges = family_review.extract_outputs({"output": [
+            {"role": name, "content": "x"} for name in ("PlainSpeaker", "Skeptic", "Watchdog", "Judge", "Judge")
+        ]})
+        self.assertEqual(two_judges, {})
+        unnamed = family_review.extract_outputs({"output": [{"role": "assistant", "content": "x"}] * 4})
+        self.assertEqual(unnamed, {}, "roles are never guessed from position")
+
+    def test_malformed_verdict_values_only_make_it_stricter(self) -> None:
+        checked = family_review.apply_checks({"decision": "approve", "suspicion": "HIGH"}, [])
+        self.assertEqual((checked["decision"], checked["suspicion"]), ("hold", "high"))
+
+    def test_unknown_contributions_are_not_treated_as_zero(self) -> None:
+        codes = family_review.detect_signals({"amount_usdc": "200", "requested_usdc": "200", "other_contributions_usdc": "?"})
+        self.assertIn("invalid_amount_facts", codes)
+
+    def test_hold_amount_keeps_full_precision(self) -> None:
+        data = bytearray(243)
+        data[0] = 1
+        data[161:169] = (80_000_001).to_bytes(8, "little")
+        self.assertEqual(app.decode_hold("state", bytes(data), now=0)["amount_usdc"], "80.000001")
+
+    def test_solana_rpc_error_is_not_reported_as_no_hold(self) -> None:
+        import http.client
+
+        saved = app.SOLANA_RPC
+        app.SOLANA_RPC = f"http://127.0.0.1:{self.upstream.server_address[1]}/rpc-error"
+        try:
+            connection = http.client.HTTPConnection("127.0.0.1", self.api.server_address[1], timeout=30)
+            connection.request("GET", "/api/hold/4ZkpUtd5vBQQe9ZaYFJw5NhBrNg1LSKQHsZ9zFRxGPh3")
+            response = connection.getresponse()
+            self.assertEqual((response.status, json.loads(response.read())["error"]), (502, "solana-rpc"))
+        finally:
+            app.SOLANA_RPC = saved
 
     def test_judge_output_matched_by_agent_name(self) -> None:
         outputs = family_review.extract_outputs({"output": [
