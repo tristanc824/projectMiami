@@ -3,10 +3,10 @@ import { cn } from "../lib/cn";
 import { NestMark } from "./Logo";
 
 const LINKS = [
-  ["For you", "#stories"],
-  ["For family", "#moments"],
-  ["For business", "#moments"],
-  ["About Nest", "#trust"],
+  ["How it works", "#stories"],
+  ["Why Nest", "#moments"],
+  ["Inflation", "#inflation"],
+  ["Guides", "#guides"],
 ];
 
 /**
@@ -54,8 +54,8 @@ export function Nav() {
           ))}
         </ul>
         <div className="flex items-center gap-1">
-          <a href="#join" className="hidden h-10 items-center rounded-full px-4 text-[14px] font-medium text-ink transition-colors hover:bg-white/60 sm:inline-flex">Log in</a>
-          <a href="#join" className="inline-flex h-10 items-center rounded-full bg-ink px-4 text-[14px] font-medium text-white transition-colors hover:bg-moss-900">
+          <a href="/app/sign-in" className="hidden h-10 items-center rounded-full px-4 text-[14px] font-medium text-ink transition-colors hover:bg-white/60 sm:inline-flex">Log in</a>
+          <a href="/app/sign-in" className="inline-flex h-10 items-center rounded-full bg-ink px-4 text-[14px] font-medium text-white transition-colors hover:bg-moss-900">
             Open an account
           </a>
         </div>

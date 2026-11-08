@@ -3,8 +3,9 @@
  * Money here is real devnet USDC on Solana; deposits use Stripe test mode only.
  */
 
-const baseUrl = (process.env.EXPO_PUBLIC_DAT_API_URL?.trim() || '').replace(/\/+$/, '');
-export const datConfigured = /^https?:\/\/\S+$/.test(baseUrl);
+const configuredUrl = process.env.EXPO_PUBLIC_DAT_API_URL?.trim() || '';
+const baseUrl = configuredUrl === 'same-origin' ? '' : configuredUrl.replace(/\/+$/, '');
+export const datConfigured = configuredUrl === 'same-origin' || /^https?:\/\/\S+$/.test(baseUrl);
 export const explorerUrl = (signature: string) => `https://explorer.solana.com/tx/${signature}?cluster=devnet`;
 /** The server caps test-card deposits (MAX_DEPOSIT_USD, 20 by default). */
 export const MAX_DEPOSIT_DOLLARS = 20;
@@ -14,12 +15,13 @@ export type TokenSource = () => Promise<string | null>;
 export type Signer = (messageBase64: string) => Promise<string>;
 
 async function call<T>(path: string, init: RequestInit): Promise<T> {
-  if (!datConfigured) throw new Error('The Guard server address is not set (EXPO_PUBLIC_DAT_API_URL).');
+  if (!datConfigured) throw new Error('The Nest server address is not set (EXPO_PUBLIC_DAT_API_URL).');
   let res: Response;
   try {
-    res = await fetch(`${baseUrl}${path}`, init);
+    // The header skips ngrok's browser warning page when the server runs on a laptop behind ngrok.
+    res = await fetch(`${baseUrl}${path}`, { ...init, headers: { ...(init.headers as Record<string, string>), 'ngrok-skip-browser-warning': '1' } });
   } catch {
-    throw new Error('Could not reach the Guard server. Check your connection and try again.');
+    throw new Error('Could not reach the Nest server. Check your connection and try again.');
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Something went wrong. Please try again.');
@@ -39,6 +41,23 @@ export async function fetchBalanceCents(address: string): Promise<number> {
 }
 
 export const findRecipient = (getToken: TokenSource, phone: string) => post<Recipient>(getToken, '/api/recipient', { phone });
+
+/** Text payments: send and check the balance by texting Nest's number, with no data needed. */
+export type TextPayments = { available: boolean; on: boolean; number: string; signerId: string; policyId: string; perPaymentCents: number; perDayCents: number };
+
+export async function fetchTextPayments(getToken: TokenSource): Promise<TextPayments> {
+  const token = await getToken();
+  if (!token) throw new Error('Please sign in again.');
+  return call<TextPayments>('/api/text-payments', { method: 'GET', headers: { authorization: `Bearer ${token}`, 'cache-control': 'no-store' } });
+}
+
+export const setTextPayments = (getToken: TokenSource, body: { on: true; pin: string } | { on: false }) =>
+  post<{ on: boolean }>(getToken, '/api/text-payments', body);
+
+/** A Messages link with the text ready to send. The person adds their PIN before sending. */
+export function textPaymentLink(number: string, body: string) {
+  return `sms:${number}&body=${encodeURIComponent(body)}`;
+}
 
 /** Whole-dollar Stripe test-card deposit; the treasury then sends devnet USDC. Returns the Solana signature. */
 export async function depositTestCard(getToken: TokenSource, dollars: number): Promise<string> {

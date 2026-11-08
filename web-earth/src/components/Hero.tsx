@@ -22,7 +22,7 @@ export function Hero() {
               Save, send, privately &amp; secured.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <a href="#join" className="btn-light">Open an account</a>
+              <a href="/app/sign-in" className="btn-light">Open an account</a>
               <a href="#stories" className="btn border border-white/60 text-white hover:bg-white/10">See how it works</a>
             </div>
           </div>

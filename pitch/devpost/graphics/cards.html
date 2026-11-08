@@ -1,0 +1,180 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--page:#F3F0EA;--ink:#17201A;--moss:#2F5D3A;--sage:#E4ECDF;--amber:#8A5A10;--amberbg:#F6EBD3;--mute:#5B665E;--line:#DCD6CA}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#ccc;font-family:Figtree,system-ui,sans-serif;color:var(--ink)}
+.card{width:1500px;height:1000px;background:var(--page);position:relative;overflow:hidden;display:none;padding:84px 96px}
+body.all .card{display:block;margin:20px auto}
+.card.on{display:block}
+.brand{position:absolute;left:96px;top:64px;display:flex;align-items:center;gap:10px;font-weight:600;font-size:26px;letter-spacing:-.03em}
+.brand svg{width:32px;height:32px}
+.num{position:absolute;right:96px;top:70px;font-size:18px;color:var(--mute);letter-spacing:.02em}
+.eyebrow{display:inline-block;font-size:20px;font-weight:600;color:var(--moss);background:var(--sage);padding:8px 16px;border-radius:999px;margin-bottom:26px}
+h1{font-size:76px;line-height:1.02;letter-spacing:-.045em;font-weight:600;max-width:12.5ch}
+h1.wide{max-width:none}
+.sub{font-size:27px;line-height:1.4;color:var(--mute);margin-top:24px;max-width:30ch}
+.art{position:absolute;}
+.phone{position:absolute;border-radius:46px;box-shadow:0 30px 60px -30px rgba(23,32,26,.35),0 0 0 1px rgba(23,32,26,.08)}
+.foot{position:absolute;left:96px;bottom:56px;font-size:16px;color:var(--mute)}
+.list{margin-top:40px;display:grid;gap:18px}
+.li{display:flex;gap:16px;align-items:flex-start;font-size:26px;line-height:1.35}
+.dot{flex:none;width:34px;height:34px;border-radius:50%;background:var(--moss);color:#fff;display:grid;place-items:center;font-size:18px;font-weight:600;margin-top:2px}
+/* inflation */
+.bars{position:absolute;right:96px;top:250px;width:640px;display:grid;grid-template-columns:1fr 1fr;gap:36px}
+.col h3{font-size:22px;font-weight:600;margin-bottom:14px}
+.track{height:520px;border-radius:28px;background:#fff;position:relative;overflow:hidden;box-shadow:0 0 0 1px var(--line)}
+.fill{position:absolute;left:0;right:0;bottom:0;border-radius:0 0 28px 28px}
+.pct{position:absolute;left:24px;top:22px;font-size:64px;font-weight:600;letter-spacing:-.04em}
+.cap{font-size:18px;color:var(--mute);margin-top:12px}
+/* compare */
+table{border-collapse:separate;border-spacing:0;width:100%;margin-top:44px;font-size:22px}
+th{font-weight:600;text-align:left;padding:16px 20px;font-size:20px;color:var(--mute)}
+th.nest{color:#fff;background:var(--moss);border-radius:20px 20px 0 0}
+td{padding:17px 20px;border-top:1px solid var(--line)}
+td.nest{background:var(--sage);font-weight:600;color:var(--moss);border-top-color:#cfdcc8}
+tr:last-child td.nest{border-radius:0 0 20px 20px}
+td.k{color:var(--ink);font-weight:500;width:28%}
+.no{color:#9a9a92}
+/* stack */
+.stack{position:absolute;left:96px;right:96px;top:440px;display:grid;grid-template-columns:repeat(5,1fr);gap:20px}
+.box{background:#fff;border-radius:26px;padding:26px 24px;box-shadow:0 0 0 1px var(--line);min-height:380px}
+.box b{display:block;font-size:24px;letter-spacing:-.02em;margin-bottom:10px}
+.box .t{font-size:15px;font-weight:600;color:var(--moss);text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px}
+.box p{font-size:22px;line-height:1.45;color:var(--mute)}
+.flow{position:absolute;left:96px;right:96px;bottom:110px;display:flex;align-items:center;gap:14px;font-size:21px;color:var(--ink)}
+.flow span.p{background:var(--sage);color:var(--moss);font-weight:600;padding:10px 18px;border-radius:999px}
+.flow i{color:var(--mute);font-style:normal}
+.vs{position:absolute;right:96px;top:300px;width:600px;display:grid;gap:20px}
+.row{display:grid;grid-template-columns:1fr 1fr;border-radius:24px;overflow:hidden;box-shadow:0 0 0 1px var(--line)}
+.row div{padding:22px 26px;font-size:21px;background:#fff}
+.row div:last-child{background:var(--sage);color:var(--moss);font-weight:600}
+.row small{display:block;font-size:15px;color:var(--mute);font-weight:500;margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em}
+.row div:last-child small{color:var(--moss);opacity:.75}
+</style></head>
+<body>
+<svg width="0" height="0" style="position:absolute"><symbol id="mark" viewBox="0 0 64 64"><g fill="none" stroke="#2F5D3A" stroke-width="5.5"><ellipse cx="23" cy="32" rx="18" ry="14" transform="rotate(90 23 32)"/><ellipse cx="36.5" cy="24.206" rx="18" ry="14" transform="rotate(210 36.5 24.206)"/><ellipse cx="36.5" cy="39.794" rx="18" ry="14" transform="rotate(330 36.5 39.794)"/></g></symbol></svg>
+
+<!-- 1 cover -->
+<section class="card" id="c1">
+  <div class="brand"><svg><use href="#mark"/></svg>Nest</div>
+  <div style="margin-top:150px">
+    <span class="eyebrow">For families sending money home</span>
+    <h1 style="font-size:96px;max-width:9ch">Protect what matters.</h1>
+    <p class="sub">Nest is a US-dollar account for families who live in different countries. All you need is a phone number.</p>
+  </div>
+  <img class="art" src="img/art-nest-cut.png" style="width:380px;right:480px;bottom:70px">
+  <img class="phone" src="img/11-arrived.png" style="width:330px;right:110px;top:110px">
+  <div class="foot">Live on Solana devnet with test USDC. Ana and her mom are an illustrative story.</div>
+</section>
+
+<!-- 2 keeps value -->
+<section class="card" id="c2">
+  <div class="brand"><svg><use href="#mark"/></svg>Nest</div><div class="num">01 · Keeps its value</div>
+  <div style="margin-top:150px">
+    <span class="eyebrow">Why dollars</span>
+    <h1 style="max-width:10ch">Your savings stay in US dollars.</h1>
+    <p class="sub">When the local currency falls, your balance doesn't fall with it.</p>
+  </div>
+  <div class="bars">
+    <div class="col"><h3>Kept in local currency</h3><div class="track"><div class="fill" style="height:32%;background:#E8DCC6"></div><div class="pct" style="color:var(--amber)">32%</div></div><div class="cap">left by December</div></div>
+    <div class="col"><h3>Kept in US dollars</h3><div class="track"><div class="fill" style="height:97%;background:var(--sage)"></div><div class="pct" style="color:var(--moss)">97%</div></div><div class="cap">left by December</div></div>
+  </div>
+  <div class="foot">Share of the groceries $1,000 bought in January, by December. Argentina 2023 (INDEC CPI); US 2023 CPI about 3.4%.</div>
+</section>
+
+<!-- 3 fast, no fee -->
+<section class="card" id="c3">
+  <div class="brand"><svg><use href="#mark"/></svg>Nest</div><div class="num">02 · Sends home</div>
+  <div style="margin-top:150px">
+    <span class="eyebrow">Miami → Buenos Aires</span>
+    <h1 style="max-width:10ch">Mom gets it in about a second.</h1>
+    <p class="sub" style="max-width:24ch">Send to a phone number with no transfer fee. A bank wire can take days.</p>
+  </div>
+  <img class="art" src="img/art-globe-cut.png" style="width:270px;left:96px;bottom:36px">
+  <div class="vs">
+    <div class="row"><div><small>Bank wire</small>1 to 5 business days</div><div><small>Nest</small>About a second, 24/7</div></div>
+    <div class="row"><div><small>Bank wire</small>Fees and an exchange-rate cut</div><div><small>Nest</small>No transfer fee</div></div>
+    <div class="row"><div><small>Bank wire</small>Paid out in local currency</div><div><small>Nest</small>Arrives as US dollars</div></div>
+    <div class="row"><div><small>Bank wire</small>She needs a bank account</div><div><small>Nest</small>She needs a phone number</div></div>
+  </div>
+</section>
+
+<!-- 4 no app -->
+<section class="card" id="c4">
+  <div class="brand"><svg><use href="#mark"/></svg>Nest</div><div class="num">03 · No app needed</div>
+  <div style="margin-top:150px">
+    <span class="eyebrow">For the person receiving</span>
+    <h1 style="max-width:10ch">No app needed to receive money.</h1>
+    <p class="sub" style="max-width:24ch">She opens a link in her phone's browser and signs in with her phone number.</p>
+  </div>
+  <img class="art" src="img/art-link-cut.png" style="width:520px;right:150px;top:230px">
+  <div class="foot">Signing in creates her own wallet. A wallet waits for her even before she signs up.</div>
+</section>
+
+<!-- 5 offline -->
+<section class="card" id="c5" style="background:#EEF2EA">
+  <div class="brand"><svg><use href="#mark"/></svg>Nest</div><div class="num">04 · Works offline</div>
+  <div style="margin-top:150px">
+    <span class="eyebrow" style="background:#fff">Works without internet</span>
+    <h1 style="max-width:10ch">Send money by text, with no internet.</h1>
+    <p class="sub" style="max-width:27ch">Even without internet, you can still send and receive money by text message.</p>
+  </div>
+  <img class="art" src="img/art-tower-cut.png" style="width:520px;right:130px;top:170px">
+  <div class="flow"><span class="p">You text Nest</span><i>→</i><span class="p">Nest sends from your account</span><i>→</i><span class="p">Mamá gets dollars and a text</span></div>
+</section>
+
+<!-- 6 scam + undo -->
+<section class="card" id="c6">
+  <div class="brand"><svg><use href="#mark"/></svg>Nest</div><div class="num">05 · Protects you</div>
+  <div style="margin-top:150px">
+    <span class="eyebrow" style="background:var(--amberbg);color:var(--amber)">Scam check</span>
+    <h1 style="max-width:10ch">Undo a risky payment for 24 hours.</h1>
+    <p class="sub" style="max-width:25ch">AI agents check payments to someone new and explain the risk in plain words. A flagged payment waits in an on-chain Safe Hold, so you can take it back.</p>
+  </div>
+  <img class="phone" src="img/12-scam-check.png" style="width:300px;right:450px;top:150px">
+  <img class="phone" src="img/13-undo.png" style="width:300px;right:110px;top:210px">
+  
+</section>
+
+<!-- 7 compare -->
+<section class="card" id="c7">
+  <div class="brand"><svg><use href="#mark"/></svg>Nest</div><div class="num">06 · Why Nest</div>
+  <div style="margin-top:120px">
+    <h1 class="wide" style="font-size:64px">Built for sending money across borders.</h1>
+    <p class="sub" style="max-width:60ch;margin-top:14px;font-size:23px">Zelle and Venmo only work inside the US, and remittance apps usually charge a fee. Nest sends dollars abroad in about a second with no transfer fee.</p>
+    <table style="margin-top:30px">
+      <tr><th></th><th>Zelle / Venmo</th><th>Remittance apps</th><th class="nest">Nest</th></tr>
+      <tr><td class="k">Sends to another country</td><td class="no">No, US only</td><td>Yes</td><td class="nest">Yes, to a phone number</td></tr>
+      <tr><td class="k">What the family receives</td><td class="no">—</td><td>Local currency</td><td class="nest">US dollars they keep</td></tr>
+      <tr><td class="k">Speed</td><td class="no">—</td><td>Minutes to days</td><td class="nest">About a second</td></tr>
+      <tr><td class="k">Transfer fee</td><td class="no">—</td><td>Fee + exchange-rate cut</td><td class="nest">None</td></tr>
+      <tr><td class="k">Without internet</td><td class="no">No</td><td class="no">No</td><td class="nest">Yes, by text</td></tr>
+      <tr><td class="k">Scam check and undo</td><td class="no">No, payments are final</td><td class="no">No</td><td class="nest">Yes, 24-hour hold</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- 8 tech -->
+<section class="card" id="c8">
+  <div class="brand"><svg><use href="#mark"/></svg>Nest</div><div class="num">07 · How it's built</div>
+  <div style="margin-top:150px">
+    <h1 class="wide" style="font-size:64px">Your wallet starts with your phone number.</h1>
+    <p class="sub" style="max-width:62ch;font-size:23px;margin-top:14px">Signing in creates a Privy self-custody wallet, and payments move as USDC on Solana devnet. We cover the network fees, so there's no seed phrase or gas to manage.</p>
+  </div>
+  <div class="stack">
+    <div class="box"><div class="t">Accounts</div><b>Privy</b><p>Sign in with a phone number and an SMS code. It creates the person's own Solana wallet.</p></div>
+    <div class="box"><div class="t">Money</div><b>USDC on Solana</b><p>Digital US dollars that move in about a second. Our backend pays the network fees.</p></div>
+    <div class="box"><div class="t">Scam check</div><b>Swarms agents</b><p>A Watchdog and a Judge review payments to someone new and explain the risk.</p></div>
+    <div class="box"><div class="t">Undo</div><b>Safe Hold program</b><p>A Solana program holds a flagged payment for 24 hours and needs a second OK.</p></div>
+    <div class="box"><div class="t">Offline</div><b>SMS gateway</b><p>Texts reach our server through an httpSMS phone gateway, so sending works without internet.</p></div>
+  </div>
+  <div class="foot">React Native + Expo · Next.js API · React + Vite website · Live on Solana devnet</div>
+</section>
+
+<script>
+const c=new URLSearchParams(location.search).get('c');
+if(c){document.getElementById('c'+c).classList.add('on');document.body.style.background='transparent'}else document.body.classList.add('all');
+</script>
+</body></html>

@@ -18,10 +18,16 @@ try {
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   await page.getByRole('button', { name: 'Demo' }).click();
-  await expect(page.getByTestId('home-balance')).toHaveText('$1,240.50');
+  await expect(page.getByTestId('home-balance')).toHaveText('$0.00');
   await page.screenshot({ path: fileURLToPath(new URL('home-iphone.png', output)) });
-  await page.getByRole('button', { name: 'Send to Mamá', exact: true }).click();
+  await page.getByRole('button', { name: 'Add money', exact: true }).click();
+  await page.getByLabel('Amount in USDC', { exact: true }).fill('100');
+  await page.getByRole('button', { name: 'Review details', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirm demo top-up', exact: true }).click();
+  await page.getByRole('button', { name: 'Back to home', exact: true }).click();
+  await page.getByRole('button', { name: 'Send money', exact: true }).click();
   await page.getByLabel('Amount in USDC', { exact: true }).fill('50');
+  await page.getByLabel('Recipient phone number', { exact: true }).fill('3055550100');
   await page.getByLabel('Amount in USDC', { exact: true }).blur();
   await page.screenshot({ path: fileURLToPath(new URL('send-iphone.png', output)) });
   await page.getByTestId('review-transfer').click();

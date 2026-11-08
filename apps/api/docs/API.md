@@ -73,3 +73,37 @@ Stripe refuses anything except test keys, so this can never charge a real card.
 - Text payments by SMS: the plan is in `docs/BRIEF.md`.
 - A better simulated card tap screen.
 - Transaction history from the blockchain. The web app keeps activity on the device.
+
+## Text payments
+
+People can send and check their balance by texting Nest's number from any phone with a cellular signal. No data is needed. The design is in `docs/BRIEF.md` under "Text payments design".
+
+**How signing works.** In the app, the user adds Nest's server signer to their wallet with `useSigners().addSigners`. Privy's policy limits that signer to USDC transfers of $10 or less. The server then signs for them through Privy's wallet RPC, and Nest's fee payer covers the fee. The server enforces a $20 daily total. The PIN, on/off switch and daily total are stored in the user's Privy custom metadata, with the PIN salted and hashed.
+
+### `GET /api/text-payments`
+
+Returns `{ available, on, number, signerId, policyId, perPaymentCents, perDayCents }`. Pass `signerId` and `[policyId]` to `addSigners`, and show `number` as the number to text.
+
+### `POST /api/text-payments`
+
+Body `{ "on": true, "pin": "4821" }` after adding the signer, or `{ "on": false }`. Turning off in the app should also call `removeSigners`.
+
+### `POST /api/sms`
+
+The httpSMS webhook for the event `message.phone.received`. It checks the HS256 token signed with `HTTPSMS_WEBHOOK_SIGNING_KEY`, answers right away, and handles the text after responding. Texts that aren't commands are ignored and never stored.
+
+| Text | What happens |
+| --- | --- |
+| `BAL 4821` | Replies with the balance |
+| `SEND 2 5555550142 PIN 4821` | Sends $2 and texts both people. A number not on Nest gets a wallet, like `/api/recipient` |
+| `HELP` | Lists the commands |
+| `STOP` | Turns text payments off until they're turned on again in the app |
+
+Five wrong PINs in a row turn text payments off.
+
+### Setup
+
+1. `node scripts/setup-text-payments.mjs` creates the signer and policy and saves them to `.env.local`.
+2. `node scripts/test-text-signing.mjs` checks, with a throwaway wallet, that the server can send and that the policy refuses an $11 payment. Then `npx tsx scripts/test-text-flow.mts` runs every command against a throwaway sender, prints the replies, and cleans up.
+3. Put the Android's number in `TEXT_PAYMENTS_NUMBER`. In httpSMS, add a webhook to `https://<server>/api/sms` for `message.phone.received` with a signing key, and save that key as `HTTPSMS_WEBHOOK_SIGNING_KEY` and the API key as `HTTPSMS_API_KEY`.
+4. To test without a phone, leave `HTTPSMS_API_KEY` empty, run `npm run dev`, then `node scripts/fake-text.mjs +13055550142 "BAL 4821"`. Replies print in the server window.

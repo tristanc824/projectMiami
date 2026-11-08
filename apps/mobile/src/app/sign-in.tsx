@@ -1,35 +1,48 @@
-import { useRouter } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Image, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text, TextInput } from '../components/Text';
 import { formatPhone, normalizePhone } from '../services/dat';
 import { useLive } from '../state/live';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SpinningGlobe } from '../components/SpinningGlobe';
-import { Brand, Button } from '../components/ui';
+import { KeyboardFrame, KeyboardScroll } from '../components/KeyboardForm';
+import { Birds } from '../components/NestArtwork';
+import { Brand, Button, Sheet } from '../components/ui';
 import { signIn } from '../services/auth';
 import { useExperience } from '../state/ExperienceProvider';
-// The welcome screen is intentionally dark in both appearances.
+import { parsePaymentRequest } from '../domain/paymentRequest';
+// The meadow welcome screen keeps the website’s moss palette in both appearances.
 import { lightColors as colors } from '../theme';
 
 export default function SignInScreen() {
   const router = useRouter();
+  const { paymentRequest } = useLocalSearchParams<{ paymentRequest?: string }>();
   const { enter } = useExperience();
-  const { width, height } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
+  // Laptop and desktop browsers get a split layout: the meadow on the left, the form on the right.
+  const wide = width >= 900;
   const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [recovery, setRecovery] = useState(false);
   const availableHeight = height - insets.top - insets.bottom;
-  // Reserve room for the header and bottom controls, keeping the entire sphere visible.
-  const globeSize = Math.max(160, Math.min(width - 36, 480, availableHeight - 320));
   const live = useLive();
   // Live builds sign in by SMS with Privy; everywhere else the existing Auth0 flow is unchanged.
   const liveAvailable = live.status !== 'off';
   const [step, setStep] = useState<'start' | 'phone' | 'code'>('start');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
-  const enterApp = () => { enter(); router.dismissTo('/'); };
+  const enterApp = () => {
+    enter();
+    if (typeof paymentRequest === 'string') {
+      try {
+        const request = parsePaymentRequest(JSON.parse(paymentRequest));
+        if (request) { router.dismissTo({ pathname: '/pay', params: request }); return; }
+      } catch { /* Fall back to home if the return request is malformed. */ }
+    }
+    router.dismissTo('/');
+  };
   const run = async (work: () => Promise<void>) => {
     setBusy(true); setError('');
     try { await work(); }
@@ -37,64 +50,75 @@ export default function SignInScreen() {
     finally { setBusy(false); }
   };
   const authenticate = () => run(async () => {
-    if (liveAvailable) { setStep('phone'); return; }
+    if (liveAvailable) { if (live.problem) throw new Error(live.problem); setStep('phone'); return; }
     await signIn(); enterApp();
   });
   const requestCode = () => run(async () => { await live.sendCode(phone); setCode(''); setStep('code'); });
   const verify = () => run(async () => { await live.verifyCode(phone, code); enterApp(); });
   const field = [s.input, { color: colors.white }];
 
-  return <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={s.screen}>
+  if (live.status === 'ready' && typeof paymentRequest !== 'string') return <Redirect href="/" />;
+  return <View style={s.screen}>
     <StatusBar style="light" />
-    <ScrollView bounces={false} showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
-      <View style={[s.canvas, { minHeight: availableHeight }]}>
-        <View style={s.header}><Brand light /><View style={s.network}><View style={s.dot} /><Text style={s.networkLabel}>BUILT ON SOLANA</Text></View></View>
-        <Text accessibilityRole="header" style={s.title}>Protect what matters.</Text>
-        <View style={s.stage}><SpinningGlobe size={globeSize} /></View>
-        <View style={s.bottom}>
+    <KeyboardFrame><KeyboardScroll bounces={false} showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
+      <View style={[s.canvas, { minHeight: height }, wide && s.canvasWide]}>
+        <View style={[s.photo, wide ? [s.photoWide, { minHeight: height - 48 }] : { height: Math.max(160, availableHeight * .36) }]}>
+          <Image source={require('../../assets/nest/meadow.jpg')} resizeMode="cover" style={[StyleSheet.absoluteFill, { width: '100%', height: '100%' }]} />
+          <View style={{ position: 'absolute', top: '24%', left: '18%' }}><Birds /></View>
+          <SafeAreaView edges={['top']} style={{ padding: 24 }}><View style={s.preview}><Text style={s.previewText}>A little more peace of mind.</Text></View></SafeAreaView>
+        </View>
+        <View style={[s.bottom, { paddingBottom: Math.max(insets.bottom, 20) }, wide && s.bottomWide]}>
+          <View style={wide ? s.formWide : undefined}>
+          <Brand small light />
+          <Text accessibilityRole="header" style={[s.title, wide && s.titleWide]}>Protect what{'\n'}matters.</Text>
+          <Text style={s.description}>Dollars. 24/7. No fees.</Text>
           {error ? <View accessibilityRole="alert" style={s.error}><Text style={s.errorText}>{error}</Text></View> : null}
-          {step === 'start' ? <View style={s.actions}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Demo" onPress={enterApp} style={({ pressed }) => [s.demo, { opacity: pressed ? .65 : 1 }]}><Text style={s.demoText}>Demo</Text></Pressable>
-            <Button title="Sign in" loading={busy} onPress={() => { void authenticate(); }} style={s.signIn} />
+          {live.status === 'setting-up' ? <View style={{ gap: 12 }}><Text style={s.demoText}>{live.problem || 'Finishing your wallet setup…'}</Text><Button title="Sign out" variant="secondary" onPress={() => { void run(live.logout); }} /></View> : step === 'start' ? <View style={{ gap: 10 }}>
+            <Button title="Create account" loading={busy || live.status === 'loading'} onPress={() => { void authenticate(); }} style={s.signIn} variant="secondary" textColor="#17201A" />
+            <Pressable accessibilityRole="button" accessibilityLabel="Sign in" disabled={busy || live.status === 'loading'} onPress={() => { void authenticate(); }} style={s.textButton}><Text style={s.demoText}>I already have one</Text></Pressable>
+            {!liveAvailable ? <Pressable accessibilityRole="button" accessibilityLabel="Demo" onPress={enterApp} style={s.demo}><Text style={s.demoText}>Explore the demo <Text style={{ color: '#A9C4A1' }}>↗</Text></Text></Pressable> : null}
           </View> : step === 'phone' ? <View style={{ gap: 12 }}>
-            <TextInput accessibilityLabel="Phone number" testID="live-phone" value={phone} onChangeText={setPhone} placeholder="Phone number" placeholderTextColor="#868A94" keyboardType="phone-pad" textContentType="telephoneNumber" autoComplete="tel" autoFocus style={field} />
-            <View style={s.actions}>
-              <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => { setStep('start'); setError(''); }} style={({ pressed }) => [s.demo, { opacity: pressed ? .65 : 1 }]}><Text style={s.demoText}>Back</Text></Pressable>
-              <Button title="Text me a code" loading={busy} disabled={phone.replace(/\D/g, '').length < 10} onPress={() => { void requestCode(); }} style={s.signIn} />
-            </View>
+            <TextInput accessibilityLabel="Phone number" testID="live-phone" value={phone} onChangeText={setPhone} placeholder="Your phone number" placeholderTextColor="#B8C9B2" keyboardType="phone-pad" textContentType="telephoneNumber" autoComplete="tel" autoFocus style={field} />
+            <Button title="Text me a code" loading={busy} disabled={phone.replace(/\D/g, '').length < 10} onPress={() => { void requestCode(); }} style={s.signIn} variant="secondary" textColor="#17201A" />
+            <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => { setStep('start'); setError(''); }} style={s.textButton}><Text style={s.demoText}>Back</Text></Pressable>
           </View> : <View style={{ gap: 12 }}>
-            <Text style={s.hint}>Enter the 6-digit code we texted to {formatPhone(normalizePhone(phone) ?? phone)}.</Text>
-            <TextInput accessibilityLabel="Verification code" testID="live-code" value={code} onChangeText={value => setCode(value.replace(/\D/g, '').slice(0, 6))} placeholder="123456" placeholderTextColor="#868A94" keyboardType="number-pad" textContentType="oneTimeCode" autoComplete="sms-otp" autoFocus style={field} />
-            <View style={s.actions}>
-              <Pressable accessibilityRole="button" accessibilityLabel="Change number" onPress={() => { setStep('phone'); setError(''); }} style={({ pressed }) => [s.demo, { opacity: pressed ? .65 : 1 }]}><Text style={s.demoText}>Change number</Text></Pressable>
-              <Button title="Sign in" loading={busy} disabled={code.length !== 6} onPress={() => { void verify(); }} style={s.signIn} />
-            </View>
+            <Text style={s.hint}>Enter the code we texted to {formatPhone(normalizePhone(phone) ?? phone)}.</Text>
+            <TextInput accessibilityLabel="Verification code" testID="live-code" value={code} onChangeText={value => setCode(value.replace(/\D/g, '').slice(0, 6))} placeholder="123456" placeholderTextColor="#B8C9B2" keyboardType="number-pad" textContentType="oneTimeCode" autoComplete="sms-otp" autoFocus style={field} />
+            <Button title="Sign in" loading={busy} disabled={code.length !== 6} onPress={() => { void verify(); }} style={s.signIn} variant="secondary" textColor="#17201A" />
+            <Pressable accessibilityRole="button" accessibilityLabel="Change number" onPress={() => { setStep('phone'); setError(''); }} style={s.textButton}><Text style={s.demoText}>Change number</Text></Pressable>
           </View>}
-          <Text style={s.disclosure}>{liveAvailable ? 'Solana devnet · Test USDC, no real money' : 'Hackathon preview · No real funds'}</Text>
+          <Pressable accessibilityRole="button" onPress={() => setRecovery(true)} style={s.textButton}><Text style={s.hint}>Lost your phone? <Text style={{ textDecorationLine: 'underline', color: '#D7E3D2' }}>Get back in</Text></Text></Pressable>
+          <Text style={s.disclosure}>{liveAvailable ? 'Solana devnet · Test dollars, no real money' : 'Demo · No real funds'}{'\n'}Digital dollars. Not a bank deposit. Not FDIC insured.</Text>
+          </View>
         </View>
       </View>
-    </ScrollView>
-  </SafeAreaView>;
+    </KeyboardScroll></KeyboardFrame>
+    <Sheet title="Get back in" visible={recovery} onClose={() => setRecovery(false)}><Text style={{ color: colors.ink, fontSize: 16, lineHeight: 24, marginBottom: 20 }}>Still have access to your phone number? Sign in on your new phone to recover your connected account. If you lost your number, contact your account provider. Demo balances stay on the device where you created them.</Text><Button title="Back to sign in" onPress={() => { setRecovery(false); void authenticate(); }} /></Sheet>
+  </View>;
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#000000' },
+  screen: { flex: 1, backgroundColor: '#16301D' },
   scroll: { flexGrow: 1, alignItems: 'center' },
-  canvas: { width: '100%', maxWidth: 600, flexGrow: 1, paddingHorizontal: 24, paddingTop: 20, paddingBottom: 20 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  network: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dot: { height: 4, width: 4, borderRadius: 2, backgroundColor: colors.accent },
-  networkLabel: { fontSize: 8, fontWeight: '600', letterSpacing: 1.4, color: '#A1A5AE' },
-  title: { color: colors.white, fontSize: 38, lineHeight: 42, fontWeight: '800', letterSpacing: -1.5, textAlign: 'center', marginTop: 26 },
-  stage: { flex: 1, minHeight: 0, justifyContent: 'center', alignItems: 'center', paddingVertical: 16 },
-  bottom: { width: '100%' },
-  actions: { flexDirection: 'row', gap: 12 },
-  signIn: { flex: 1, minHeight: 58, borderRadius: 32 },
-  demo: { flex: 1, minHeight: 58, borderRadius: 32, borderWidth: 1, borderColor: '#FFFFFF30', backgroundColor: '#FFFFFF0D', alignItems: 'center', justifyContent: 'center' },
-  demoText: { color: colors.white, fontSize: 17, fontWeight: '700', letterSpacing: -.35 },
-  disclosure: { color: '#868A94', fontSize: 10, lineHeight: 14, textAlign: 'center', marginTop: 16 },
-  input: { minHeight: 58, borderRadius: 29, borderWidth: 1, borderColor: '#FFFFFF30', backgroundColor: '#FFFFFF0D', paddingHorizontal: 22, fontSize: 18, fontWeight: '600', letterSpacing: .3 },
-  hint: { color: '#A1A5AE', fontSize: 13, lineHeight: 19, textAlign: 'center' },
-  error: { padding: 14, borderWidth: 1, borderColor: '#FFFFFF26', borderRadius: 18, marginBottom: 14 },
-  errorText: { color: colors.white, fontSize: 13, lineHeight: 19 },
+  canvas: { width: '100%', maxWidth: 600, flexGrow: 1 },
+  photo: { width: '100%', overflow: 'hidden', backgroundColor: '#8DA79B' },
+  canvasWide: { maxWidth: 1280, flexDirection: 'row', padding: 24, gap: 24 },
+  photoWide: { width: undefined, flex: 1.1, borderRadius: 32 },
+  bottomWide: { flex: 1, marginTop: 0, borderTopLeftRadius: 0, borderTopRightRadius: 0, paddingHorizontal: 40, justifyContent: 'center', alignItems: 'center' },
+  formWide: { width: '100%', maxWidth: 440 },
+  titleWide: { fontSize: 60, lineHeight: 62, letterSpacing: -2.6 },
+  preview: { alignSelf: 'flex-start', borderRadius: 20, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: '#F3F0EAE6' },
+  previewText: { fontSize: 13, color: '#16301D' },
+  bottom: { paddingHorizontal: 26, paddingTop: 26, marginTop: -30, backgroundColor: '#16301D', borderTopLeftRadius: 32, borderTopRightRadius: 32, flex: 1 },
+  title: { color: '#FFFFFF', fontSize: 44, lineHeight: 46, fontWeight: '600', letterSpacing: -2, marginTop: 16 },
+  description: { color: '#C1D1BB', fontSize: 17, lineHeight: 23, marginTop: 14, marginBottom: 20 },
+  signIn: { minHeight: 56, backgroundColor: '#FFFFFF' },
+  textButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  demo: { minHeight: 50, borderRadius: 28, borderWidth: 1, borderColor: '#6F886D', alignItems: 'center', justifyContent: 'center' },
+  demoText: { color: '#FFFFFF', fontSize: 15, fontWeight: '500' },
+  disclosure: { color: '#B8C9B2', fontSize: 13, lineHeight: 19, textAlign: 'center', marginTop: 2 },
+  input: { minHeight: 56, borderRadius: 28, borderWidth: 1, borderColor: '#6F886D', paddingHorizontal: 22, fontSize: 18 },
+  hint: { color: '#B8C9B2', fontSize: 13, lineHeight: 19, textAlign: 'center' },
+  error: { padding: 14, borderWidth: 1, borderColor: '#6F886D', borderRadius: 18, marginBottom: 14 },
+  errorText: { color: '#FFFFFF', fontSize: 13, lineHeight: 19 },
 });

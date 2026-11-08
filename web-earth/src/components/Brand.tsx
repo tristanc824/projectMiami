@@ -38,9 +38,9 @@ function Orbit({ className, rotate = -18 }: { className?: string; rotate?: numbe
 const STORIES = [
   { img: "/photos/selfie.jpg", tag: "Send home", title: "Mom gets it in about a second.", pos: "66% 35%" },
   { img: "/photos/market-pair.jpg", tag: "Dollar savings", title: "Your savings stay in US dollars.", pos: "62% 30%" },
-  { img: "/photos/kitchen.jpg", tag: "Undo", title: "Undo a scam payment within 24 hours.", pos: "53% 30%" },
+  { img: "/photos/phone.jpg", tag: "Undo", title: "Undo a scam payment within 24 hours.", pos: "50% 40%" },
   { img: "/photos/friends.jpg", tag: "No fees", title: "Split dinner without paying a fee.", pos: "48% 55%" },
-  { img: "/photos/phone.jpg", tag: "Independent", title: "Take your account with you when you move.", pos: "50% 40%" },
+  { img: "/photos/laugh.jpg", tag: "Independent", title: "Take your account with you when you move.", pos: "78% 30%" },
   { img: "/photos/market.jpg", tag: "No Wi-Fi", title: "Send money with no Wi-Fi.", pos: "50% 30%" },
 ];
 
@@ -76,8 +76,8 @@ type Moment = { img: string; alt: string; tag: string; title: string; shape: key
 
 const MOMENTS: Moment[] = [
   { img: "/photos/hero.jpg", alt: "A couple laughing together in a sunlit field.", tag: "24/7", title: "Send money on a Sunday night.", shape: "egg", pos: "50% 30%", orbit: "left" },
-  { img: "/photos/market.jpg", alt: "A woman at a market stall holding bananas.", tag: "No transaction fees", title: "Every dollar you send gets there.", shape: "pebble", pos: "50% 30%" },
-  { img: "/photos/laugh.jpg", alt: "A woman laughing with friends outdoors.", tag: "Independent", title: "Not tied to one country's banks.", shape: "pebble", pos: "50% 25%" },
+  { img: "/photos/shop.jpg", alt: "A shopkeeper smiling behind the counter of his store.", tag: "No transaction fees", title: "Every dollar you send gets there.", shape: "pebble", pos: "40% 45%" },
+  { img: "/photos/kitchen.jpg", alt: "A grandmother and her granddaughter in aprons, smiling in the kitchen.", tag: "Independent", title: "Not tied to one country's banks.", shape: "pebble", pos: "55% 35%" },
   { img: "/photos/dinner.jpg", alt: "Friends laughing over dinner.", tag: "Undo", title: "Undo a payment after sending.", shape: "egg", pos: "55% 50%", orbit: "right" },
 ];
 
@@ -134,7 +134,7 @@ export function Trust() {
 
 export function Keep() {
   return (
-    <section className="px-3 sm:px-6">
+    <section id="inflation" className="scroll-mt-24 px-3 sm:px-6">
       <div className="round-clip relative isolate mx-auto max-w-[1920px] overflow-hidden rounded-[32px] sm:rounded-[48px]">
         <img src="/photos/together.jpg" alt="A father and his daughter laughing among autumn leaves." loading="lazy" className="absolute inset-0 -z-10 h-full w-full object-cover object-[50%_30%] md:object-[50%_18%]" />
         <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(14,20,16,0.6),rgba(14,20,16,0.1)_60%)]" />
@@ -143,7 +143,7 @@ export function Keep() {
           <h2 className="mt-5 max-w-[12ch] text-[clamp(44px,6.4vw,96px)] font-medium leading-[1] tracking-[-0.035em] text-white">
             When your currency falls, your dollars don't.
           </h2>
-          <a href="#join" className="mt-10 inline-flex h-14 w-fit items-center gap-2 rounded-full bg-white px-7 text-[16px] font-medium text-ink transition-colors hover:bg-page">
+          <a href="/app/sign-in" className="mt-10 inline-flex h-14 w-fit items-center gap-2 rounded-full bg-white px-7 text-[16px] font-medium text-ink transition-colors hover:bg-page">
             Open an account <ArrowRight size={18} />
           </a>
         </div>
@@ -155,14 +155,14 @@ export function Keep() {
 /* ---------- Stories from the Nest ---------- */
 
 const CARDS = [
-  { img: "/photos/market.jpg", tag: "Independent", title: "How to save outside your country's banks", pos: "50% 30%" },
-  { img: "/photos/shop.jpg", tag: "No fees", title: "How to pay your team with no fees", pos: "50% 30%" },
-  { img: "/photos/phone.jpg", tag: "Undo", title: "What to do if you paid a scammer", pos: "50% 40%" },
+  { img: "/art/nest.png", tag: "Independent", title: "How to save outside your country's banks", pos: "50% 50%" },
+  { img: "/art/globe.png", tag: "No fees", title: "How to pay your team with no fees", pos: "50% 50%" },
+  { img: "/art/shield.png", tag: "Undo", title: "What to do if you paid a scammer", pos: "50% 50%" },
 ];
 
 export function Cards() {
   return (
-    <section className="wrap py-24 sm:py-32">
+    <section id="guides" className="wrap py-24 sm:py-32">
       <div className="flex items-end justify-between gap-6">
         <h2 className="text-[clamp(36px,4.6vw,64px)] font-medium leading-[1.02] tracking-[-0.035em] text-ink">Money guides</h2>
         <a href="#join" className="link hidden text-[16px] sm:inline-flex">All guides <ArrowRight size={16} /></a>
@@ -170,8 +170,8 @@ export function Cards() {
       <div className="mt-12 grid gap-8 md:grid-cols-3">
         {CARDS.map((c) => (
           <article key={c.title} className="group">
-            <div className="round-clip aspect-[4/3] overflow-hidden rounded-[28px]">
-              <img src={c.img} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]" style={{ objectPosition: c.pos }} />
+            <div className="round-clip grid aspect-[4/3] place-items-center overflow-hidden rounded-[28px] bg-[#E4ECDF]">
+              <img src={c.img} alt="" loading="lazy" className="h-[78%] w-auto object-contain transition-transform duration-700 group-hover:scale-[1.04]" />
             </div>
             <div className="mt-5">
               <Label>{c.tag}</Label>
@@ -200,7 +200,7 @@ export function Closing() {
         <h2 className="relative mx-auto max-w-[14ch] text-[clamp(44px,6.4vw,96px)] font-medium leading-[1] tracking-[-0.035em] text-white">Protect what matters.</h2>
         <p className="relative mx-auto mt-5 max-w-[40ch] text-[18px] text-white/75">All you need is your phone.</p>
         <div className="relative mt-10 flex flex-wrap items-center justify-center gap-3">
-          <a href="#top" className="inline-flex h-14 items-center gap-2 rounded-full bg-white px-7 text-[16px] font-medium text-ink transition-colors hover:bg-page">
+          <a href="/app/sign-in" className="inline-flex h-14 items-center gap-2 rounded-full bg-white px-7 text-[16px] font-medium text-ink transition-colors hover:bg-page">
             Open an account <ArrowRight size={18} />
           </a>
           <a href="#top" className="inline-flex h-14 items-center rounded-full border border-white/50 px-7 text-[16px] font-medium text-white transition-colors hover:bg-white/10">Talk to our team</a>

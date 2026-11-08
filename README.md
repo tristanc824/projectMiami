@@ -1,6 +1,6 @@
 # Nest
 
-SharkByte hackathon project. **Nest**: a dollar account for anyone with a phone, on Solana. *Protect what matters.* (The app code and some older docs still say "Guard"; the product is now Nest. See APP_HANDOFF.md.)
+SharkByte hackathon project. **Nest**: a dollar account for anyone with a phone, on Solana. *Protect what matters.* The mobile app now follows the Nest mockups and website. See APP_HANDOFF.md.
 
 ## Run the iPhone / web preview
 
@@ -16,7 +16,7 @@ Use `npm run web` in the same directory for the shared web app.
 
 The backend is in [`apps/api`](./apps/api/HANDOFF.md): a Next.js app (DAT) with Privy SMS login, self-custody Solana wallets, sponsored devnet USDC transfers, and Stripe test-mode deposits. A development build can use it for real devnet money; see "Live mode" in the mobile README. Secrets go in `apps/api/.env.local` and are never committed. See the mobile README for Auth0, signing, EAS, and TestFlight instructions.
 
-- [DESIGN.md](./DESIGN.md) — Cash App / PayPal reference research and the earlier Guard design system.
+- [DESIGN.md](./DESIGN.md) — Current Nest app design system, screen map, and implementation limits.
 
 **Start here if you're building the app:** [APP_HANDOFF.md](./APP_HANDOFF.md). It has the brand, features, copy rules and the 16 app screens ([`app-design/nest-app-screens.html`](./app-design/nest-app-screens.html), open in a browser).
 
@@ -30,3 +30,13 @@ The backend is in [`apps/api`](./apps/api/HANDOFF.md): a Next.js app (DAT) with 
 - [BLOCKCHAIN_STACK.md](./BLOCKCHAIN_STACK.md) — the Solana stack to build with (verified Nov 7), the architecture, devnet pitfalls, and the integrations that impress judges.
 - [UI_INSPIRATION.md](./UI_INSPIRATION.md) — lessons from Zander Whitehurst's 30 most-viewed UI reels.
 - [NEST_FEATURES.md](./NEST_FEATURES.md) — which features to build, the prize stack, the "massive potential" vision, and the app UI direction.
+
+## Website and browser sending
+
+Run `npm run website` from the repository root. This starts the API on port 5184 if needed, exports the connected web app, and opens the website server on port 5175. Visit **http://localhost:5175**, then choose **Log in** or **Open an account**. Nest opens at `/app/sign-in` and uses the same Privy phone account and Solana devnet wallet as the native app. Transfers require a review and wallet signature.
+
+The website proxies `/api` to the local API, so browser transfers do not depend on a hardcoded LAN address or cross-origin permissions. Browser wallets require localhost or HTTPS; an HTTP LAN IP on an iPhone is not a secure browser-wallet origin.
+
+The build reads the public Privy app ID from `apps/api/.env.local` (falling back to the mobile public ID) and checks it matches mobile. Backend secrets remain in the API. After changing app screens, run `npm run build:web-app` and reload the website. Marketing changes still hot reload. `npm run build:website` builds both parts; `npm run website:preview` previews that build with the local API proxy.
+
+`npm run test:website` runs isolated browser login, signing, payment, failure, and request-link tests with mock authentication and mocked API responses. Its export is separate from the real website, and its fake token is never accepted by the real API. Real SMS verification and a user-approved devnet transfer still need a manual account check. Balances are shared through the wallet; activity and contact names remain local to each browser/device. Apple Cash and bank delivery remain simulated.

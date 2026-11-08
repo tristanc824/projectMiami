@@ -13,7 +13,7 @@ let browserClient: Auth0Client | undefined;
 
 function checkConfiguration() {
   if (!authConfigured) throw new Error('Sign-in is not connected in this preview. You can continue exploring the demo.');
-  if (isExpoGo()) throw new Error('Auth0 sign-in needs the Guard development or TestFlight build. The demo works in Expo Go.');
+  if (isExpoGo()) throw new Error('Auth0 sign-in needs the Nest development or TestFlight build. The demo works in Expo Go.');
 }
 
 async function nativeAuth() {
@@ -31,7 +31,7 @@ async function webAuth() {
   return browserClient;
 }
 function profile(value: { name?: string; nickname?: string; email?: string; picture?: string }): SessionProfile {
-  return { name: value.name || value.nickname || 'Guard member', email: value.email, picture: value.picture };
+  return { name: value.name || value.nickname || 'Nest member', email: value.email, picture: value.picture };
 }
 
 export async function signIn(): Promise<SessionProfile> {

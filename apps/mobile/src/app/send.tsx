@@ -1,115 +1,99 @@
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Keyboard, Pressable, View } from 'react-native';
 import { Text, TextInput } from '../components/Text';
+import { ContactNameButton } from '../components/ContactNameButton';
+import { useContacts } from '../state/ContactsProvider';
 import { AmountInput } from '../components/AmountInput';
-import { Avatar, Button, DemoNote, Detail, Icon, Notice, Pill, Screen } from '../components/ui';
-import { contacts, money, parseAmount } from '../domain/wallet';
+import { RecipientPicker, demoPhones } from '../components/RecipientPicker';
+import { Avatar, Button, DemoNote, Detail, Icon, Notice, Pill, Screen, Sheet } from '../components/ui';
+import { reservedCents } from '../domain/savings';
+import { contacts, DEMO_ARS_RATE, money, parseAmount } from '../domain/wallet';
 import { formatPhone, normalizePhone, type Recipient } from '../services/dat';
-import { useIsLive, useLive } from '../state/live';
+import { useLive } from '../state/live';
 import { useWallet } from '../state/WalletProvider';
 import { useColors } from '../theme';
 
 export default function SendScreen() {
-  return useIsLive() ? <LiveSend /> : <DemoSend />;
+  const live = useLive();
+  if (live.status !== 'ready' && live.status !== 'off') return <Screen back title="Send to"><Notice>{live.problem || 'Sign in with your phone number to send money to another Nest account.'}</Notice><Button style={{ marginTop: 24 }} title="Sign in to send" onPress={() => router.push('/sign-in')} /></Screen>;
+  return <SendFlow connected={live.status === 'ready'} />;
 }
 
-/** Real devnet USDC to any phone number. Numbers not on Guard yet get a wallet waiting for them. */
-function LiveSend() {
+function SendFlow({ connected }: { connected: boolean }) {
   const { colors, styles: t } = useColors();
   const live = useLive();
-  const { wallet, ready } = useWallet();
-  const [phone, setPhone] = useState('');
-  const [amount, setAmount] = useState('0');
-  const [note, setNote] = useState('');
+  const { nameFor } = useContacts();
+  const [editingText, setEditingText] = useState(false);
+  const params = useLocalSearchParams<{ phone?: string; contact?: string; goalId?: string; amount?: string; note?: string }>();
+  const { wallet, ready, execute } = useWallet();
+  const goal = wallet.goals.find(g => g.id === params.goalId);
+  const initialContact = !connected ? contacts.find(c => c.id === params.contact) : undefined;
+  const [contactId, setContactId] = useState(initialContact?.id);
+  const [phone, setPhone] = useState(typeof params.phone === 'string' ? normalizePhone(params.phone) ?? '' : initialContact ? demoPhones[initialContact.id] : '');
+  const [picking, setPicking] = useState(!params.phone && !initialContact && !goal);
+  const [amount, setAmount] = useState(goal ? String((goal.targetCents - goal.fundedCents) / 100) : typeof params.amount === 'string' && parseAmount(params.amount) ? params.amount : '0');
+  const [note, setNote] = useState(goal?.description || (typeof params.note === 'string' ? params.note.slice(0, 140) : ''));
+  const [review, setReview] = useState(false);
   const [recipient, setRecipient] = useState<Recipient | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const submitting = useRef(false);
+  const reference = useRef<string | null>(null);
+  const recipientPhone = normalizePhone(phone);
+  const contact = contacts.find(c => c.id === contactId && demoPhones[c.id] === recipientPhone);
+  const recipientName = nameFor(recipientPhone ?? undefined, contact?.name ?? (recipientPhone ? formatPhone(recipientPhone) : 'Enter their number'));
+  const available = wallet.balanceCents - (connected ? 0 : reservedCents(wallet.savings));
   const cents = parseAmount(amount);
-  const enough = cents !== null && cents <= wallet.balanceCents;
-  const canContinue = ready && enough && normalizePhone(phone) !== null && !busy;
-  async function review() {
-    setBusy(true); setError('');
-    try { setRecipient(await live.findRecipient(phone)); }
+  const enough = cents !== null && cents <= available;
+  const remaining = goal ? goal.targetCents - goal.fundedCents : Infinity;
+  const valid = ready && !!recipientPhone && enough && cents !== null && cents <= remaining && !busy;
+  const openReview = async () => {
+    if (!valid) return;
+    Keyboard.dismiss();
+    setError('');
+    if (!connected) { setReview(true); return; }
+    setBusy(true);
+    try { setRecipient(await live.findRecipient(phone)); setReview(true); }
     catch (failure) { setError(failure instanceof Error ? failure.message : 'Please try again.'); }
     finally { setBusy(false); }
-  }
-  async function confirm() {
-    if (!cents || !recipient || submitting.current) return;
-    submitting.current = true; setBusy(true); setError('');
-    try {
-      const id = await live.send(recipient, cents, note);
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
-      router.replace({ pathname: '/receipt', params: { id } });
-    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Please try again.'); submitting.current = false; setBusy(false); }
-  }
-  return <Screen key={recipient ? 'review' : 'edit'} title={recipient ? 'Review payment' : undefined} subtitle={recipient ? 'Take a moment to check the details.' : undefined} back>
-    {recipient && cents ? <>
-      <View style={{ alignItems: 'center', gap: 10, paddingVertical: 18 }}><View style={{ width: 74, height: 74, borderRadius: 37, backgroundColor: colors.soft, alignItems: 'center', justifyContent: 'center' }}><Icon name="call-outline" size={30} color={colors.accent} /></View><Text style={t.heading}>{formatPhone(recipient.phone)}</Text><Text style={{ fontSize: 47, color: colors.green, fontWeight: '600', letterSpacing: -1.8, marginTop: 8 }}>{money(cents)}</Text><Pill>USDC on Solana devnet</Pill></View>
-      <View style={[t.card, { marginVertical: 20 }]}><Detail label="Recipient" value={formatPhone(recipient.phone)} /><Detail label="Network" value="Solana devnet" /><Detail label="Amount" value={`${money(cents)} USDC`} /><Detail label="Network fee" value="Paid by Guard" /><View style={t.divider} /><Detail label="Total from your balance" value={money(cents)} strong />{note ? <Detail label="Your note" value={note} /> : null}</View>
-      <Notice>{recipient.invited ? 'This number isn’t on Guard yet. Their money will be waiting in a wallet they get when they sign in with this number.' : 'This sends test USDC on Solana devnet. Transfers can’t be undone.'}</Notice>
-      {error ? <View style={{ marginTop: 12 }}><Notice error>{error}</Notice></View> : null}
-      <Button style={{ marginTop: 24 }} title="Send now" icon="arrow-up-right-box-outline" onPress={() => { void confirm(); }} loading={busy} testID="confirm-transfer" />
-      <Button style={{ marginTop: 10 }} title="Edit details" variant="secondary" onPress={() => { setRecipient(null); setError(''); }} disabled={busy} />
-    </> : <>
-      <AmountInput value={amount} onChange={setAmount} />
-      <Text style={[t.muted, { textAlign: 'center', marginBottom: 18, fontSize: 12 }]}>Available: {money(wallet.balanceCents)} USDC</Text>
-      <TextInput accessibilityLabel="Recipient phone number" placeholder="Their phone number" placeholderTextColor={colors.muted} value={phone} onChangeText={setPhone} keyboardType="phone-pad" textContentType="telephoneNumber" style={[t.body, { padding: 17, backgroundColor: colors.soft, borderRadius: 28 }]} />
-      {cents !== null && !enough ? <View style={{ marginTop: 12 }}><Notice error>This is more than your available balance.</Notice></View> : null}
-      <TextInput accessibilityLabel="Payment note" placeholder="Add a note (optional)" placeholderTextColor={colors.muted} value={note} onChangeText={setNote} maxLength={140} style={[t.body, { padding: 17, backgroundColor: colors.soft, borderRadius: 28, marginTop: 14, marginBottom: 12 }]} />
-      {error ? <View style={{ marginBottom: 12 }}><Notice error>{error}</Notice></View> : null}
-      <Button title="Review transfer" icon="arrow-forward" onPress={() => { void review(); }} loading={busy} disabled={!canContinue} testID="review-transfer" /><DemoNote />
-    </>}
-  </Screen>;
-}
-
-function DemoSend() {
-  const { colors, styles: t } = useColors();
-  const params = useLocalSearchParams<{ contactId?: string; goalId?: string }>();
-  const { wallet, ready, execute } = useWallet();
-  const goal = wallet.goals.find(item => item.id === params.goalId);
-  const [contactId, setContactId] = useState(goal?.contactId || params.contactId || '');
-  const contact = contacts.find(item => item.id === contactId);
-  const [amount, setAmount] = useState(goal ? String((goal.targetCents - goal.fundedCents) / 100) : '0');
-  const [note, setNote] = useState(goal?.description || '');
-  const [review, setReview] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const submitting = useRef(false);
-  const reference = useRef<string | null>(null);
-  const cents = parseAmount(amount);
-  const enough = cents !== null && cents <= wallet.balanceCents;
-  const remaining = goal ? goal.targetCents - goal.fundedCents : Infinity;
-  const canContinue = ready && !!contact && enough && cents !== null && cents <= remaining;
-  function confirm() {
-    if (!cents || !contact || submitting.current) return;
+  };
+  const confirm = async () => {
+    if (!valid || !cents || !recipientPhone || submitting.current || connected && !recipient) return;
     submitting.current = true; setBusy(true); setError('');
     try {
       reference.current ??= `demo-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-      const id = execute({ id: reference.current, kind: 'send', contactId: contact.id, amountCents: cents, note, goalId: goal?.id, createdAt: new Date().toISOString() });
+      const id = connected ? await live.send(recipient!, cents, note) : execute({ id: reference.current, kind: 'send', recipientPhone, contactId: goal?.contactId ?? contact?.id, amountCents: cents, note, goalId: goal?.id, createdAt: new Date().toISOString() });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
       router.replace({ pathname: '/receipt', params: { id } });
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'Please try again.'); submitting.current = false; setBusy(false); }
-  }
-  return <Screen key={review ? 'review' : 'edit'} title={review ? 'Review payment' : undefined} subtitle={review ? 'Take a moment to check the details.' : undefined} back>
-    {review && contact && cents ? <>
-      <View style={{ alignItems: 'center', gap: 10, paddingVertical: 18 }}><Avatar contact={contact} size={74} /><Text style={t.heading}>{contact.name}</Text><Text style={t.muted}>{contact.fullName} · {contact.location}</Text><Text style={{ fontSize: 47, color: colors.green, fontWeight: '600', letterSpacing: -1.8, marginTop: 8 }}>{money(cents)}</Text><Pill>USDC on Solana · Demo</Pill></View>
-      <View style={[t.card, { marginVertical: 20 }]}><Detail label="Recipient" value={contact.fullName} /><Detail label="Network" value="Solana · preview only" /><Detail label="Amount" value={`${money(cents)} USDC`} /><Detail label="Demo transfer fee" value="$0.00" /><View style={t.divider} /><Detail label="Total from demo balance" value={money(cents)} strong />{note ? <Detail label="Your note" value={note} /> : null}</View>
-      <Notice>This records a demo transfer on this device. No USDC is sent on-chain and no fiat payout is initiated.</Notice>
+  };
+  if (picking) return <Screen back title="Send to" subtitle="A little closer, wherever they are."><RecipientPicker demo={!connected} activity={wallet.activity} onSelect={(value, id) => { setPhone(value); setContactId(id); setPicking(false); }} /><DemoNote /></Screen>;
+  return <Screen back footer={<><Button title="Review transfer" icon="arrow-forward" onPress={() => { void openReview(); }} loading={busy} disabled={!valid} testID="review-transfer" /><DemoNote compact /></>}>
+    <Pressable accessibilityRole="button" accessibilityLabel="Change recipient" onPress={() => setPicking(true)} style={[t.row, { alignSelf: 'center', gap: 10, paddingVertical: 10, marginBottom: 6 }]}>
+      {contact ? <Avatar contact={contact} size={38} /> : <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center' }}><Icon name="person-outline" color={colors.green} size={20} /></View>}<Text style={{ color: colors.ink, fontSize: 17, fontWeight: '500' }}>{recipientName}</Text><Icon name="chevron-down" size={15} color={colors.muted} />
+    </Pressable>
+    <AmountInput value={amount} onChange={setAmount} showKeypad={!editingText} detail={<>
+      <Text style={[t.muted, { textAlign: 'center', marginTop: 8 }]}>≈ ARS {new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Number(amount || 0) * DEMO_ARS_RATE)} · example rate</Text>
+      <Text style={[t.muted, { textAlign: 'center', marginTop: 4 }]}>{money(available)} available</Text>
+      <View style={[t.row, { justifyContent: 'center', gap: 8, marginTop: 18 }]}><Pill>No fee</Pill><Pill>{connected ? 'Solana devnet' : 'Demo payment'}</Pill></View>
+    </>} />
+    <TextInput accessibilityLabel="Recipient phone number" placeholder="Their phone number" placeholderTextColor={colors.muted} value={phone} onChangeText={value => { setPhone(value.slice(0, 24)); setError(''); }} onFocus={() => setEditingText(true)} onBlur={() => setEditingText(false)} keyboardType="phone-pad" textContentType="telephoneNumber" style={[t.body, { padding: 17, backgroundColor: colors.surface, borderRadius: 28 }]} />
+    <Text style={[t.muted, { marginTop: 8, marginBottom: 12 }]}>Include the country code outside the US.</Text>
+    {phone.length > 0 && !recipientPhone ? <Notice error>Enter a full phone number.</Notice> : null}
+    {cents !== null && !enough ? <Notice error>{connected ? 'This is more than your available balance.' : 'This is more than your available demo balance.'}</Notice> : null}
+    {cents !== null && cents > remaining ? <Notice error>This request only needs {money(remaining)} more.</Notice> : null}
+    <TextInput accessibilityLabel="Payment note" placeholder="Add a note (optional)" placeholderTextColor={colors.muted} value={note} onChangeText={setNote} onFocus={() => setEditingText(true)} onBlur={() => setEditingText(false)} maxLength={140} style={[t.body, { padding: 17, backgroundColor: colors.surface, borderRadius: 28, marginTop: 12, marginBottom: 18 }]} />
+    {recipientPhone ? <View style={{ marginBottom: 14 }}><ContactNameButton phone={recipientPhone} /></View> : null}
+    {!review && error ? <Notice error>{error}</Notice> : null}
+    <Sheet title="Review payment" visible={review} onClose={() => { if (!busy) setReview(false); }}>
+      <View style={[t.row, { gap: 14, marginBottom: 24 }]}>{contact ? <Avatar contact={contact} size={56} /> : <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center' }}><Icon name="call-outline" color={colors.green} /></View>}<View style={{ flex: 1 }}><Text style={t.heading}>Send {money(cents ?? 0)}</Text><Text style={[t.muted, { marginTop: 5 }]}>to {recipientName}</Text></View></View>
+      <View style={[t.card, { marginBottom: 18 }]}><Detail label="Recipient" value={recipientPhone ? formatPhone(recipientPhone) : ''} /><Detail label="Fee" value="$0.00" /><Detail label="Payment" value={connected ? 'Test dollars · Solana devnet' : 'Local demo'} /><Detail label="Undo" value="Not available in this build" />{note ? <Detail label="Your note" value={note} /> : null}<View style={t.divider} /><Detail label={connected ? 'Total from your balance' : 'Total from demo balance'} value={money(cents ?? 0)} strong /></View>
+      <Notice>{connected ? recipient?.invited ? 'This number is new to Nest. Their test dollars will be waiting when they sign in. This payment cannot be undone.' : 'This sends test dollars on Solana devnet. This payment cannot be undone.' : 'Demo payment only. No real money leaves this device.'}</Notice>
       {error ? <View style={{ marginTop: 12 }}><Notice error>{error}</Notice></View> : null}
-      <Button style={{ marginTop: 24 }} title="Confirm demo transfer" icon="arrow-up-right-box-outline" onPress={confirm} loading={busy} testID="confirm-transfer" />
+      <Button style={{ marginTop: 22 }} title={connected ? 'Send now' : 'Confirm demo transfer'} icon="arrow-forward" onPress={() => { void confirm(); }} loading={busy} testID="confirm-transfer" />
       <Button style={{ marginTop: 10 }} title="Edit details" variant="secondary" onPress={() => setReview(false)} disabled={busy} />
-    </> : <>
-      <AmountInput value={amount} onChange={setAmount} />
-      <Text style={[t.muted, { textAlign: 'center', marginBottom: 18, fontSize: 12 }]}>Available: {money(wallet.balanceCents)} demo USDC</Text>
-      <View style={[t.row, { gap: 8 }]}>{contacts.filter(item => !goal || item.id === goal.contactId).map(item => <Pressable key={item.id} accessibilityRole="radio" accessibilityState={{ checked: contactId === item.id }} accessibilityLabel={`Recipient ${item.name}`} onPress={() => setContactId(item.id)} style={[t.row, { flex: 1, justifyContent: 'center', gap: 5, paddingVertical: 14, paddingHorizontal: 6, backgroundColor: contactId === item.id ? colors.mint : colors.soft, borderRadius: 28 }]}><Text style={{ color: contactId === item.id ? colors.accent : colors.ink, fontSize: 13, fontWeight: '700' }}>{item.name}</Text>{contactId === item.id ? <Icon name="checkmark-circle" color={colors.accent} size={16} /> : null}</Pressable>)}</View>
-      <Text style={[t.muted, { fontSize: 11, textAlign: 'center', marginTop: 8 }]}>{contact ? `${contact.fullName} · ${contact.location}` : 'Choose who you’re paying'}</Text>
-      {cents !== null && !enough ? <Notice error>This is more than your available demo balance.</Notice> : null}
-      {cents !== null && cents > remaining ? <Notice error>This request only needs {money(remaining)} more.</Notice> : null}
-      <TextInput accessibilityLabel="Payment note" placeholder="Add a note (optional)" placeholderTextColor={colors.muted} value={note} onChangeText={setNote} maxLength={140} style={[t.body, { padding: 17, backgroundColor: colors.soft, borderRadius: 28, marginTop: 14, marginBottom: 12 }]} />
-      <Button title="Review transfer" icon="arrow-forward" onPress={() => setReview(true)} disabled={!canContinue} testID="review-transfer" /><DemoNote />
-    </>}
+    </Sheet>
   </Screen>;
 }

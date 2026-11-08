@@ -1,88 +1,52 @@
-# Guard mobile design baseline
+# Nest app design
 
-Research and implementation: November 7, 2026. User-selected stack: React Native / Expo, shared with web.
+The app now follows the supplied [Nest screen mockups](app-design/nest-app-screens.html), [app handoff](APP_HANDOFF.md), and the existing [Nest website](web-earth/). These replace the earlier Guard, globe, blue, and glass design direction.
 
-## Reference scope and evidence
+## Visual system
 
-Sources inspected:
-
-- [Cash App sending](https://cash.app/send): mobile landing-page screenshot, branding extraction, and the official activity-screen image linked from that page.
-- [PayPal consumer app](https://www.paypal.com/us/digital-wallet): mobile landing-page screenshot and branding extraction.
-- [PayPal's official iPhone listing](https://apps.apple.com/us/app/paypal-pay-send-save/id283646709): official product screenshots, including the card-and-list layout saved locally.
-
-Local reference captures: [Cash App mobile page](design/reference/cash-app-mobile.png), [Cash App activity](design/reference/cash-app-activity.webp), [PayPal mobile page](design/reference/paypal-mobile.png), and [PayPal iPhone card/list screenshot](design/reference/paypal-iphone-send.webp). These are research references, not assets shipped inside the app.
-
-The landing pages are marketing websites. Their extracted fonts/colors are evidence about those pages, not measurements of every native app screen. The PayPal mobile landing capture used a dark marketing presentation and contained a cookie notice; it was not treated as a complete authenticated-app walkthrough. No private accounts were accessed.
-
-## Observations we adapted
-
-### Cash App
-
-- Amount entry is the visual center of the sending experience, with very large numeric type and a clear keypad.
-- Recipient identity, payment note, and amount are immediately readable in activity rows.
-- The inspected activity asset puts avatar/name/note on the left and amount or action on the right.
-- The send page explicitly describes scam/new-recipient alerts and group payment pools. Neither a warning nor a shared-request feature alone should be claimed as unique to our product.
-- Extracted website tokens: primary green `#00E013`, white backgrounds, dark text, pill-shaped primary buttons. Website font: Cash Sans. These are reference values; Guard does not bundle that font or reproduce Cash App branding.
-
-### PayPal
-
-- The inspected app screenshot uses a prominent amount/card, rounded grouped content, and repeated rows with the important value aligned to the trailing edge.
-- Sending/requesting and reviewing financial activity are established product functions, also described on PayPal's consumer page.
-- Marketing-page extracted colors include `#60CDFF`, `#0066F5`, and `#0070E0`; the page's reported base background is `#F1EFEA`. These do not establish exact native-app colors.
-- PayPal's branded font is not copied. The app uses the platform system font.
-
-## Guard's own design decisions
-
-Current direction follows the user's two visual references: a monochrome dotted globe and a rounded crypto wallet interface. White is the primary surface, black anchors the type and globe, and blue is the only brand accent. These are Guard implementation tokens, not extracted Cash App or PayPal values.
-
-| Role | Value |
+| Role | Light appearance |
 | --- | --- |
-| Background | `#FFFFFF` |
-| Surface | `#FFFFFF` |
-| Primary ink | `#101114` |
-| Secondary text | `#7D828C` |
-| Brand blue | `#246BFD` |
-| Pressed blue | `#1550CD` |
-| Blue wash | `#E8F0FF` |
-| Subtle surface | `#F5F6F8` |
-| Globe backdrop | `#08090C` |
-| Divider | `#EAECF0` |
-| Error | `#B53737` on `#FFF1F1` |
-| Contact accents | cool gray and pale blue |
+| Page | `#F3F0EA` |
+| Card | `#FFFFFF` |
+| Ink / primary action | `#17201A` |
+| Secondary text | `#646C66` |
+| Moss | `#2F5D3A` |
+| Sage | `#E4ECDF` |
+| Local-currency wash | `#DCEEF8` |
+| Divider | `#DDD7CA` |
+| Progress track | `#E9E1D1` |
 
-- System font; headings approximately 28–30 points, section headings 19, body 15, captions 11–13.
-- Main balance approximately 62 points in a bold weight; amount-entry numerals up to 94 points, scaled to fit the amount.
-- Horizontal page padding 24; section spacing roughly 24–30; cards 20–24 padding.
-- Rounded, flat cards around 28 points; full pill buttons with minimum height 58 and bold 17-point labels; circular icon controls with 44-point targets.
-- Four floating bottom tabs: Home, Family, Activity, You. Native Liquid Glass on compatible iOS 26 builds, Expo BlurView elsewhere, and an opaque surface when iOS Reduce Transparency is enabled. Sending and money actions open dedicated screens. Content has extra scroll padding so the floating bar does not cover the last controls.
-- Width-constrained, responsive content works on web, iPhone, and tablet without maintaining a second UI implementation.
-- An original blue shield/check mark and `Guard` wordmark. Guard is the user-selected name, with the tagline **Protect what matters.**
+Figtree Regular, Medium, and Semibold are bundled locally with the SIL Open Font License. Amounts use tabular numbers. Cards have 28-point corners; review sheets have 32-point corners; buttons are full pills, at least 56 points tall. Body and label text are at least 13 points. Main actions use dark ink. Success and savings progress use moss. Local-currency examples use sky blue.
 
-## Cash App screenshot styling update
+The website’s original three-ring Nest mark supplies the app logo, icon, and favicon. Photos are copied from the website; contact portraits reproduce the crops in the mockup sheet. Small static bird silhouettes appear on welcome and receipt screens. The default appearance is warm cream, with a complementary moss-based dark appearance available in You. Surfaces and navigation are flat and opaque. Balances scale to fit narrow phones, and payment review / receipt return actions stay visible in a fixed footer.
 
-The user supplied a Cash App payment-screen screenshot and explicitly requested its text and box styling while retaining the current palette. Adapted the large, bold amount display, bold numeric keypad, circular utility controls, flat tinted panels, and full-width pill actions. The payment screen now puts amount and keypad first, with compact recipient pills beneath it. The existing globe and glass navigation stay in place. Typography uses the system font; Cash Sans and Cash App branding are not bundled.
+## Screen map
 
-## Implemented screen structure
+- **Welcome:** meadow photo, Nest wordmark, “Protect what matters.”, create/sign-in entry points, demo entry, and recovery information. Existing Auth0 and Privy sign-in behavior remains connected to the same handlers.
+- **Home:** dollar balance, explicitly illustrative dollar/peso comparison, example ARS conversion, Send / Add / Receive, activity, and a photo-led savings card.
+- **Save:** the historical comparison from the supplied mockup, three savings goals, new-goal sheet, and progress. Demo savings are reserved within the total wallet balance and cannot be spent until released.
+- **Goal:** target, set-aside balance, remaining amount, and local demo allocation/release sheets. No interest or automated top-up is promised.
+- **Security:** Face ID, scam check, undo, safe word, trusted contact, and support. Unconnected protections are explicitly identified as previews or not set up; tapping a row explains its actual status.
+- **You:** account, appearance, activity, legacy family requests, withdrawal, sign-in, preview details, and reset.
+- **Send:** recipient search and faces first, amount/keypad, example ARS conversion, note, then a bottom-sheet review with explicit fee and undo status. Connected mode uses real recipient lookup; fictional contacts and reserved sample phone numbers are demo-only.
+- **Receive:** a real generated QR code encoding the request URL, recipient phone, amount/note, sharing, and copy. No invented account/routing numbers or handle.
+- **Receipt:** contact photo or action icon, birds, amount, actual timestamp, payment details, copy/share, and problem-report information. Demo and devnet results remain distinct.
+- **Activity:** search, filters, and receipts, accessible from Home and You as a full screen outside the four primary tabs.
+- **Payment link:** Nest-green request card and explicit payment review.
+- **Add / withdraw:** bank and Apple Cash destination selection, a fee-aware available-balance shortcut, explicit demo/test review, and destination-specific receipts. Apple Cash is demo-only; the bank test cash-out is preserved.
 
-1. **Home:** minimal brand/profile header, large black balance on white, four quick actions, a black globe feature, family contacts, a family-request preview, recent activity.
-2. **Send:** saved recipient, amount keypad, optional note, explicit review, demo confirmation.
-3. **Receipt:** amount, recipient, date/note, local-ledger result, and separate not-sent/not-connected on-chain/provider states.
-4. **Family:** contacts and sample shared goals; contributions update the local demo progress.
-5. **Activity:** search, sent/received filters, and receipt access.
-6. **You:** demo profile, Auth0 sign-in integration, preview explanation, reset.
-7. **Add/withdraw:** amount, review, illustrative fees/rate, and a labeled local simulation.
-8. **Request:** share/copy a clearly labeled sample request; it is not a payable link.
-9. **Sign-in:** full black background, Guard wordmark and white tagline, entire spinning monochrome globe centered without cropping, and two bottom pill buttons: outlined Demo and blue Sign in. The white entry panel has been removed. First launch shows this screen; the account tab can reopen it. Sign-in calls the existing Auth0 integration and honestly reports missing configuration. Demo entry remembers only that the welcome screen was seen, not an authenticated session.
+## Contacts and keyboard behavior
 
-## Globe asset
+Contact names are saved locally per wallet, with a separate demo book. Names resolve consistently in activity, receipts, payment review, and search. Repeat payment starts with a recipient and a zero amount. Shared keyboard-aware scroll containers and keyboard avoidance keep focused inputs visible; native numeric keyboards have a Done toolbar. See [UX audit](apps/mobile/UX_AUDIT.md) for coverage and physical-device limits.
 
-The globe is an original dot rendering of public-domain Natural Earth land geometry, generated by `apps/mobile/scripts/generate-globe.mjs`. The PNG, sphere shading, point buffer, and source geometry are all local. The login globe uses Expo GL to rotate the actual 3D point cloud once every 45 seconds; the home globe remains static. It pauses off screen and in the background, and uses a static globe when Reduce Motion is enabled. A static fallback is also available if graphics initialization fails. No external image service or Three.js runtime is used. The grayscale globe stays grayscale; blue is used for the surrounding location markers and actions.
+## Behavior and limits
 
-## Product and implementation boundaries
+Existing storage keys, deep-link scheme, bundle identifier, authentication configuration, and API contracts are retained. Display branding is Nest. Old wallets still restore, with new savings initialized only when needed. Reset clears demo savings and activity.
 
-- No competitor artwork, logos, screenshots, or proprietary fonts are used as app UI assets.
-- Every money operation is a local, visibly labeled demo. No wallet connection, on-chain transfer, or fiat-provider call is implemented in the current app.
-- The sample MXN exchange rate is explicitly illustrative, not current or provider-backed.
-- Auth0 authenticates an account. It does not create a Solana wallet or authorize transactions in this scaffold.
-- Names, transactions, and family goals are fictional sample data.
-- The files are an implementation-ready design baseline, not a claim of pixel-perfect reconstruction of either reference app.
+Demo balances start at $0. Add demo dollars to explore payments and savings. Savings cannot reserve more than the available balance, exceed a goal target, or release more than was set aside. Live savings are disabled, so a visual goal never reserves actual devnet funds.
+
+The UI does not fabricate arrival times, active biometrics, escrow, scam detection, SMS relay, or offline delivery. Devnet transfers cannot currently be undone. Local-currency amounts use an explicitly illustrative 970 ARS/USD rate. Dollar/peso charts are illustrations, not account performance. Cash-outs remain simulated. Digital dollars are not bank deposits or FDIC insured and can be frozen by their issuer.
+
+## Verification
+
+Run `npm run typecheck`, `npm run lint`, and `npm test` from the repository root. Browser flows and platform exports run from `apps/mobile` with `npm run test:browser`, `npm run export:web`, and `npm run export:ios`. Browser tests cover payment review, receipt/activity persistence, international phone validation, request links, appearance, savings allocation/release, new goals, and protection previews.
