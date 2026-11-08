@@ -29,6 +29,8 @@ permissions:
 
 env:
   SOLANA_VERSION: "1.18.26"
+  # Pick dependency versions that support the program's rust-version (1.75, what build-sbf uses).
+  CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
 
 jobs:
   program:
@@ -56,6 +58,12 @@ jobs:
         run: |
           sh -c "$(curl -sSfL https://release.anza.xyz/v${SOLANA_VERSION}/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - name: Lock dependencies that build with Rust 1.75
+        working-directory: programs/family_hold
+        run: |
+          if [ ! -f Cargo.lock ]; then cargo generate-lockfile; fi
+          grep -A1 -E 'name = "(borsh|hashbrown|indexmap|cfg-if)"' Cargo.lock
 
       - name: Type-check on the host
         working-directory: programs/family_hold
