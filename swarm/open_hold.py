@@ -14,7 +14,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from family_review import build_task, run_review
+from family_review import build_task, detect_signals, run_review
 from prune_gate import GateStop, clean_request, seal_sentence
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -58,6 +58,8 @@ def main() -> int:
         "custody": "unset",
         "provider": "unset",
     }
+    # The Watchdog's typo and tamper checks run here too, so a high sign keeps the Judge from confirming.
+    case["signals"] = detect_signals(case)
     print(build_task(case))
 
     import os

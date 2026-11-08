@@ -181,7 +181,7 @@ h1 { margin: 14px 0 18px; max-width: 850px; font-family: Georgia, "Times New Rom
 .secondary-button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; }
 .attempt-label { color: rgba(255,255,255,.45); font-size: 11px; }
 
-.review-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+.review-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 16px; }
 .review-card { position: relative; min-height: 250px; padding: 26px; border: 1px solid var(--line); border-radius: 21px; background: rgba(255,255,255,.58); }
 .review-card h3 { margin: 28px 0 8px; font-size: 17px; }
 .review-card > p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
@@ -232,3 +232,16 @@ footer { display: flex; justify-content: space-between; gap: 20px; padding: 34px
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
 }
+
+/* Watchdog: typo and tamper warning signs */
+.watchdog-card { background: rgba(255,122,92,.06); }
+.signals-panel { margin-bottom: 16px; padding: 22px 26px; border: 1px solid rgba(255,122,92,.35); border-radius: 21px; background: rgba(255,122,92,.07); }
+.signals-panel h3 { margin: 0 0 4px; font-size: 16px; }
+.signals-intro { margin: 0 0 12px; color: var(--muted); font-size: 12px; }
+.signals-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.signal { display: flex; align-items: baseline; gap: 10px; font-size: 13px; line-height: 1.5; }
+.signal-level { flex: none; padding: 3px 7px; border-radius: 6px; font-size: 9px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; color: #744c00; background: rgba(244,189,85,.28); }
+.signal.high .signal-level { color: #8b2819; background: rgba(255,122,92,.22); }
+.signal.low .signal-level { color: var(--muted); background: rgba(12,38,36,.07); }
+.suspicion.high { color: #8b2819; font-weight: 800; }
+.suspicion.low { color: #744c00; }

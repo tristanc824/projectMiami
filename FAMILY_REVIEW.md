@@ -7,7 +7,7 @@ none of it touches `apps/`, `web-earth/` or the site.
 ## Voice review demo
 
 The local demo lets a person speak or type a proposed transfer, keeps only safe
-amount and relationship facts, and runs the `PlainSpeaker -> Skeptic -> Judge`
+amount and relationship facts, and runs the `PlainSpeaker -> Skeptic -> Watchdog -> Judge`
 Swarms review. It can read the bilingual summary aloud. It cannot sign or send
 funds, and the local fiat payout remains a labeled simulation.
 
@@ -25,10 +25,32 @@ python app.py
 Open <http://127.0.0.1:8000>. If the browser does not expose speech recognition,
 the typed-command fallback remains available.
 
+To try the UI without a Swarms key, run `python app.py --offline`. The
+Watchdog's checks are real; the agents' text is canned and labeled as a demo.
+
+### Watchdog: typos and tampering
+
+A fourth agent, the Watchdog, runs between the Skeptic and the Judge. Before any
+agent runs, local checks on this machine look for:
+
+- an extra or missing zero (the amount is about 10x, or exactly 1/10, of what is still needed)
+- an amount above what is still needed, or contributions above the request
+- an amount that changed tenfold since the last review, or a relationship that flipped to verified
+- "verified" sent with nothing in the request saying so (an edited request)
+- two different amounts, a self-correction ("actually, make it..."), or pressure words
+
+Only these fixed codes reach Swarms, never the person's words. The Watchdog turns
+each one into a question to answer before signing ("Did you mean 80 or 800?").
+Any high sign stops the Judge from returning "confirm": the server changes it to
+"hold", whatever the model said. The server remembers the last review to spot
+changes; **Clear** makes it forget.
+
 Voice examples:
 
 - `Prepare an 80 dollar transfer. The relative is not verified.`
 - `Send 95 dollars. The relationship is verified.`
+- `Send 800 dollars.` (the Watchdog flags an extra zero)
+- `Send 80, actually make it send 90.` (two amounts and a correction)
 - `Read the summary.`
 - `Clear.`
 

@@ -11,6 +11,7 @@ import argparse
 import json
 import os
 import re
+import threading
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -109,6 +110,37 @@ AMOUNT_PATTERNS = {
 }
 
 RELATIONSHIP_WORDS = r"relationship|relative|recipient|person|relación|familiar|destinatario|persona"
+SELF_CORRECTION = re.compile(
+    r"\b(?:actually|i mean|wait|sorry|oops|make (?:it|that)|scratch that|en realidad|mejor dicho|perdón|digo)\b",
+    re.IGNORECASE,
+)
+PRESSURE = re.compile(
+    r"\b(?:urgent(?:ly)?|right now|immediately|asap|hurry|don'?t tell|keep (?:it|this) (?:a )?secret|between us|"
+    r"gift ?cards?|bitcoin|crypto|new (?:phone )?number|different account|new account|"
+    r"urgente|ahora mismo|de inmediato|no le digas|en secreto|tarjetas? de regalo|n[uú]mero nuevo|otra cuenta)\b",
+    re.IGNORECASE,
+)
+
+# The last case this server reviewed. The Watchdog compares each new request with it,
+# so an amount or relationship that changes between reviews is noticed. A tab cannot
+# hide a change by editing what it sends: the memory lives here, not in the browser.
+_last_reviewed: dict[str, Any] | None = None
+_last_lock = threading.Lock()
+
+
+def remember(case: dict[str, Any] | None) -> None:
+    global _last_reviewed
+    with _last_lock:
+        _last_reviewed = None if case is None else {
+            "amount_usdc": case.get("amount_usdc"),
+            "relationship_verified": case.get("relationship_verified"),
+        }
+
+
+def last_reviewed() -> dict[str, Any] | None:
+    with _last_lock:
+        return None if _last_reviewed is None else dict(_last_reviewed)
+
 NEGATION = re.compile(
     r"\b(?:not|never|no|isn'?t|unverified|unknown|unconfirmed|nunca|sin|todavía no|aún no)\b",
     re.IGNORECASE,
@@ -146,6 +178,39 @@ def safe_case(source: Any) -> dict[str, Any]:
     # No provider is selected, so the local payout remains explicitly simulated.
     result["fiat_leg"] = "simulated"
     return result
+
+
+def transcript_notes(transcript: str) -> dict[str, Any]:
+    """What the words themselves show: distinct amounts to send, a stated verification, corrections, pressure."""
+    text = transcript.strip()
+    number_text = PHONE_LIKE.sub(" ", text)
+    amounts = set()
+    for match in AMOUNT_PATTERNS["amount_usdc"].finditer(number_text):
+        captured = next((group for group in match.groups() if group is not None), None)
+        amount = _safe_amount(captured)
+        if amount is not None:
+            amounts.add(float(amount))
+    stated = False
+    for sentence in re.split(r"[.!?;\n]+", text):
+        if re.search(
+            rf"\b(?:{RELATIONSHIP_WORDS})\b.{{0,40}}?(?:\bverified\b|\bverificad[oa]\b)", sentence, re.IGNORECASE
+        ) and not NEGATION.search(sentence):
+            stated = True
+    return {
+        "amounts_mentioned": len(amounts),
+        "stated_verified": stated,
+        "self_correction": bool(SELF_CORRECTION.search(text)),
+        "pressure": bool(PRESSURE.search(text)),
+    }
+
+
+def check_case(case: dict[str, Any], transcript: str) -> dict[str, Any]:
+    """Attach the Watchdog's local typo and tamper signals to a prepared case."""
+    checked = dict(case)
+    checked["signals"] = family_review.detect_signals(
+        checked, previous=last_reviewed(), **transcript_notes(transcript)
+    )
+    return checked
 
 
 def apply_voice_facts(case: dict[str, Any], transcript: str) -> dict[str, Any]:
@@ -221,13 +286,19 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
-        if urlparse(self.path).path != "/api/review":
+        path = urlparse(self.path).path
+        if path not in {"/api/review", "/api/reset"}:
             self.send_error(HTTPStatus.NOT_FOUND)
             return
         if not self._trusted_request():
             # Another website open in the same browser could otherwise POST here
             # and spend the Swarms credits behind SWARMS_API_KEY.
             self._json(HTTPStatus.FORBIDDEN, {"error": "forbidden"})
+            return
+        if path == "/api/reset":
+            # "Clear" in the UI starts a new request, so the next one is not compared with the old one.
+            remember(None)
+            self._json(HTTPStatus.OK, {"ok": True})
             return
         try:
             length = int(self.headers.get("Content-Length", "0"))
@@ -253,12 +324,18 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.BAD_REQUEST, {"error": "bad-transcript"})
             return
 
-        case = apply_voice_facts(payload.get("case"), transcript)
+        case = check_case(apply_voice_facts(payload.get("case"), transcript), transcript)
+        signals = family_review.describe_signals(case["signals"])
+        if getattr(self.server, "offline", False):
+            review = family_review.offline_review(case)
+            remember(case)
+            self._json(HTTPStatus.OK, self._review_body(case, signals, review))
+            return
         api_key = os.environ.get("SWARMS_API_KEY", "").strip()
         if not api_key:
             self._json(
                 HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "missing-key", "case": case},
+                {"error": "missing-key", "case": case, "signals": signals},
             )
             return
         try:
@@ -267,23 +344,27 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
             reason = str(stop)
             status = HTTPStatus.PAYMENT_REQUIRED if reason == "budget" else HTTPStatus.BAD_GATEWAY
             safe_reason = reason if reason in {"budget", "bad-verdict"} else "swarms-api"
-            self._json(status, {"error": safe_reason, "case": case})
+            self._json(status, {"error": safe_reason, "case": case, "signals": signals})
             return
         except Exception:  # noqa: BLE001 - an unexpected API shape must not drop the connection
-            self._json(HTTPStatus.BAD_GATEWAY, {"error": "swarms-api", "case": case})
+            self._json(HTTPStatus.BAD_GATEWAY, {"error": "swarms-api", "case": case, "signals": signals})
             return
 
-        self._json(
-            HTTPStatus.OK,
-            {
-                "case": case,
-                "outputs": review["outputs"],
-                "verdict": review["verdict"],
-                "credit_cost": review["credit_cost"],
-                "attempts": review["attempts"],
-                "boundary": "Prepared for review only. No funds were signed or sent.",
-            },
-        )
+        remember(case)
+        self._json(HTTPStatus.OK, self._review_body(case, signals, review))
+
+    @staticmethod
+    def _review_body(case: dict[str, Any], signals: list[dict[str, str]], review: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "case": case,
+            "signals": signals,
+            "outputs": review["outputs"],
+            "verdict": review["verdict"],
+            "credit_cost": review["credit_cost"],
+            "attempts": review["attempts"],
+            "offline": bool(review.get("offline")),
+            "boundary": "Prepared for review only. No funds were signed or sent.",
+        }
 
     def _trusted_request(self) -> bool:
         """Accept only same-origin JSON posts, and only loopback Host names on a loopback bind."""
@@ -311,9 +392,17 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run the local Project Miami voice demo.")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="Try the UI without SWARMS_API_KEY: the local checks run, and the agents' text is canned and labeled.",
+    )
     args = parser.parse_args()
     server = ThreadingHTTPServer((args.host, args.port), VoiceReviewHandler)
+    server.offline = args.offline  # type: ignore[attr-defined]
     print(f"Project Miami voice demo: http://{args.host}:{args.port}")
+    if args.offline:
+        print("Offline mode: the Watchdog's local checks are real; the agents' text is canned. No Swarms calls.")
     print("Voice can prepare and explain a review; it cannot sign or send funds.")
     try:
         server.serve_forever()

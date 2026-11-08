@@ -37,8 +37,39 @@ function showStatus(message, error = false) {
   statusTimer = window.setTimeout(() => statusToast.classList.remove("show"), 4200);
 }
 
+function renderChecks(signals) {
+  const checks = document.querySelector("#fact-checks");
+  if (!Array.isArray(signals)) {
+    checks.textContent = "Not run yet";
+    checks.classList.remove("warning-text");
+    return;
+  }
+  checks.textContent = signals.length === 0 ? "No warning signs" : `${signals.length} warning sign${signals.length === 1 ? "" : "s"}`;
+  checks.classList.toggle("warning-text", signals.length > 0);
+}
+
+function renderSignals(signals) {
+  const panel = document.querySelector("#signals-panel");
+  const list = document.querySelector("#signals-list");
+  list.replaceChildren();
+  const items = Array.isArray(signals) ? signals : [];
+  for (const signal of items) {
+    const item = document.createElement("li");
+    item.className = `signal ${signal.level}`;
+    const level = document.createElement("span");
+    level.className = "signal-level";
+    level.textContent = signal.level;
+    const text = document.createElement("span");
+    text.textContent = signal.text;
+    item.append(level, text);
+    list.append(item);
+  }
+  panel.hidden = items.length === 0;
+}
+
 function renderFacts(facts) {
-  currentCase = { ...currentCase, ...facts, fiat_leg: "simulated" };
+  const { signals, ...rest } = facts ?? {};
+  currentCase = { ...currentCase, ...rest, fiat_leg: "simulated" };
   document.querySelector("#fact-amount").textContent = currentCase.amount_usdc;
   document.querySelector("#fact-requested").textContent = currentCase.requested_usdc;
   document.querySelector("#fact-contributions").textContent = currentCase.other_contributions_usdc;
@@ -99,8 +130,8 @@ async function runReview() {
   currentCase.output_locale = language.value;
 
   reviewButton.disabled = true;
-  reviewButton.textContent = "Reviewing with three agents…";
-  showStatus("PlainSpeaker, Skeptic, and Judge are reviewing the safe facts.");
+  reviewButton.textContent = "Reviewing with four agents…";
+  showStatus("PlainSpeaker, Skeptic, Watchdog, and Judge are reviewing the safe facts.");
   try {
     const response = await fetch("/api/review", {
       method: "POST",
@@ -110,10 +141,12 @@ async function runReview() {
     });
     const data = await response.json().catch(() => ({ error: "bad-response" }));
     if (generation !== reviewGeneration) return;
+    if (data.case) renderFacts(data.case);
+    renderChecks(data.signals);
     if (!response.ok) throw new Error(data.error || "review-failed");
-    renderFacts(data.case);
     renderResult(data);
-    showStatus("Review ready. Nothing was signed or sent.");
+    const held = data.verdict.held_by_checks ? " The Watchdog held it." : "";
+    showStatus(`Review ready. Nothing was signed or sent.${held}`);
   } catch (error) {
     if (generation !== reviewGeneration || error.name === "AbortError") return;
     const messages = {
@@ -142,6 +175,13 @@ function renderResult(data) {
   document.querySelector("#translation-language").textContent = currentCase.output_language;
   document.querySelector("#plain-output").textContent = data.outputs.PlainSpeaker;
   document.querySelector("#skeptic-output").textContent = data.outputs.Skeptic;
+  document.querySelector("#watchdog-output").textContent = data.outputs.Watchdog ?? "";
+  renderSignals(data.signals);
+  const suspicion = document.querySelector("#suspicion-output");
+  suspicion.textContent = data.verdict.held_by_checks
+    ? `${data.verdict.suspicion}: held by the Watchdog's checks`
+    : data.verdict.suspicion ?? "";
+  suspicion.className = `suspicion ${data.verdict.suspicion ?? ""}`;
   document.querySelector("#threat-output").textContent = data.verdict.threat;
   document.querySelector("#limit-output").textContent = data.verdict.limit;
 
@@ -149,8 +189,9 @@ function renderResult(data) {
   badge.textContent = data.verdict.decision;
   badge.className = `decision-badge ${data.verdict.decision}`;
   const cost = data.credit_cost;
-  document.querySelector("#cost-label").textContent =
-    cost === null ? "Cost unavailable" : `${Number(cost).toFixed(4)} credits`;
+  document.querySelector("#cost-label").textContent = data.offline
+    ? "Offline demo · canned agent text"
+    : cost === null ? "Cost unavailable" : `${Number(cost).toFixed(4)} credits`;
   document.querySelector("#attempt-label").textContent =
     data.attempts === 1 ? "Judge JSON valid on first run" : "Judge JSON valid after one retry";
 
@@ -192,6 +233,10 @@ function speakSummary() {
 
 function resetReview() {
   invalidateReview();
+  renderChecks(null);
+  renderSignals([]);
+  // Tell the server to forget the last review, so the next request is not compared with it.
+  fetch("/api/reset", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
   transcript.value = "";
   currentCase = {
     ...defaultCase,
