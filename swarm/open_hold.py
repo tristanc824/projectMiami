@@ -2,10 +2,10 @@
 
 A clean review is sealed by Prune and locked as usual. A flagged review (the
 Skeptic flags it, the Watchdog finds a high sign, or the Judge does not
-confirm) goes into a Safe Hold: 24 hours on-chain, then the sender and the
-approver must both confirm. Either way it locks exactly the reviewed amount. The Solana hold itself is
-node hold/hold.mjs. The sender can refund that hold alone. Only the approver,
-the other family member, can release it, with their signature and the PIN.
+confirm) goes into a Safe Hold: 24 hours on-chain, then only the sender can
+confirm it. Either way it locks exactly the reviewed amount. The Solana hold itself is
+node hold/hold.mjs. The sender can refund either hold alone. An ordinary hold is released
+by the approver, the other family member, with their signature and the PIN.
 """
 
 from __future__ import annotations
@@ -77,12 +77,12 @@ def main() -> int:
     node = ["node", str(ROOT / "hold" / "hold.mjs"), "lock", amount, "--review-hash", policy["review_hash"]]
 
     if policy["required"]:
-        # Flagged: not refused, but the money waits on-chain and needs two confirmations.
+        # Flagged: not refused, but the money waits on-chain until the sender confirms it again.
         print("SAFE HOLD: " + ", ".join(policy["reasons"]))
         print(verdict["sentence"])
         print(
-            f"The money waits {policy['hold_hours']:g} hours on-chain. Then the sender and the approver must both "
-            "confirm. The sender can cancel any time."
+            f"The money waits {policy['hold_hours']:g} hours on-chain. Then only the sender can confirm it "
+            "(node hold/hold.mjs confirm). The sender can cancel any time."
         )
         if not args.deposit:
             print(f"Pass --deposit to lock {amount} test USDC in a Safe Hold.")

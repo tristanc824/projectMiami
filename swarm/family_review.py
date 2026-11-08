@@ -90,8 +90,8 @@ SCAM_PLAYBOOK = """Scam playbook, from real fraud cases. Use it to name the patt
 6. Refund, investment and prize scams. Signs: refund_overpayment, investment_promise, prize_fee. Safe step: a real refund goes back the way it came; nobody pays a fee to receive a prize.
 A real relative can answer a call-back on the number you already had. A scammer cannot."""
 
-# Safe Hold: a flagged transfer waits this long on-chain, then needs the sender and the
-# approver to sign. SAFE_HOLD_SECONDS shortens it for a live demo.
+# Safe Hold: a flagged transfer waits this long on-chain, then only the sender can confirm it
+# (or take it back at any time). SAFE_HOLD_SECONDS shortens it for a live demo.
 SAFE_HOLD_SECONDS = int(os.environ.get("SAFE_HOLD_SECONDS", str(24 * 60 * 60)))
 SKEPTIC_FLAG = re.compile(r"^\s*flag:\s*(yes|no)\s*$", re.IGNORECASE | re.MULTILINE)
 
@@ -611,7 +611,7 @@ def hold_policy(
     return {
         **decision,
         "hold_hours": round(SAFE_HOLD_SECONDS / 3600, 2) if required else 0,
-        "confirmations": ["sender", "approver"] if required else ["approver"],
+        "confirmations": ["sender"] if required else ["approver"],
         "review_hash": review_hash(case, verdict, decision),
         "sender_can_cancel": True,
         # A clean review is not a deposit on its own: the server's policy authority co-signs the
@@ -626,7 +626,7 @@ def failed_policy(case: dict[str, Any], reason: str) -> dict[str, Any]:
     return {
         **decision,
         "hold_hours": round(SAFE_HOLD_SECONDS / 3600, 2),
-        "confirmations": ["sender", "approver"],
+        "confirmations": ["sender"],
         "review_hash": review_hash(case, {"decision": "hold", "suspicion": "high"}, decision),
         "sender_can_cancel": True,
         "needs_policy_cosign": False,

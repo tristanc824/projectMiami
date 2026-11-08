@@ -2,18 +2,23 @@
 //!
 //! Deposit moves USDC into a vault and stores a hash of a 6-digit PIN.
 //! Refund sends it back and only the sender may call it. The sender does not
-//! need the PIN. Release sends it to the recipient and requires both the
-//! approver's signature and that PIN.
+//! need the PIN. On an ordinary hold, Release sends it to the recipient and
+//! requires both the approver's signature and that PIN.
 //!
 //! The PIN is not a secret on its own: its hash sits in public account data
 //! and a 6-digit space is searched in well under a second. The approver's
 //! signature is what stops a stranger, or the recipient alone, from releasing.
 //!
 //! Safe Hold: a deposit may carry a cooling-off delay and a 32-byte hash of
-//! the AI review that flagged it. A flagged hold cannot be released before
-//! its release time, and release then needs the sender to sign again as well
-//! as the approver: a double confirmation after the pressure of the moment
-//! has passed. The sender can still refund at any time.
+//! the AI review that flagged it. Only the sender decides what happens to it:
+//! they can refund ("undo") at any time, and once the cooling-off is over
+//! they confirm it themselves (CONFIRM) to pay the recipient. This is the
+//! second confirmation, made after the pressure of the moment has passed.
+//! Nobody else can move a Safe Hold: not the approver, not the recipient,
+//! not the review server. A Safe Hold may name the sender as its approver
+//! (no family contact); the approver plays no part in it either way.
+//! CONFIRM works only on a Safe Hold, so it is never a way for a sender to
+//! skip the approver of an ordinary hold.
 //!
 //! Fail closed: a client on its own can only open a Safe Hold of at least 24
 //! hours with a non-zero review hash. Anything shorter, including an ordinary
@@ -22,10 +27,10 @@
 //! never the fast one. Replace POLICY_AUTHORITY with your server's key before
 //! you deploy.
 //!
-//! A Safe Hold release may not use a durable nonce. Without one, a signed
-//! transaction expires within about two minutes, so both signatures must be
-//! made at release time, after the cooling-off. Nobody can collect them during
-//! the pressure of the moment and submit them a day later.
+//! A Safe Hold confirmation may not use a durable nonce. Without one, a signed
+//! transaction expires within about two minutes, so the sender must sign at
+//! confirmation time, after the cooling-off. A scammer cannot have the sender
+//! sign during the pressure of the moment and submit it a day later.
 
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -57,6 +62,7 @@ const POLICY_AUTHORITY: Pubkey = solana_program::pubkey!("GFYKxxnMQkBP8m1rx18xd1
 const DEPOSIT: u8 = 0;
 const REFUND: u8 = 1;
 const RELEASE: u8 = 2;
+const CONFIRM: u8 = 3;
 const STATE_SIZE: usize = 243;
 const TAG: usize = 0;
 const SENDER: usize = 1;
@@ -87,6 +93,8 @@ const TOO_EARLY: u32 = 8;
 const BAD_HOLD: u32 = 9;
 const NEEDS_POLICY_COSIGN: u32 = 10;
 const PRESIGNED_RELEASE: u32 = 11;
+const SENDER_CONFIRMS: u32 = 12; // RELEASE on a Safe Hold: only the sender's CONFIRM moves it
+const NOT_SAFE_HOLD: u32 = 13; // CONFIRM on an ordinary hold: that needs the approver and the PIN
 /// System instruction 4 is AdvanceNonceAccount: the mark of a durable-nonce transaction.
 const ADVANCE_NONCE_ACCOUNT: [u8; 4] = [4, 0, 0, 0];
 
@@ -105,6 +113,7 @@ fn process_instruction(
         DEPOSIT => deposit(program_id, accounts, rest),
         REFUND => refund(program_id, accounts),
         RELEASE => release(program_id, accounts, rest),
+        CONFIRM => confirm(program_id, accounts, rest),
         _ => Err(ProgramError::Custom(BAD_INSTRUCTION)),
     }
 }
@@ -150,7 +159,9 @@ fn deposit(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Progra
 
     require_signer(fee_payer)?;
     require_signer(sender)?;
-    if sender.key == approver.key || approver.key == recipient.key {
+    // An ordinary hold needs a second person to release it. A Safe Hold is released by the
+    // sender alone, so it may name the sender as its approver when there is no family contact.
+    if (sender.key == approver.key && flags & FLAG_SAFE_HOLD == 0) || approver.key == recipient.key {
         return Err(ProgramError::Custom(SAME_PERSON));
     }
     if hold_seconds < MIN_SAFE_HOLD_SECONDS {
@@ -301,8 +312,6 @@ fn release(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Progra
     let recipient_token = next_account_info(account_info_iter)?;
     let mint = next_account_info(account_info_iter)?;
     let token_program = next_account_info(account_info_iter)?;
-    // 9th account: the instructions sysvar, required for a Safe Hold release (see below).
-    let instructions_sysvar = next_account_info(account_info_iter).ok();
 
     require_signer(fee_payer)?;
     require_signer(approver)?;
@@ -311,23 +320,8 @@ fn release(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Progra
         return Err(ProgramError::Custom(WRONG_APPROVER));
     }
     if hold.flags & FLAG_SAFE_HOLD != 0 {
-        // Safe Hold: the cooling-off must be over, and the sender confirms again.
-        if Clock::get()?.unix_timestamp < hold.release_after {
-            return Err(ProgramError::Custom(TOO_EARLY));
-        }
-        require_signer(sender)?;
-        // Fresh signatures only: refuse a durable-nonce transaction, which could have been
-        // signed during the pressure of the moment and held back until the deadline.
-        let sysvar = instructions_sysvar.ok_or(ProgramError::NotEnoughAccountKeys)?;
-        if *sysvar.key != tx_instructions::ID {
-            return Err(ProgramError::InvalidArgument);
-        }
-        let first = tx_instructions::load_instruction_at_checked(0, sysvar)?;
-        if first.program_id == solana_program::system_program::id()
-            && first.data.get(..4) == Some(&ADVANCE_NONCE_ACCOUNT[..])
-        {
-            return Err(ProgramError::Custom(PRESIGNED_RELEASE));
-        }
+        // The approver never moves a Safe Hold, with or without the PIN.
+        return Err(ProgramError::Custom(SENDER_CONFIRMS));
     }
     if hash(data).to_bytes() != hold.pin_hash {
         return Err(ProgramError::Custom(WRONG_PIN));
@@ -352,6 +346,56 @@ fn release(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Progra
         sender,
         token_program,
     )
+}
+
+/// The sender confirms their own Safe Hold after the cooling-off, and the recipient is paid.
+/// Accounts: fee payer, sender (signs), state, vault, recipient token account, mint, token program,
+/// instructions sysvar. No instruction data.
+fn confirm(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
+    if !data.is_empty() {
+        return Err(ProgramError::InvalidInstructionData);
+    }
+    let account_info_iter = &mut accounts.iter();
+    let fee_payer = next_account_info(account_info_iter)?;
+    let sender = next_account_info(account_info_iter)?;
+    let state = next_account_info(account_info_iter)?;
+    let vault = next_account_info(account_info_iter)?;
+    let recipient_token = next_account_info(account_info_iter)?;
+    let mint = next_account_info(account_info_iter)?;
+    let token_program = next_account_info(account_info_iter)?;
+    let instructions_sysvar = next_account_info(account_info_iter)?;
+
+    require_signer(fee_payer)?;
+    require_signer(sender)?;
+    let hold = load_state(program_id, state, vault, token_program)?;
+    if hold.sender != *sender.key {
+        return Err(ProgramError::Custom(WRONG_SENDER));
+    }
+    if hold.flags & FLAG_SAFE_HOLD == 0 {
+        return Err(ProgramError::Custom(NOT_SAFE_HOLD));
+    }
+    if Clock::get()?.unix_timestamp < hold.release_after {
+        return Err(ProgramError::Custom(TOO_EARLY));
+    }
+    // A fresh signature only: refuse a durable-nonce transaction, which could have been
+    // signed during the pressure of the moment and held back until the deadline.
+    if *instructions_sysvar.key != tx_instructions::ID {
+        return Err(ProgramError::InvalidArgument);
+    }
+    let first = tx_instructions::load_instruction_at_checked(0, instructions_sysvar)?;
+    if first.program_id == solana_program::system_program::id()
+        && first.data.get(..4) == Some(&ADVANCE_NONCE_ACCOUNT[..])
+    {
+        return Err(ProgramError::Custom(PRESIGNED_RELEASE));
+    }
+    let destination = TokenAccount::unpack(&recipient_token.data.borrow())?;
+    if destination.owner != hold.recipient || destination.mint != hold.mint {
+        return Err(ProgramError::Custom(WRONG_DESTINATION));
+    }
+    if mint.key != &hold.mint {
+        return Err(ProgramError::Custom(WRONG_MINT));
+    }
+    move_and_close(program_id, hold, state, vault, recipient_token, mint, sender, token_program)
 }
 
 struct Hold {

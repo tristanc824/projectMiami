@@ -732,7 +732,7 @@ def plain_language_summary(
     elif held:
         status = "Needs another look"
         explanation = f"The {money} payment needs another review. Nothing has been sent."
-        next_step = "Check the highlighted details. If you continue, both the sender and a family approver must confirm."
+        next_step = "Check the highlighted details. If you continue, the money waits in a Safe Hold and only you can confirm it later or take it back."
     else:
         status = "Ready for your review"
         explanation = f"The details for the {money} payment are filled in. Nothing has been sent yet."
@@ -833,7 +833,7 @@ def decode_hold(state: str, data: bytes, now: float) -> dict[str, Any]:
         "release_after": release_after if safe_hold else None,
         "seconds_left": max(0, int(release_after - now)) if safe_hold else 0,
         "cooling_off_over": cooling_off_over,
-        "needs": (["sender signature", "approver signature", "PIN"] if safe_hold else ["approver signature", "PIN"]),
+        "needs": (["sender confirmation"] if safe_hold else ["approver signature", "PIN"]),
         # The cooling-off is over; release still needs every signature in "needs".
         "ready_for_signatures": cooling_off_over,
         "sender_can_cancel": True,

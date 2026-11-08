@@ -234,12 +234,12 @@ class ReviewApiTest(unittest.TestCase):
         self.assertEqual(policy["confirmations"], ["approver"])
         self.assertRegex(policy["review_hash"], r"^[0-9a-f]{64}$")
 
-    def test_extra_zero_goes_to_a_24_hour_double_confirmed_safe_hold(self) -> None:
+    def test_extra_zero_goes_to_a_24_hour_sender_confirmed_safe_hold(self) -> None:
         status, body = self.post("/api/review", {"transcript": "Send 800 dollars."})
         policy = body["hold_policy"]
         self.assertTrue(policy["required"])
         self.assertEqual((policy["hold_seconds"], policy["hold_hours"]), (86400, 24))
-        self.assertEqual(policy["confirmations"], ["sender", "approver"])
+        self.assertEqual(policy["confirmations"], ["sender"])
         self.assertIn("watchdog:extra_zero", policy["reasons"])
         self.assertTrue(policy["sender_can_cancel"])
 
@@ -275,7 +275,7 @@ class ReviewApiTest(unittest.TestCase):
         self.assertTrue(hold["safe_hold"])
         self.assertEqual(hold["seconds_left"], 86_400)
         self.assertFalse(hold["ready_for_signatures"])
-        self.assertEqual(hold["needs"], ["sender signature", "approver signature", "PIN"])
+        self.assertEqual(hold["needs"], ["sender confirmation"])
         self.assertEqual(hold["review_hash"], "ab" * 32)
         later = app.decode_hold("state", bytes(data), now=1_000_000 + 86_401)
         self.assertTrue(later["ready_for_signatures"])

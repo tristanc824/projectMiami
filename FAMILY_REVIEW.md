@@ -54,8 +54,8 @@ Only Python 3.10+ is needed: the standard library, no packages to install.
    `prune.receipt`. Hold and stop come back with `prune.receipt` set to `null`.
 8. **Safe Hold.** If the Skeptic flags it, the Watchdog finds a high sign, or the Judge does
    not confirm, `hold_policy.required` is `true`. The money is not refused. It goes into the
-   on-chain family hold for 24 hours, and then **both the sender and the approver** must sign
-   to release it. The sender can cancel at any time. See [Safe Hold](#safe-hold) below.
+   on-chain family hold for 24 hours, and then **only the sender** can confirm it to release it.
+   The sender can cancel at any time. See [Safe Hold](#safe-hold) below.
 
 It never signs or sends money. "confirm" means only that a person may now review the
 transfer and decide.
@@ -150,7 +150,7 @@ or another machine from spending the Swarms credits.
       "reason": "school expenses"
     },
     "needs": ["Confirm that the person is really the family member they claim to be."],
-    "next_step": "Check the highlighted details. If you continue, both the sender and a family approver must confirm."
+    "next_step": "Check the highlighted details. If you continue, the money waits in a Safe Hold and only you can confirm it later or take it back."
   },
   "case": { "amount_usdc": "800", "requested_usdc": "200", "other_contributions_usdc": "120",
             "relationship_verified": false, "fiat_leg": "simulated",
@@ -254,14 +254,25 @@ before this goes multi-user.
 
 ## Safe Hold
 
-Scams run on urgency, so a flagged transfer is not blocked. It waits.
+Scams run on urgency, so a flagged transfer is not blocked. It waits, and **only the sender decides**
+what happens to it: take it back at any time, or confirm it themselves once the 24 hours are over.
+
+> **Changed on Nov 8: the Safe Hold is verified by the sender.** Before, a Safe Hold release needed the
+> sender *and* a family approver (with the PIN). Now the sender alone confirms it (new `CONFIRM`
+> instruction, `node hold/hold.mjs confirm`), and nobody else can move it: an approver's release fails
+> with error 12 (`SENDER_CONFIRMS`), even with the right PIN. Ordinary holds are unchanged (approver + PIN).
 
 | | Normal hold | Safe Hold (flagged) |
 |---|---|---|
 | When | `hold_policy.required` is `false` | `hold_policy.required` is `true` |
-| Release | approver signs + PIN | after 24 hours: **sender signs again + approver signs** + PIN |
-| Sender cancels | any time | any time |
+| Release | approver signs + PIN (`RELEASE`, tag 2) | after 24 hours: **the sender confirms** (`CONFIRM`, tag 3). No approver, no PIN |
+| Who can't | the sender alone (`CONFIRM` on it fails: 13 `NOT_SAFE_HOLD`) | the approver, the recipient, the server (`RELEASE` on it fails: 12 `SENDER_CONFIRMS`) |
+| Sender cancels | any time | any time ("undo") |
+| Approver | a second family member | optional: the deposit may name the sender as approver when there is no family contact |
 | On-chain | amount, parties, PIN hash | also the release time and the review's fingerprint (`review_hash`) |
+
+`CONFIRM` accounts, in order: fee payer (signs), sender (signs), state, vault, recipient's token account,
+mint, token program, instructions sysvar. No instruction data.
 
 Every review response carries:
 
@@ -269,7 +280,7 @@ Every review response carries:
 "hold_policy": {
   "required": true,
   "hold_seconds": 86400, "hold_hours": 24,
-  "confirmations": ["sender", "approver"],
+  "confirmations": ["sender"],
   "reasons": ["skeptic_flag", "watchdog:extra_zero", "judge:hold"],
   "review_hash": "d862107b...64 hex",
   "sender_can_cancel": true,
@@ -278,8 +289,9 @@ Every review response carries:
 ```
 
 - **Flagged when:** the Skeptic says `flag: yes` anywhere in its answer (`skeptic_flag`), or gives no flag line, which counts as flagged (`skeptic_unclear`); a high Watchdog sign (`watchdog:<code>`); the Watchdog agent's own `suspicion: high` (`watchdog_suspicion`), or no suspicion line at all (`watchdog_unclear`); a Judge verdict with `suspicion: high` when the Watchdog said less (`judge_suspicion`); a Judge decision other than confirm (`judge:hold`, `judge:stop`); an offline review (`offline_demo`); or a failed review (`review_failed:<code>`). A model can add a flag but cannot remove one. A malformed verdict only ever comes out stricter, and the server recomputes `hold_policy` itself rather than passing through what a review returned.
-- **The 24 hours are enforced by the Solana program, not the app.** A release before `release_after` fails with program error 8 (`TOO_EARLY`), and a release without the sender's signature fails as a missing signature.
-- **The double confirmation must be fresh.** A Safe Hold release that uses a durable nonce fails with error 11 (`PRESIGNED_RELEASE`). Without a durable nonce a signed transaction expires in about two minutes, so nobody can collect both signatures during the pressure of the moment and submit them a day later.
+- **The 24 hours are enforced by the Solana program, not the app.** A confirmation before `release_after` fails with program error 8 (`TOO_EARLY`); anyone other than the sender confirming fails with 2 (`WRONG_SENDER`) or a missing signature.
+- **The sender's confirmation must be fresh.** A `CONFIRM` in a durable-nonce transaction fails with error 11 (`PRESIGNED_RELEASE`). Without a durable nonce a signed transaction expires in about two minutes, so a scammer cannot have the sender sign during the pressure of the moment and submit it a day later.
+- **In the app:** after the 24 hours, show the sender the review's warning again and two buttons, "Send it" (`CONFIRM`) and "Take it back" (refund). The confirmation is a fresh decision, made away from the caller.
 - **`review_hash`** is the sha256 of the safe facts, the verdict and the hold decision (required, seconds, reasons). It is stored in the hold, so anyone can check later that the hold came from this review with this outcome; a clean review's hash differs from a flagged one's. It holds no names or phone numbers.
 
 ### Why a client cannot skip it: the policy authority
@@ -302,20 +314,23 @@ slow path, never the fast one.
 - The server should co-sign only a deposit whose amount, parties and `review_hash` match a review it
   ran with `required: false`.
 - Program errors: 9 `BAD_HOLD` (over 30 days, or a zero review hash), 10 `NEEDS_POLICY_COSIGN` (under
-  24 hours without the authority), 1 `SAME_PERSON` (approver is the sender or the recipient).
+  24 hours without the authority), 1 `SAME_PERSON` (approver is the recipient, or the sender on an
+  ordinary hold), 12 `SENDER_CONFIRMS` (`RELEASE` on a Safe Hold), 13 `NOT_SAFE_HOLD` (`CONFIRM` on an
+  ordinary hold).
 
 ### `GET /api/hold/<state address>`
 
-For the approver screen: the countdown and who still has to sign, read from Solana.
+For the sender's (or approver's) screen: the countdown and who still has to act, read from Solana.
 
 ```json
 { "state": "...", "sender": "...", "approver": "...", "recipient": "...", "amount_usdc": "800",
   "safe_hold": true, "release_after": 1794268800, "seconds_left": 85211, "cooling_off_over": false,
-  "needs": ["sender signature", "approver signature", "PIN"], "ready_for_signatures": false,
+  "needs": ["sender confirmation"], "ready_for_signatures": false,
   "sender_can_cancel": true, "review_hash": "d862107b..." }
 ```
 
-`ready_for_signatures` means only that the cooling-off is over; release still needs everything in `needs`.
+An ordinary hold reports `"needs": ["approver signature", "PIN"]`. `ready_for_signatures` means only that
+the cooling-off is over; release still needs everything in `needs`.
 Time comes from Solana's own clock, which is what the program checks. Answers are cached for 5 seconds.
 The response is 404 `no-hold` when nothing is locked there, 404 `not-a-hold` for another kind of account,
 400 `bad-address`, and 502 `solana-rpc` when the Solana node fails. An RPC error is never reported as "no hold".
@@ -418,10 +433,43 @@ models, so only the server's own defenses can stop it.
 The scan reads disguised scam text: zero-width and other invisible characters, soft hyphens, Cyrillic and Greek
 look-alike letters, fullwidth letters, digits for letters (`g1ft c4rds`), dotted letters (`n.e.w`) and line breaks.
 
-Not covered yet: the on-chain program has no attack tests (wrong signer, early release, refund by a stranger;
-the checks are in `lib.rs` but untested), there is no rate limit (anyone with the token can spend Swarms credits),
-and `ThreadingHTTPServer` starts one thread per connection. Run it behind a reverse proxy with rate and
+Not covered yet: there is no rate limit (anyone with the token can spend Swarms credits), and
+`ThreadingHTTPServer` starts one thread per connection. Run it behind a reverse proxy with rate and
 connection limits before it faces the internet.
+
+## On-chain attack tests
+
+`hold/attacks.test.mjs` attacks every check in `programs/family_hold/src/lib.rs` on a local
+`solana-test-validator` running the program CI just built. Each attack must be refused with the exact
+error the program is meant to give, and the test also checks that no tokens moved. Controls prove the
+honest paths still work. CI runs it in the `attacks` job and prints the attack log; deploy needs it to pass.
+
+| Area | Attacks | Refused with |
+|---|---|---|
+| Deposit | unknown instruction, empty or short data, zero amount, hold over 30 days, zero review hash, approver = recipient, sender approving their own ordinary hold, express hold without / unsigned / impostor review server, 60 s Safe Hold without the server, sender not signing, someone else's token account, wrong mint, fake token or system program, hold or vault not at its PDA | 0, `InvalidInstructionData`, 9, 1, 10, missing signature, 7, 5, `IncorrectProgramId`, `InvalidSeeds` |
+| Refund | a stranger or the approver refunds, refund to the attacker's account, wrong mint, no sender signature, forged hold owned by another program, forged hold at a fake address pointing at a real vault, replay | 2, 4, 5, missing signature, `IncorrectProgramId`, `InvalidSeeds` |
+| Ordinary hold | wrong / 5-digit / non-digit PIN, recipient signs as approver, release to the attacker, release in another sender's name, the sender skipping the approver with `CONFIRM`, replay | 3, 6, 4, 2, 13, `IncorrectProgramId` |
+| Safe Hold | the approver releases it with the right PIN (before and after the wait), confirm during the cooling-off, the recipient or a stranger confirms, no sender signature, instructions sysvar missing or faked, extra data, confirm to the attacker, wrong mint, a pre-signed durable-nonce confirmation, replay | 12, 8, 2, missing signature, `NotEnoughAccountKeys`, `InvalidArgument`, `InvalidInstructionData`, 4, 5, 11, `IncorrectProgramId` |
+
+Controls: the sender opens a 24 h Safe Hold alone, a Safe Hold names the sender as approver, the sender
+refunds without the PIN, the approver releases an ordinary hold with the PIN, and the sender confirms
+their own Safe Hold after the cooling-off.
+
+Holds past their cooling-off and ordinary holds normally need the review server's key to open, and that key
+is never committed. So `hold/attack-fixtures.mjs` writes those hold accounts exactly as the program stores
+them, with fresh throwaway keys, and the validator loads them at start-up. The program cannot tell them
+from real deposits, so every check after the deposit runs as it would on devnet. Add a
+`POLICY_AUTHORITY_KEYPAIR` repository secret (the contents of `hold/keys/policy-authority.json`) and two
+more end-to-end controls run: a co-signed ordinary hold, and a 3-second Safe Hold confirmed by the sender.
+
+To run it yourself (Linux or macOS with the Solana CLI 1.18):
+
+```
+cd hold && npm ci && cd ..
+ARGS=$(node hold/attack-fixtures.mjs /tmp/fixtures)
+solana-test-validator --reset --bpf-program 7NKeoXoNEgW11tgZKV18PPdktQyFHtYQ4CxJA2ffyC6g family_hold.so $ARGS &
+HOLD_FIXTURES=/tmp/fixtures node --test hold/attacks.test.mjs
+```
 
 ## Calling it from the Nest app
 
@@ -453,9 +501,10 @@ python swarm/open_hold.py --note "..." --deposit   # review, then lock the revie
 
 ## Family hold (devnet test token)
 
-`programs/family_hold` locks test USDC until the approver releases it. The sender can
-refund alone. Release needs the approver's signature and the 6-digit PIN. The PIN hash
-is public on-chain, so the signature is the real check.
+`programs/family_hold` locks test USDC. The sender can refund alone, at any time. An ordinary
+hold is released by the approver with their signature and the 6-digit PIN (the PIN hash is public
+on-chain, so the signature is the real check). A Safe Hold is confirmed by the sender alone after
+the cooling-off.
 
 ```powershell
 node hold/hold.mjs demo                                  # refusals, refund, release; a skipped hold refused on-chain; a 24 h and a 20 s Safe Hold
@@ -463,11 +512,13 @@ node hold/hold.mjs lock 80 --review-hash <64 hex>        # ordinary hold, co-sig
 node hold/hold.mjs lock 800 --hold-seconds 86400 --review-hash <64 hex>   # a Safe Hold the client may open alone
 node hold/hold.mjs status                                # the open hold: release time, flags, review hash
 node hold/hold.mjs refund                                # the sender cancels, any time
-node hold/hold.mjs release 123456                        # approver releases (sender signs too on a Safe Hold)
+node hold/hold.mjs release 123456                        # approver releases an ordinary hold
+node hold/hold.mjs confirm                               # the sender confirms a Safe Hold after the cooling-off
 ```
 
-Release takes these accounts: `fee_payer, sender (writable; signer on a Safe Hold), approver (signer),
-state, vault, recipient_token, mint, token_program, instructions sysvar` (the last is required on a Safe Hold). A deposit's data is always 80 bytes: amount
+Release (ordinary holds only) takes these accounts: `fee_payer, sender (writable), approver (signer),
+state, vault, recipient_token, mint, token_program`. Confirm (Safe Holds only) takes `fee_payer, sender
+(signer), state, vault, recipient_token, mint, token_program, instructions sysvar`. A deposit's data is always 80 bytes: amount
 u64, PIN hash, `hold_seconds` u64, `review_hash`. Its accounts are `fee_payer, sender, approver,
 recipient, mint, sender_token, vault, state, token_program, system_program`, plus `policy_authority`
 (signer) for anything under 24 hours. The hold account is 243 bytes. Unknown or repeated CLI options
@@ -492,11 +543,10 @@ with `deploy` ticked. Keys live in `hold/keys/`, which Git ignores.
   and "Send 800" was held, with the Watchdog asking "Did you mean 80 instead of 800?". Each review costs about
   0.046 Swarms credits and takes 30 to 60 seconds. `tests/` covers the same pipeline offline.
 - The Safe Hold was tested in the review API live (the real Skeptic flagged "Send 800, it's urgent", and the
-  policy came back 24 h with sender + approver), and in unit tests. The on-chain part, including
-  `node hold/hold.mjs demo` with its 20-second Safe Hold, has not run yet: the program first has to be
-  compiled and deployed.
-- In this demo `hold.mjs` holds the sender's key and the policy authority's key, so "the sender signs
-  again" and "the server co-signs" happen on the same machine. In the app, the sender confirms on their own
+  policy came back 24 h), and in unit tests. The program has not been deployed to devnet yet, so
+  `node hold/hold.mjs demo` has not run there; the on-chain attack tests run it on a local validator in CI.
+- In this demo `hold.mjs` holds the sender's key and the policy authority's key, so "the sender
+  confirms" and "the server co-signs" happen on the same machine. In the app, the sender confirms on their own
   phone and the policy authority signs on the server.
 - A mint with a freeze authority (real USDC has one) can freeze the vault, which would block refunds
   until it is thawed. The demo's test mint has none.

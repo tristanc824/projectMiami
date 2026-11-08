@@ -149,10 +149,56 @@ jobs:
       - name: Hold client parses
         run: node --check hold/hold.mjs
 
+  attacks:
+    name: On-chain attack tests (local validator)
+    needs: program
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: family_hold-program
+          path: build
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install the Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${SOLANA_VERSION}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - name: Install the hold client
+        working-directory: hold
+        run: npm ci
+      - name: Start a local validator with the built program and the test holds
+        run: |
+          # The test holds (one past its cooling-off, one ordinary, two forged) are written as the
+          # program would store them, with fresh throwaway keys, and loaded at start-up.
+          ARGS=$(node hold/attack-fixtures.mjs "$RUNNER_TEMP/fixtures")
+          solana-test-validator --reset --quiet --ledger "$RUNNER_TEMP/ledger" \
+            --bpf-program 7NKeoXoNEgW11tgZKV18PPdktQyFHtYQ4CxJA2ffyC6g build/target/deploy/family_hold.so \
+            $ARGS > "$RUNNER_TEMP/validator.log" 2>&1 &
+          for attempt in $(seq 1 60); do
+            if solana cluster-version -u localhost > /dev/null 2>&1; then break; fi
+            sleep 2
+          done
+          solana cluster-version -u localhost
+      - name: Attack the program
+        env:
+          SOLANA_RPC: http://127.0.0.1:8899
+          HOLD_FIXTURES: ${{ runner.temp }}/fixtures
+          ATTACK_LOG: ${{ runner.temp }}/attack-log.txt
+          # Optional: adds the end-to-end checks that need the review server's co-signature.
+          POLICY_AUTHORITY_KEYPAIR: ${{ secrets.POLICY_AUTHORITY_KEYPAIR }}
+        run: node --test --test-reporter=spec hold/attacks.test.mjs
+      - name: Attack log
+        if: always()
+        run: |
+          cat "$RUNNER_TEMP/attack-log.txt" 2> /dev/null || { echo "No attack log. Validator log:"; tail -50 "$RUNNER_TEMP/validator.log"; }
+
   deploy:
     name: Deploy to devnet
     if: github.event_name == 'workflow_dispatch' && inputs.deploy
-    needs: [program, review]
+    needs: [program, review, attacks]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4

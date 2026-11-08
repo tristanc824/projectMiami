@@ -1,9 +1,11 @@
 /**
  * Devnet client for the family hold.
  *
- * The fee payer sponsors SOL. The sender can refund alone, without the PIN.
- * Release pays the recipient only when the approver signs and the 6-digit PIN
- * matches. The token is a test mint, not Circle USDC.
+ * The fee payer sponsors SOL. The sender can refund alone, without the PIN, at any time.
+ * Ordinary hold: release pays the recipient only when the approver signs and the 6-digit PIN matches.
+ * Safe Hold (flagged by the review): only the sender moves it. After the cooling-off the sender
+ * confirms it themselves and the recipient is paid; the approver cannot release it.
+ * The token is a test mint, not Circle USDC.
  *
  *   node hold/hold.mjs demo             lock, test the refusals, refund, lock, release, then a Safe Hold
  *   node hold/hold.mjs lock <amount> --review-hash HEX [--hold-seconds N]
@@ -12,7 +14,8 @@
  *                                       hold) needs the policy authority's co-signature
  *   node hold/hold.mjs status           show the open hold, its release time and whether it is flagged
  *   node hold/hold.mjs refund           the sender cancels the current lock, any time
- *   node hold/hold.mjs release <pin>    the approver releases it (and the sender signs again on a Safe Hold)
+ *   node hold/hold.mjs release <pin>    the approver releases an ordinary hold
+ *   node hold/hold.mjs confirm          the sender confirms a Safe Hold after the cooling-off
  */
 import {
   Connection,
@@ -63,23 +66,23 @@ function loadOrCreate(name) {
   return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(path, "utf8"))));
 }
 
-function statePda(sender, approver, recipient, mint) {
+export function statePda(sender, approver, recipient, mint) {
   return PublicKey.findProgramAddressSync(
     [Buffer.from("hold"), sender.toBuffer(), approver.toBuffer(), recipient.toBuffer(), mint.toBuffer()],
     PROGRAM_ID,
   );
 }
 
-function vaultPda(state) {
+export function vaultPda(state) {
   return PublicKey.findProgramAddressSync([Buffer.from("vault"), state.toBuffer()], PROGRAM_ID);
 }
 
-function pinHash(pin) {
+export function pinHash(pin) {
   if (!/^\d{6}$/.test(pin)) throw new Error("PIN must be 6 digits");
   return createHash("sha256").update(pin).digest();
 }
 
-function instruction(tag, keys, extra) {
+export function instruction(tag, keys, extra) {
   const body = extra ?? Buffer.alloc(0);
   const data = Buffer.alloc(1 + body.length);
   data.writeUInt8(tag, 0);
@@ -95,7 +98,7 @@ function toUnits(amount) {
   return units;
 }
 
-async function send(connection, payer, signers, instruction) {
+export async function send(connection, payer, signers, instruction) {
   const tx = new Transaction().add(instruction);
   const others = signers.filter((s) => !s.publicKey.equals(payer.publicKey));
   return sendAndConfirmTransaction(connection, tx, [payer, ...others], {
@@ -118,8 +121,8 @@ const RELEASE_AFTER = 202;
 const REVIEW_HASH = 210;
 const FLAGS = 242;
 const FLAG_SAFE_HOLD = 1;
-const MAX_HOLD_SECONDS = 30 * 24 * 60 * 60;
-const MIN_SAFE_HOLD_SECONDS = 24 * 60 * 60;
+export const MAX_HOLD_SECONDS = 30 * 24 * 60 * 60;
+export const MIN_SAFE_HOLD_SECONDS = 24 * 60 * 60;
 
 function isoOrNull(unixSeconds) {
   const date = new Date(unixSeconds * 1000);
@@ -153,7 +156,7 @@ export async function readHold(connection, state) {
     releaseAfter: safeHold ? isoOrNull(releaseAfter) : null,
     releaseAfterUnix: safeHold ? releaseAfter : null,
     reviewHash: data.subarray(REVIEW_HASH, REVIEW_HASH + 32).toString("hex"),
-    needs: safeHold ? ["cooling-off over", "sender signature", "approver signature", "PIN"] : ["approver signature", "PIN"],
+    needs: safeHold ? ["cooling-off over", "sender confirmation"] : ["approver signature", "PIN"],
   };
 }
 
@@ -229,31 +232,61 @@ export async function refund({ connection, feePayer, sender, state, vault, sende
 }
 
 /**
- * Releases a hold to the recipient. `sender` is a public key, or the sender's Keypair when the
- * sender confirms again: a Safe Hold needs both the sender's and the approver's signatures.
+ * The approver releases an ordinary hold to the recipient with the PIN. `sender` is the sender's
+ * public key (or Keypair; it does not sign). A Safe Hold cannot be released this way: see confirm().
+ * `unchecked` skips this client's own guard; the tests use it to show the program refuses too.
  */
 export async function release({ connection, feePayer, sender, approver, state, vault, recipientAta, mint, pin, unchecked = false }) {
   await requireProgram(connection);
-  if (typeof pin !== "string" || !/^\d{6}$/.test(pin)) throw new Error("PIN must be a string of 6 digits");
-  const senderSigns = typeof sender?.secretKey !== "undefined";
-  const senderKey = senderSigns ? sender.publicKey : sender;
-  if (!senderSigns && !unchecked) {
+  if (!unchecked && (typeof pin !== "string" || !/^\d{6}$/.test(pin))) throw new Error("PIN must be a string of 6 digits");
+  if (!unchecked) {
     const hold = await readHold(connection, state);
-    if (hold?.safeHold) throw new Error("This is a Safe Hold: the sender must sign the release too.");
+    if (hold?.safeHold) throw new Error("This is a Safe Hold: only the sender can confirm it (node hold/hold.mjs confirm).");
   }
-  const signature = await send(connection, feePayer, senderSigns ? [approver, sender] : [approver], instruction(2, [
+  const senderKey = sender?.publicKey ?? sender;
+  return send(connection, feePayer, [approver], instruction(2, [
     { pubkey: feePayer.publicKey, isSigner: true, isWritable: true },
-    { pubkey: senderKey, isSigner: senderSigns, isWritable: true },
+    { pubkey: senderKey, isSigner: false, isWritable: true },
     { pubkey: approver.publicKey, isSigner: true, isWritable: false },
     { pubkey: state, isSigner: false, isWritable: true },
     { pubkey: vault, isSigner: false, isWritable: true },
     { pubkey: recipientAta, isSigner: false, isWritable: true },
     { pubkey: mint, isSigner: false, isWritable: false },
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-    // A Safe Hold release checks this to refuse pre-signed (durable-nonce) transactions.
-    { pubkey: SYSVAR_INSTRUCTIONS_PUBKEY, isSigner: false, isWritable: false },
-  ], Buffer.from(pin, "ascii")));
-  return signature;
+  ], Buffer.from(String(pin), "ascii")));
+}
+
+/**
+ * The sender confirms their own Safe Hold after the cooling-off, and the recipient is paid.
+ * Only the sender signs; no approver and no PIN. The program refuses it before the release time,
+ * on an ordinary hold, and in a pre-signed (durable-nonce) transaction.
+ */
+export async function confirm({ connection, feePayer, sender, state, vault, recipientAta, mint, unchecked = false }) {
+  await requireProgram(connection);
+  if (!unchecked) {
+    const hold = await readHold(connection, state);
+    if (!hold) throw new Error("No hold is open.");
+    if (!hold.safeHold) throw new Error("This is an ordinary hold: the approver releases it with the PIN.");
+    if ((await chainTime(connection)) < hold.releaseAfterUnix) {
+      throw new Error(`Safe Hold: the cooling-off ends at ${hold.releaseAfter}. The sender can cancel before then.`);
+    }
+  }
+  return send(connection, feePayer, [sender], confirmInstruction({ feePayer: feePayer.publicKey, sender: sender.publicKey, state, vault, recipientAta, mint }));
+}
+
+/** The CONFIRM instruction on its own, for callers that build their own transaction. */
+export function confirmInstruction({ feePayer, sender, state, vault, recipientAta, mint, instructionsSysvar = SYSVAR_INSTRUCTIONS_PUBKEY }) {
+  return instruction(3, [
+    { pubkey: feePayer, isSigner: true, isWritable: true },
+    { pubkey: sender, isSigner: true, isWritable: true },
+    { pubkey: state, isSigner: false, isWritable: true },
+    { pubkey: vault, isSigner: false, isWritable: true },
+    { pubkey: recipientAta, isSigner: false, isWritable: true },
+    { pubkey: mint, isSigner: false, isWritable: false },
+    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    // Checked to refuse pre-signed (durable-nonce) confirmations.
+    { pubkey: instructionsSysvar, isSigner: false, isWritable: false },
+  ]);
 }
 
 async function ata(connection, payer, mint, owner) {
@@ -265,7 +298,7 @@ async function ata(connection, payer, mint, owner) {
   return address;
 }
 
-async function balance(connection, mint, owner) {
+export async function balance(connection, mint, owner) {
   const address = getAssociatedTokenAddressSync(mint, owner);
   const info = await connection.getAccountInfo(address);
   if (!info) return 0n;
@@ -274,19 +307,36 @@ async function balance(connection, mint, owner) {
 }
 
 // Program error codes from programs/family_hold/src/lib.rs.
-const ERR = { SAME_PERSON: 1, WRONG_SENDER: 2, WRONG_PIN: 3, WRONG_APPROVER: 6, TOO_EARLY: 8, BAD_HOLD: 9, NEEDS_POLICY_COSIGN: 10 };
+export const ERR = {
+  BAD_INSTRUCTION: 0, SAME_PERSON: 1, WRONG_SENDER: 2, WRONG_PIN: 3, WRONG_DESTINATION: 4, WRONG_MINT: 5,
+  WRONG_APPROVER: 6, WRONG_OWNER: 7, TOO_EARLY: 8, BAD_HOLD: 9, NEEDS_POLICY_COSIGN: 10, PRESIGNED_RELEASE: 11,
+  SENDER_CONFIRMS: 12, NOT_SAFE_HOLD: 13,
+};
+
+// Built-in Solana errors, as the runtime words them in a failed transaction.
+const BUILTIN = {
+  signature: /missing required signature|MissingRequiredSignature/i,
+  instructionData: /invalid instruction data/i,
+  programId: /incorrect program id/i,
+  accountData: /invalid account data/i,
+  argument: /invalid program argument|InvalidArgument/i,
+  accountKeys: /insufficient account keys|NotEnoughAccountKeys/i,
+  seeds: /invalid seeds|InvalidSeeds|seeds do not result in a valid address/i,
+};
 
 // Passes only when the program refuses with this exact code, so an unrelated failure
 // (no SOL, a network error, a wrong account) cannot pass as a working check.
-function expectFail(promise, code) {
-  const wanted = code === "signature" ? /missing required signature|MissingRequiredSignature/i : `custom program error: 0x${code.toString(16)}`;
+export function expectFail(promise, code) {
+  // A whole hex code: 0x1 must not match 0x1c.
+  const wanted = typeof code === "string" ? BUILTIN[code] : new RegExp(`custom program error: 0x${code.toString(16)}\\b`);
+  if (!wanted) throw new Error(`Unknown expected error ${code}`);
   return promise.then(
     () => {
       throw new Error("that transaction was accepted");
     },
     (error) => {
       const text = [error?.message, ...(error?.logs ?? [])].join(" ");
-      if (typeof wanted === "string" ? !text.includes(wanted) : !wanted.test(text)) throw error;
+      if (!wanted.test(text)) throw error;
       return "rejected";
     },
   );
@@ -390,11 +440,11 @@ function refundArgs(ctx, sender = ctx.sender) {
   return { connection: ctx.connection, feePayer: ctx.feePayer, sender, state: ctx.state, vault: ctx.vault, senderAta: ctx.senderAta, mint: ctx.mint };
 }
 
-function releaseArgs(ctx, pin, approver = ctx.approver, senderConfirms = false) {
+function releaseArgs(ctx, pin, approver = ctx.approver) {
   return {
     connection: ctx.connection,
     feePayer: ctx.feePayer,
-    sender: senderConfirms ? ctx.sender : ctx.sender.publicKey,
+    sender: ctx.sender.publicKey,
     approver,
     state: ctx.state,
     vault: ctx.vault,
@@ -402,6 +452,10 @@ function releaseArgs(ctx, pin, approver = ctx.approver, senderConfirms = false) 
     mint: ctx.mint,
     pin,
   };
+}
+
+function confirmArgs(ctx, sender = ctx.sender) {
+  return { connection: ctx.connection, feePayer: ctx.feePayer, sender, state: ctx.state, vault: ctx.vault, recipientAta: ctx.recipientAta, mint: ctx.mint };
 }
 
 async function demo() {
@@ -436,8 +490,8 @@ async function demo() {
   console.log("recipient received", received.toString());
   if (received !== amount) throw new Error("recipient did not receive the locked amount");
 
-  // Safe Hold: a flagged transfer waits out a cooling-off (20 s here, 24 h in the app), then
-  // needs the sender and the approver to sign.
+  // Safe Hold: a flagged transfer waits out a cooling-off (20 s here, 24 h in the app). Only the
+  // sender moves it: refund any time, or confirm it themselves once the cooling-off is over.
   // A client on its own cannot skip the review: an express hold without the co-signature is refused on-chain.
   const skipped = await expectFail(lock(ctx, amount, { reviewHash: demoHash, cosign: false, unchecked: true }), ERR.NEEDS_POLICY_COSIGN);
   console.log("express hold without the policy authority", skipped);
@@ -451,19 +505,21 @@ async function demo() {
   const coolOff = 20; // co-signed short Safe Hold, so the demo does not wait a day
   const safe = await lock(ctx, amount, { holdSeconds: coolOff, reviewHash: demoHash });
   console.log("safe hold", JSON.stringify(await readHold(ctx.connection, ctx.state)));
-  const tooEarly = await expectFail(release(releaseArgs(ctx, safe.pin, ctx.approver, true)), ERR.TOO_EARLY);
-  console.log("release during the cooling-off", tooEarly);
+  const tooEarly = await expectFail(confirm({ ...confirmArgs(ctx), unchecked: true }), ERR.TOO_EARLY);
+  console.log("sender confirming during the cooling-off", tooEarly);
   // Wait on Solana's clock, which is what the program checks.
   const safeHold = await readHold(ctx.connection, ctx.state);
   while ((await chainTime(ctx.connection)) <= safeHold.releaseAfterUnix) {
     await new Promise((resolve) => setTimeout(resolve, 3000));
   }
-  const approverAlone = await expectFail(release({ ...releaseArgs(ctx, safe.pin, ctx.approver, false), unchecked: true }), "signature");
-  console.log("approver alone after the cooling-off", approverAlone);
+  const approverRelease = await expectFail(release({ ...releaseArgs(ctx, safe.pin), unchecked: true }), ERR.SENDER_CONFIRMS);
+  console.log("approver releasing a Safe Hold, even with the PIN", approverRelease);
+  const strangerConfirm = await expectFail(confirm({ ...confirmArgs(ctx, ctx.recipient), unchecked: true }), ERR.WRONG_SENDER);
+  console.log("recipient confirming in the sender's place", strangerConfirm);
   const beforeSafe = await balance(ctx.connection, ctx.mint, ctx.recipient.publicKey);
-  await release(releaseArgs(ctx, safe.pin, ctx.approver, true));
+  await confirm(confirmArgs(ctx));
   const safeReceived = (await balance(ctx.connection, ctx.mint, ctx.recipient.publicKey)) - beforeSafe;
-  console.log("double-confirmed safe hold released", safeReceived.toString());
+  console.log("safe hold confirmed by the sender", safeReceived.toString());
   if (safeReceived !== amount) throw new Error("the safe hold did not release the locked amount");
 }
 
@@ -501,10 +557,11 @@ const commands = {
     }
     if (holdSeconds > 0) {
       const hold = await readHold(ctx.connection, ctx.state);
-      console.log(`SAFE HOLD until ${hold.releaseAfter}. Then the sender and the approver must both sign. The sender can cancel any time.`);
+      console.log(`SAFE HOLD until ${hold.releaseAfter}. Then only the sender can confirm it (confirm). The sender can cancel any time.`);
+    } else {
+      console.log("Give this PIN to the approver. The sender does not need it to cancel.");
+      console.log("PIN", pin);
     }
-    console.log("Give this PIN to the approver. The sender does not need it to cancel.");
-    console.log("PIN", pin);
   },
   async status() {
     const ctx = await setup();
@@ -522,11 +579,12 @@ const commands = {
     const ctx = await setup();
     const hold = await readHold(ctx.connection, ctx.state);
     if (!hold) throw new Error("No hold is open.");
-    if (hold.safeHold && (await chainTime(ctx.connection)) < hold.releaseAfterUnix) {
-      throw new Error(`Safe Hold: the cooling-off ends at ${hold.releaseAfter}. The sender can cancel before then.`);
-    }
-    // On a Safe Hold the sender confirms again: this demo holds the sender's key, so it signs here.
-    console.log("released", await release(releaseArgs(ctx, String(pin ?? ""), ctx.approver, hold.safeHold)));
+    console.log("released", await release(releaseArgs(ctx, String(pin ?? ""))));
+  },
+  async confirm(...extra) {
+    if (extra.length) throw new Error(`Unexpected arguments: ${extra.join(" ")}. Usage: confirm`);
+    const ctx = await setup();
+    console.log("confirmed by the sender", await confirm(confirmArgs(ctx)));
   },
 };
 
@@ -540,7 +598,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       process.exitCode = 1;
     });
   } else {
-    console.error("Usage: node hold/hold.mjs demo | lock <amount> --review-hash HEX [--hold-seconds N] | status | refund | release <pin>");
+    console.error("Usage: node hold/hold.mjs demo | lock <amount> --review-hash HEX [--hold-seconds N] | status | refund | release <pin> | confirm");
     process.exit(1);
   }
 }
