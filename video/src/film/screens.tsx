@@ -241,7 +241,7 @@ export const ClaimScreen = ({ claimed = 0, press = 0 }: { claimed?: number; pres
 export const OfflineSentScreen = () => (
   <div style={{ position: "absolute", inset: 0, background: C.page }}>
     <Body style={{ alignItems: "center", textAlign: "center" }}>
-      <div style={{ marginTop: 22 }}><Chip tone="white">No Wi-Fi or data</Chip></div>
+      <div style={{ marginTop: 22 }}><Chip tone="white">No internet</Chip></div>
       <div style={{ position: "relative", marginTop: 12 }}>
         <Avatar who="rosa" size={84} />
         <span style={{ position: "absolute", right: -6, bottom: -4, width: 36, height: 36, borderRadius: "50%", background: C.white, display: "grid", placeItems: "center", boxShadow: `0 0 0 4px ${C.page}`, color: C.moss }}>

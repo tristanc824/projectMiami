@@ -210,8 +210,8 @@ export const HIT = {
   claimIn: at(18, 3), // 1044: "keeps it in dollars"
   tapClaim: at(19, 1), // 1073
   claimed: at(19, 2), // 1087
-  // 7 offline (b08 from bar 20 beat 2: "Even without Wi-Fi, I can send and receive money, so it's never stuck.")
-  wifiOff: at(20, 3), // 1157: "without Wi-Fi": the big Wi-Fi glyph is struck out
+  // 7 offline (b08 from bar 20 beat 2: "Even without internet, I can send and receive money, so it's never stuck.")
+  wifiOff: at(20, 3), // 1157: "without internet": the big Wi-Fi glyph is struck out
   phonesIn: at(21, 1), // 1185: the two phones and the tower land
   smsOut: at(21, 2), // 1199: "send"
   smsTower: at(21, 3), // 1214
@@ -302,7 +302,7 @@ export const VO: { id: string; file: string; k: number; line: string }[] = [
   { id: "b05", file: "public/film/vo/b05.mp3", k: 41, line: "It works any time, day or night." },
   { id: "b06", file: "public/film/vo/b06.mp3", k: 49, line: "Banks took days and paid her in pesos. Now she gets dollars in about a second, no transfer fee." },
   { id: "b07", file: "public/film/vo/b07.mp3", k: 65, line: "She doesn't need to download anything. She opens the link and keeps it in dollars." },
-  { id: "b08", file: "public/film/vo/b08.mp3", k: 81, line: "Even without Wi-Fi, I can send and receive money, so it's never stuck." },
+  { id: "b08", file: "public/film/vo/b08.mp3", k: 81, line: "Even without internet, I can send and receive money, so it's never stuck." },
   { id: "b09", file: "public/film/vo/b09.mp3", k: 97, line: "Then one night, I got this." },
   { id: "b10", file: "public/film/vo/b10.mp3", k: 105, line: "Nest detected it might be a scam and warned me. I still sent it, and I had twenty-four hours to undo it." },
   { id: "b12", file: "public/film/vo/b12.mp3", k: 121, line: "Nothing leaves my account without my fingerprint or PIN. I can lock Nest, and Mamá is my trusted contact." },

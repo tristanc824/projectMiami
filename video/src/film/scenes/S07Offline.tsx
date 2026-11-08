@@ -11,8 +11,8 @@ import { MessageIcon } from "../icons";
 
 /*
  * 7. Offline (bars 20-23), v4: more time and a stronger visual, under the new b08 ("Even without
- * Wi-Fi, I can send and receive money, so it's never stuck."). The scene lands on the song's drop
- * hit with a big Wi-Fi glyph between Ana's phone (left) and Mamá's (right); on "without Wi-Fi" a
+ * internet, I can send and receive money, so it's never stuck."). The scene lands on the song's drop
+ * hit with a big Wi-Fi glyph between Ana's phone (left) and Mamá's (right); on "without internet" a
  * strike draws through it and its arcs drop out (Ana's status bar loses Wi-Fi too). Bar 21: the
  * glyph sinks away and a cell tower rises; on "send" the text bubble leaves Ana's phone, hops the
  * tower and lands on Mamá's phone on "receive money"; on "never stuck" the headline "Never stuck."
@@ -101,7 +101,8 @@ export const OfflineBody = ({ f }: { f: number }) => {
   const k = useKick(f);
   const angle = -90 * tween(f, [-SC.offline.swap, 0], [1, 0], CAM);
   const off = tween(f, [L(HIT.wifiOff), L(HIT.wifiOff) + 12], [0, 1], (t) => t);
-  const net = { wifi: 1 - off, bars: 4, tag: "No Wi-Fi", tagT: tween(f, [L(HIT.wifiOff) + 6, L(HIT.wifiOff) + 14], [0, 1]) };
+  // v4.3: no status-bar tag ("No internet" is too wide beside the island); the Wi-Fi icon drops out, signal bars stay (texts still go).
+  const net = { wifi: 1 - off, bars: 4 };
   // The glyph slams in on the drop hit, is struck out on "without Wi-Fi", sinks away on bar 21.
   const gIn = hitIn(f, 0);
   const strike = tween(f, [L(HIT.wifiOff) - 1, L(HIT.wifiOff) + 6], [0, 1], EASE_OUT);
@@ -149,7 +150,7 @@ export const OfflineBody = ({ f }: { f: number }) => {
         {f >= L(HIT.replyIn) && f < L(HIT.replyIn) + 20 ? <Ripple x={FROM_PT.x} y={FROM_PT.y} p={(f - L(HIT.replyIn)) / 20} r0={30} r1={130} /> : null}
         {/* top centre: "No Wi-Fi" over the glyph, then "Never stuck." + the chip */}
         <div style={{ position: "absolute", left: CX - 300, width: 600, top: HEAD_Y, display: "flex", justifyContent: "center" }}>
-          <Reveal t={lineT(f, L(HIT.wifiOff))} out={lineOut(f, L(HIT.phonesIn))}><div style={head(T.xl)}>No Wi-Fi</div></Reveal>
+          <Reveal t={lineT(f, L(HIT.wifiOff))} out={lineOut(f, L(HIT.phonesIn))}><div style={head(T.xl)}>No internet</div></Reveal>
         </div>
         <div style={{ position: "absolute", left: CX - 300, width: 600, top: HEAD_Y, display: "flex", flexDirection: "column", alignItems: "center", gap: 26, transform: `scale(${k.scale})` }}>
           <Reveal t={lineT(f, L(HIT.stuck))}><div style={head(T.xl)}>Never stuck.</div></Reveal>
