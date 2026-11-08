@@ -15,13 +15,18 @@ without conflicts.
    the output language. Names, phone numbers and notes never leave this machine.
 3. The **Watchdog's local checks** look for typos and tampering (list below). They run
    on this machine, and only fixed codes such as `extra_zero` go any further.
-4. Four Swarms agents run in order:
+4. **Prune** is the only model call that reads the raw transcript. It returns an amount,
+   a relationship role, and a purpose. A phone number or account number still in that
+   result stops the review with `blocked-in`. The raw transcript is not sent to Swarms.
+5. Four Swarms agents run in order:
    - **PlainSpeaker** explains the transfer in English and the chosen language.
    - **Skeptic** checks for a wrong amount, the wrong person, or an impersonator.
    - **Watchdog** turns each warning sign into a question, such as "Did you mean 80 or 800?".
    - **Judge** returns a JSON verdict.
-5. If any high warning sign was found, the server turns a "confirm" into "hold",
+6. If any high warning sign was found, the server turns a "confirm" into "hold",
    whatever the model said.
+7. Prune stamps the sentence only when the final decision is `confirm`. The stamp is
+   `prune.receipt`. Hold and stop come back with `prune.receipt` set to `null`.
 
 It never signs or sends money. "confirm" means only that a person may now review the
 transfer and decide.
@@ -30,11 +35,13 @@ transfer and decide.
 
 ```powershell
 $env:SWARMS_API_KEY = "your-key"     # from https://cloud.swarms.world/api-keys
+$env:PRUNE_API_KEY = "your-key"      # from https://withprune.com/sharkbyte ; the model key stays in the Prune vault
 python app.py                        # http://127.0.0.1:8000, JSON only
-python app.py --offline              # no key needed: the checks are real, the agents' text is canned
+python app.py --offline              # no keys needed: the checks are real, the agents' text is canned
 ```
 
-`GET /api/health` returns `{"ok": true, "offline": false}`.
+`GET /api/health` returns `{"ok": true, "offline": false, "swarms": true, "prune": true}`.
+`swarms` and `prune` say whether those keys are set. The values of the keys are never returned.
 
 ### Who may call it
 
@@ -93,6 +100,7 @@ or another machine from spending the Swarms credits.
     "suspicion": "high",
     "held_by_checks": true
   },
+  "prune": { "relationship": "aunt", "purpose": "school expenses", "receipt": null },
   "credit_cost": 0.0123,
   "attempts": 1,
   "offline": false,
@@ -103,6 +111,8 @@ or another machine from spending the Swarms credits.
 - `decision` is `confirm`, `hold` or `stop`, and `suspicion` is `none`, `low` or `high`.
 - `held_by_checks: true` means the model said "confirm" but the Watchdog's checks overruled it.
 - `sentence_es` holds the chosen language even when it is not Spanish. The name is legacy.
+- `prune.relationship` and `prune.purpose` are short letter-only labels from Prune. A name or a number is dropped.
+- `prune.receipt` is Prune's signature over the model call. It is present only for a final `confirm`. It is not a Solana signature, and it does not belong on the chain.
 
 **Errors** come back as `{"error": "<code>"}`. Where facts were already prepared, they also include `case` and `signals`:
 
@@ -112,7 +122,10 @@ or another machine from spending the Swarms credits.
 | 403 | `forbidden` | Wrong origin, wrong token, not JSON, or a non-loopback Host |
 | 402 | `budget` | The Swarms balance is too low |
 | 502 | `bad-verdict`, `swarms-api` | The Judge returned invalid JSON twice, or the Swarms API failed |
+| 422 | `blocked-in` | Prune failed, or the cleaned text still held a phone or account number. Swarms was not called. |
+| 502 | `no-receipt` | The decision was `confirm`, but Prune did not stamp it. The verdict is included. Do not treat it as ready. |
 | 503 | `missing-key` | `SWARMS_API_KEY` isn't set. The response still includes `signals`. |
+| 503 | `missing-prune-key` | `PRUNE_API_KEY` isn't set. The response still includes `signals`. Swarms was not called. |
 
 ### `POST /api/reset`
 
@@ -153,8 +166,10 @@ const res = await fetch(`${process.env.REVIEW_API_URL ?? 'http://127.0.0.1:8000'
   },
   body: JSON.stringify({ transcript, case: previousCase }),
 });
-const review = await res.json(); // 503 missing-key still returns signals you can show
+const review = await res.json(); // 503 missing-key and missing-prune-key still return signals you can show
 ```
+
+The same route runs Prune and then Swarms. Do not call `swarm/prune_gate.py` from the app separately.
 
 ## Command line (no server)
 

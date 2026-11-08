@@ -3,8 +3,9 @@
 An app sends a transcript (typed or from speech) and the facts it has. This
 server keeps only a small allowlist of transfer facts, runs the Watchdog's
 local typo and tamper checks, and sends those facts through the
-PlainSpeaker -> Skeptic -> Watchdog -> Judge Swarms review. It never signs or
-sends funds. See FAMILY_REVIEW.md for the contract.
+PlainSpeaker -> Skeptic -> Watchdog -> Judge Swarms review. Prune is the only
+model call that reads the raw transcript, and it stamps a confirm. It never
+signs or sends funds. See FAMILY_REVIEW.md for the contract.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from swarm import family_review
+from swarm.prune_gate import GateStop, clean_request, seal_sentence
 
 MAX_BODY_BYTES = 32_000
 MAX_TRANSCRIPT_CHARS = 2_000
@@ -259,6 +261,42 @@ def apply_voice_facts(case: dict[str, Any], transcript: str) -> dict[str, Any]:
     return updated
 
 
+def _prune_amount(value: Any) -> str | None:
+    """A Prune amount may say '80 USDC'. Keep the number only when it is a safe amount."""
+    match = re.fullmatch(
+        r"\s*\$?\s*(\d+(?:\.\d{1,6})?)\s*(?:usdc|usd|dollars?)?\s*",
+        str(value or ""),
+        re.IGNORECASE,
+    )
+    if not match:
+        return None
+    return _safe_amount(match.group(1))
+
+
+def apply_prune_fields(case: dict[str, Any], fields: dict[str, str]) -> dict[str, Any]:
+    """Add Prune's cleaned role and purpose. A parsed amount replaces the local one."""
+    updated = dict(case)
+    amount = _prune_amount(fields.get("amount"))
+    if amount is not None:
+        updated["amount_usdc"] = amount
+    role = family_review._safe_label(fields.get("relationship"))
+    purpose = family_review._safe_label(fields.get("purpose"))
+    if role:
+        updated["relationship"] = role
+    if purpose:
+        updated["purpose"] = purpose
+    updated["fiat_leg"] = "simulated"
+    return updated
+
+
+def prune_view(case: dict[str, Any], receipt: str | None) -> dict[str, Any]:
+    return {
+        "relationship": case.get("relationship") or "unknown",
+        "purpose": case.get("purpose") or "unknown",
+        "receipt": receipt,
+    }
+
+
 def allowed_origins() -> set[str]:
     """Browser origins allowed to call this API, from REVIEW_ALLOWED_ORIGINS (comma separated)."""
     raw = os.environ.get("REVIEW_ALLOWED_ORIGINS", "")
@@ -275,7 +313,15 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
         path = urlparse(self.path).path
         if path == "/api/health":
-            self._json(HTTPStatus.OK, {"ok": True, "offline": bool(getattr(self.server, "offline", False))})
+            self._json(
+                HTTPStatus.OK,
+                {
+                    "ok": True,
+                    "offline": bool(getattr(self.server, "offline", False)),
+                    "swarms": bool(os.environ.get("SWARMS_API_KEY", "").strip()),
+                    "prune": bool(os.environ.get("PRUNE_API_KEY", "").strip()),
+                },
+            )
             return
         if path == "/":
             self._json(
@@ -342,42 +388,78 @@ class VoiceReviewHandler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.BAD_REQUEST, {"error": "bad-transcript"})
             return
 
-        case = check_case(apply_voice_facts(payload.get("case"), transcript), transcript)
-        signals = family_review.describe_signals(case["signals"])
+        prepared = apply_voice_facts(payload.get("case"), transcript)
         if getattr(self.server, "offline", False):
+            case = check_case(prepared, transcript)
+            signals = family_review.describe_signals(case["signals"])
             review = family_review.offline_review(case)
             remember(case)
-            self._json(HTTPStatus.OK, self._review_body(case, signals, review))
+            self._json(HTTPStatus.OK, self._review_body(case, signals, review, prune_view(case, None)))
             return
         api_key = os.environ.get("SWARMS_API_KEY", "").strip()
+        local = check_case(prepared, transcript)
+        local_signals = family_review.describe_signals(local["signals"])
         if not api_key:
             self._json(
                 HTTPStatus.SERVICE_UNAVAILABLE,
-                {"error": "missing-key", "case": case, "signals": signals},
+                {"error": "missing-key", "case": local, "signals": local_signals, "prune": prune_view(local, None)},
             )
             return
+        if not os.environ.get("PRUNE_API_KEY", "").strip():
+            self._json(
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {"error": "missing-prune-key", "case": local, "signals": local_signals, "prune": prune_view(local, None)},
+            )
+            return
+        try:
+            fields = clean_request(transcript)
+        except GateStop:
+            self._json(
+                HTTPStatus.UNPROCESSABLE_ENTITY,
+                {"error": "blocked-in", "case": local, "signals": local_signals, "prune": prune_view(local, None)},
+            )
+            return
+        case = check_case(apply_prune_fields(prepared, fields), transcript)
+        signals = family_review.describe_signals(case["signals"])
         try:
             review = family_review.run_review(case, api_key)
         except SystemExit as stop:
             reason = str(stop)
             status = HTTPStatus.PAYMENT_REQUIRED if reason == "budget" else HTTPStatus.BAD_GATEWAY
             safe_reason = reason if reason in {"budget", "bad-verdict"} else "swarms-api"
-            self._json(status, {"error": safe_reason, "case": case, "signals": signals})
+            self._json(status, {"error": safe_reason, "case": case, "signals": signals, "prune": prune_view(case, None)})
             return
         except Exception:  # noqa: BLE001 - an unexpected API shape must not drop the connection
-            self._json(HTTPStatus.BAD_GATEWAY, {"error": "swarms-api", "case": case, "signals": signals})
+            self._json(HTTPStatus.BAD_GATEWAY, {"error": "swarms-api", "case": case, "signals": signals, "prune": prune_view(case, None)})
             return
 
+        receipt = None
+        if review["verdict"]["decision"] == "confirm":
+            try:
+                receipt = seal_sentence(review["verdict"]["sentence"])["receipt"]["receipt_signature"]
+            except (GateStop, KeyError, TypeError):
+                remember(case)
+                body = self._review_body(case, signals, review, prune_view(case, None))
+                body["error"] = "no-receipt"
+                self._json(HTTPStatus.BAD_GATEWAY, body)
+                return
+
         remember(case)
-        self._json(HTTPStatus.OK, self._review_body(case, signals, review))
+        self._json(HTTPStatus.OK, self._review_body(case, signals, review, prune_view(case, receipt)))
 
     @staticmethod
-    def _review_body(case: dict[str, Any], signals: list[dict[str, str]], review: dict[str, Any]) -> dict[str, Any]:
+    def _review_body(
+        case: dict[str, Any],
+        signals: list[dict[str, str]],
+        review: dict[str, Any],
+        prune: dict[str, Any],
+    ) -> dict[str, Any]:
         return {
             "case": case,
             "signals": signals,
             "outputs": review["outputs"],
             "verdict": review["verdict"],
+            "prune": prune,
             "credit_cost": review["credit_cost"],
             "attempts": review["attempts"],
             "offline": bool(review.get("offline")),
@@ -438,7 +520,7 @@ def main() -> None:
     server.offline = args.offline  # type: ignore[attr-defined]
     print(f"Project Miami family review API: http://{args.host}:{args.port}  (JSON only, see FAMILY_REVIEW.md)")
     if args.offline:
-        print("Offline mode: the Watchdog's local checks are real; the agents' text is canned. No Swarms calls.")
+        print("Offline mode: the Watchdog's local checks are real; the agents' text is canned. No Prune or Swarms calls.")
     print("It prepares and explains a review; it cannot sign or send funds.")
     try:
         server.serve_forever()
