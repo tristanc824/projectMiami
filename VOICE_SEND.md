@@ -211,4 +211,4 @@ English for the missing-person question (new): "Who do you want to send $250 to?
 - pesos / mangos / lucas / palos → the pesos question (V6.3).
 - dólares / verdes / USD → dollars.
 
-**Open decision (Caleb): "$" or "US$" in Spanish.** In Argentina, Mexico, Colombia, Chile and Uruguay, "$" means pesos. Martha recommends **US$250.00** in every Spanish money string, at least on the confirm card and the readback, because that card is where a misheard amount gets caught. Locale number formats differ too (AR: 250,00; MX: 250.00). An Argentine speaker should proofread the vos column.
+**Decided (Caleb, Nov 7): keep "$" in Spanish**, same as English. Mitigation: the confirm card already says "Nest envía dólares" context via the read-back and the amount question, and V6.3 asks "¿En dólares?" whenever pesos are mentioned. Locale number formats still differ (AR: 250,00; MX: 250.00). An Argentine speaker should proofread the vos column.
