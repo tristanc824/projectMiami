@@ -152,38 +152,6 @@ export function Keep() {
   );
 }
 
-/* ---------- Stories from the Nest ---------- */
-
-const CARDS = [
-  { img: "/art/nest.png", tag: "Independent", title: "How to save outside your country's banks", pos: "50% 50%" },
-  { img: "/art/globe.png", tag: "No fees", title: "How to pay your team with no fees", pos: "50% 50%" },
-  { img: "/art/shield.png", tag: "Undo", title: "What to do if you paid a scammer", pos: "50% 50%" },
-];
-
-export function Cards() {
-  return (
-    <section id="guides" className="wrap py-24 sm:py-32">
-      <div className="flex items-end justify-between gap-6">
-        <h2 className="text-[clamp(36px,4.6vw,64px)] font-medium leading-[1.02] tracking-[-0.035em] text-ink">Money guides</h2>
-        <a href="#join" className="link hidden text-[16px] sm:inline-flex">All guides <ArrowRight size={16} /></a>
-      </div>
-      <div className="mt-12 grid gap-8 md:grid-cols-3">
-        {CARDS.map((c) => (
-          <article key={c.title} className="group">
-            <div className="round-clip grid aspect-[4/3] place-items-center overflow-hidden rounded-[28px] bg-[#E4ECDF]">
-              <img src={c.img} alt="" loading="lazy" className="h-[78%] w-auto object-contain transition-transform duration-700 group-hover:scale-[1.04]" />
-            </div>
-            <div className="mt-5">
-              <Label>{c.tag}</Label>
-              <h3 className="mt-2 text-[22px] font-medium leading-[1.25] tracking-[-0.015em] text-ink">{c.title}</h3>
-            </div>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 /* ---------- Closing and footer ---------- */
 
 export function Closing() {

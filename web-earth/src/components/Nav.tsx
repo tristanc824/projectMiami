@@ -6,7 +6,6 @@ const LINKS = [
   ["How it works", "#stories"],
   ["Why Nest", "#moments"],
   ["Inflation", "#inflation"],
-  ["Guides", "#guides"],
 ];
 
 /**
