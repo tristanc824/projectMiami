@@ -1,14 +1,16 @@
+import { formatPhone, normalizePhone } from '../services/dat';
+
 /** Demo-only ledger. No wallet keys, RPC requests, bank calls, or real transfers. */
 export type Contact = { id: string; name: string; shortName: string; fullName: string; initials: string; location: string; color: string };
 export type Activity = {
   id: string; kind: 'send' | 'add' | 'withdraw' | 'receive'; name: string;
-  amountCents: number; feeCents: number; note: string; createdAt: string; contactId?: string;
+  amountCents: number; feeCents: number; note: string; createdAt: string; contactId?: string; recipientPhone?: string;
   /** Live mode only: a real devnet transaction. Demo activity never has these. */
   live?: boolean; signature?: string;
 };
 export type FamilyGoal = { id: string; name: string; description: string; targetCents: number; fundedCents: number; contactId: string };
-export type WalletState = { version: 1; balanceCents: number; activity: Activity[]; goals: FamilyGoal[] };
-export type DemoCommand = { id: string; kind: 'send' | 'add' | 'withdraw'; amountCents: number; note?: string; contactId?: string; goalId?: string; createdAt: string };
+export type WalletState = { version: 2; balanceCents: number; activity: Activity[]; goals: FamilyGoal[] };
+export type DemoCommand = { id: string; kind: 'send' | 'add' | 'withdraw'; amountCents: number; note?: string; contactId?: string; recipientPhone?: string; goalId?: string; createdAt: string };
 
 export const contacts: Contact[] = [
   { id: 'mama', name: 'Ernesto', shortName: 'Ernesto R.', fullName: 'Ernesto Rivera', initials: 'ER', location: 'Mexico City, MX', color: '#F4D7C4' },
@@ -20,12 +22,8 @@ export const DEMO_MXN_RATE = 18.5; // Illustrative, never a provider-backed or c
 
 export function createInitialWallet(): WalletState {
   return {
-    version: 1, balanceCents: 124050,
-    activity: [
-      { id: 'demo-seed-1', kind: 'receive', name: 'Carlos Torres', contactId: 'camila', amountCents: 7500, feeCents: 0, note: 'For the weekend', createdAt: '2026-11-07T00:30:00-05:00' },
-      { id: 'demo-seed-2', kind: 'send', name: 'Ernesto', contactId: 'mama', amountCents: 15000, feeCents: 0, note: 'A little something for home', createdAt: '2026-11-06T19:15:00-05:00' },
-      { id: 'demo-seed-3', kind: 'add', name: 'Added demo funds', amountCents: 50000, feeCents: 0, note: 'Sample funding', createdAt: '2026-11-06T12:00:00-05:00' },
-    ],
+    version: 2, balanceCents: 0,
+    activity: [],
     goals: [
       { id: 'school', name: 'A new semester', description: 'Books and supplies for Sofía', targetCents: 20000, fundedCents: 14000, contactId: 'mama' },
       { id: 'home', name: 'A little closer to home', description: 'Our next family visit', targetCents: 60000, fundedCents: 22500, contactId: 'diego' },
@@ -51,10 +49,10 @@ export function applyDemoCommand(state: WalletState, command: DemoCommand): Wall
     throw new Error('Enter an amount between $0.01 and $10,000.');
   }
   if (!Number.isFinite(Date.parse(command.createdAt))) throw new Error('Invalid transfer date.');
-  const contact = contacts.find(item => item.id === command.contactId);
-  if (command.kind === 'send' && !contact) throw new Error('Choose a saved recipient.');
+  const recipientPhone = command.kind === 'send' ? normalizePhone(command.recipientPhone ?? '') : null;
+  if (command.kind === 'send' && !recipientPhone) throw new Error('Enter a full recipient phone number.');
   const goal = command.goalId ? state.goals.find(item => item.id === command.goalId) : undefined;
-  if (command.goalId && (!goal || command.kind !== 'send' || goal.contactId !== contact?.id)) throw new Error('This family request is unavailable.');
+  if (command.goalId && (!goal || command.kind !== 'send' || goal.contactId !== command.contactId)) throw new Error('This family request is unavailable.');
   if (goal && command.amountCents > goal.targetCents - goal.fundedCents) throw new Error('This is more than the request still needs.');
   const feeCents = command.kind === 'withdraw' ? 50 : 0;
   const debit = command.kind === 'add' ? -command.amountCents : command.amountCents + feeCents;
@@ -62,9 +60,9 @@ export function applyDemoCommand(state: WalletState, command: DemoCommand): Wall
   const balanceCents = state.balanceCents - debit;
   if (!Number.isSafeInteger(balanceCents) || balanceCents < 0 || balanceCents > 100_000_000) throw new Error('Demo balance limit reached.');
   const activity: Activity = {
-    id: command.id, kind: command.kind, name: command.kind === 'send' ? contact!.name : command.kind === 'add' ? 'Added demo funds' : 'Demo withdrawal',
+    id: command.id, kind: command.kind, name: command.kind === 'send' ? formatPhone(recipientPhone!) : command.kind === 'add' ? 'Added demo funds' : 'Demo withdrawal',
     amountCents: command.amountCents, feeCents, note: command.note?.trim().slice(0, 140) || (command.kind === 'send' ? 'With love, from Guard' : 'Simulated money movement'),
-    contactId: command.contactId, createdAt: command.createdAt,
+    ...(recipientPhone ? { recipientPhone } : {}), createdAt: command.createdAt,
   };
   return { ...state, balanceCents, activity: [activity, ...state.activity].slice(0, 150), goals: state.goals.map(item => item.id === goal?.id ? { ...item, fundedCents: item.fundedCents + command.amountCents } : item) };
 }
@@ -75,10 +73,11 @@ export function decodeWallet(raw: string | null): WalletState {
     const state: unknown = JSON.parse(raw);
     if (!state || typeof state !== 'object') return createInitialWallet();
     const value = state as WalletState;
-    const valid = value.version === 1 && Number.isSafeInteger(value.balanceCents) && value.balanceCents >= 0 && value.balanceCents <= 100_000_000
+    const valid = value.version === 2 && Number.isSafeInteger(value.balanceCents) && value.balanceCents >= 0 && value.balanceCents <= 100_000_000
       && Array.isArray(value.activity) && value.activity.length <= 150 && value.activity.every(item => item && typeof item.id === 'string' && item.id.startsWith('demo-')
         && ['send', 'receive', 'add', 'withdraw'].includes(item.kind) && Number.isSafeInteger(item.amountCents) && item.amountCents > 0 && item.amountCents <= MAX_DEMO_CENTS
-        && Number.isSafeInteger(item.feeCents) && item.feeCents >= 0 && typeof item.name === 'string' && item.name.length <= 100 && typeof item.note === 'string' && item.note.length <= 140 && Number.isFinite(Date.parse(item.createdAt)))
+        && Number.isSafeInteger(item.feeCents) && item.feeCents >= 0 && typeof item.name === 'string' && item.name.length <= 100 && typeof item.note === 'string' && item.note.length <= 140 && Number.isFinite(Date.parse(item.createdAt))
+        && (item.recipientPhone === undefined || typeof item.recipientPhone === 'string' && normalizePhone(item.recipientPhone) === item.recipientPhone))
       && Array.isArray(value.goals) && value.goals.length === 2 && value.goals.every((item, index) => {
         const original = createInitialWallet().goals[index];
         return item && item.id === original.id && item.contactId === original.contactId && item.name === original.name && item.description === original.description

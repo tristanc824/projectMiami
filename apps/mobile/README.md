@@ -40,8 +40,8 @@ The authoritative Expo configuration is `app.config.ts`; generated native folder
 
 ## What works
 
-- Home balance, saved fictional contacts, family-request cards, four-tab navigation.
-- Amount keypad, recipient selection, notes, review, and confirmation.
+- Home balance, family-request cards, four-tab navigation.
+- Amount keypad, recipient phone entry, notes, review, and confirmation.
 - Add-funds and withdrawal simulations.
 - Exact integer-cent balance arithmetic, insufficient-balance validation, and duplicate-reference protection.
 - Family contributions with overfunding checks.
@@ -72,13 +72,15 @@ Setup:
 2. In the Privy dashboard (the same app as `apps/api`), add an app client under **Configuration > App settings > Clients**. Add the bundle identifier `com.projectmiami.lazo` as an allowed app identifier and `lazo` as an allowed URL scheme.
 3. Fill in `EXPO_PUBLIC_PRIVY_APP_ID`, `EXPO_PUBLIC_PRIVY_CLIENT_ID` and `EXPO_PUBLIC_DAT_API_URL` in `.env` (see `.env.example`), then make a development build as below. Live mode turns on only when all three are set.
 
+For Xcode testing, add the three public `EXPO_PUBLIC_*` live settings above to `apps/mobile/.env` and restart Metro. Both people must use the same Privy app and backend and sign in using their respective phone numbers. A send resolves the recipient’s verified phone number to their wallet; their balance refreshes every four seconds while the app is open and on login. Without these settings, an Xcode build runs the local demo, which cannot credit another device.
+
 In live builds, **Sign in** uses Privy's SMS login instead of Auth0. **Demo** still opens the sample wallet.
 
 Not yet verified on a device: the format of Privy's Expo signature (the app accepts base64 or base58), and whether a person who was sent money before signing up can use that wallet after SMS login.
 
 ## What is still simulated
 
-**In demo mode, all money movement is simulated.** Balances, transfers, family goals, and MXN rates are local sample data. No real wallet, on-chain transfer, bank account, card charge, or fiat partner is connected. Shareable demo request text is not a real payment link. Live mode is described above.
+**In demo mode, all money movement is simulated.** Balances, transfers, family goals, and MXN rates are local sample data. No real wallet, on-chain transfer, bank account, card charge, or fiat partner is connected. Demo wallets start at $0; use Add to fund tests or Reset demo to start over. Request links open a payment review with the recipient phone number, amount, and note filled in; demo payments stay on the sender’s device. Web links use the current site address (localhost links require access to that server); Expo Go links require the running Expo server, and development/TestFlight links require Guard installed. Live requests use the signed-in phone number and require a live Guard build to send devnet USDC. Existing version-1 demo data resets once to the empty wallet; subsequent test funds persist. Live mode is described above.
 
 Wallet custody and the actual corridor/provider remain team decisions. This first version intentionally does not decide those through hidden implementation assumptions.
 

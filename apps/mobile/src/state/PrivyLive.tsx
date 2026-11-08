@@ -129,7 +129,7 @@ function Session({ children }: { children: ReactNode }) {
     },
     send: (recipient, cents, note) => during(async () => {
       const signature = await dat.transfer(getAccessToken, sign, address, { recipient: recipient.address }, cents);
-      return addActivity({ kind: 'send', name: dat.formatPhone(recipient.phone), amountCents: cents, feeCents: 0, note: note.trim().slice(0, 140) || 'Sent with Guard', signature });
+      return addActivity({ kind: 'send', name: dat.formatPhone(recipient.phone), recipientPhone: recipient.phone, amountCents: cents, feeCents: 0, note: note.trim().slice(0, 140) || 'Sent with Guard', signature });
     }),
     deposit: dollars => during(async () => {
       const signature = await dat.depositTestCard(getAccessToken, dollars);

@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -10,11 +10,13 @@ import { SpinningGlobe } from '../components/SpinningGlobe';
 import { Brand, Button } from '../components/ui';
 import { signIn } from '../services/auth';
 import { useExperience } from '../state/ExperienceProvider';
+import { parsePaymentRequest } from '../domain/paymentRequest';
 // The welcome screen is intentionally dark in both appearances.
 import { lightColors as colors } from '../theme';
 
 export default function SignInScreen() {
   const router = useRouter();
+  const { paymentRequest } = useLocalSearchParams<{ paymentRequest?: string }>();
   const { enter } = useExperience();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -29,7 +31,16 @@ export default function SignInScreen() {
   const [step, setStep] = useState<'start' | 'phone' | 'code'>('start');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
-  const enterApp = () => { enter(); router.dismissTo('/'); };
+  const enterApp = () => {
+    enter();
+    if (typeof paymentRequest === 'string') {
+      try {
+        const request = parsePaymentRequest(JSON.parse(paymentRequest));
+        if (request) { router.dismissTo({ pathname: '/pay', params: request }); return; }
+      } catch { /* Fall back to home if the return request is malformed. */ }
+    }
+    router.dismissTo('/');
+  };
   const run = async (work: () => Promise<void>) => {
     setBusy(true); setError('');
     try { await work(); }
