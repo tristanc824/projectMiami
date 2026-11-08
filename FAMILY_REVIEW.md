@@ -446,9 +446,18 @@ recipient, mint, sender_token, vault, state, token_program, system_program`, plu
 (signer) for anything under 24 hours. The hold account is 243 bytes. Unknown or repeated CLI options
 are errors, so a typo cannot quietly turn a Safe Hold into an ordinary one.
 
-**The program must be rebuilt and redeployed** with the Solana toolchain (`cargo build-sbf`,
-then `solana program deploy`) before any of this works on devnet. It has not been compiled
-yet: no Rust toolchain was available. Keys live in `hold/keys/`, which Git ignores.
+**The program builds in CI** (`.github/workflows/family-hold.yml`): every push runs `cargo check`,
+then `cargo build-sbf` with Solana 1.18.26, and keeps `family_hold.so` as a download on the run page
+(Actions tab → Family hold → the run → Artifacts). First successful build: Nov 7, 128,576 bytes.
+Solana 1.18's build tools use Cargo/Rust 1.75, so `programs/family_hold/Cargo.lock` pins dependency
+versions that still build there (blake3 1.5.5, jobserver 0.1.32, proc-macro-crate 3.1.0, indexmap 2.2.6).
+Keep that lockfile; if you run `cargo update`, CI's "Every locked crate must build with Cargo/Rust 1.75"
+step names any crate that breaks it and what pulls it in.
+
+**It is not deployed yet.** To deploy to devnet: set `POLICY_AUTHORITY` in `src/lib.rs` to the server's
+key, add the `SOLANA_DEPLOYER_KEYPAIR` (a devnet keypair with about 3 SOL) and
+`FAMILY_HOLD_PROGRAM_KEYPAIR` (`hold/keys/program.json`) repository secrets, then run the workflow by hand
+with `deploy` ticked. Keys live in `hold/keys/`, which Git ignores.
 
 ## Still open
 
