@@ -84,6 +84,32 @@ In live builds, **Sign in** uses Privy's SMS login instead of Auth0. **Demo** st
 
 Not yet verified on a device: the format of Privy's Expo signature (the app accepts base64 or base58), and whether a person who was sent money before signing up can use that wallet after SMS login.
 
+### Send without data (text payments)
+
+People can send money and check their balance by texting Nest's number from any phone with a cellular signal, with Wi-Fi and data off. The server side is built and tested on devnet. See "Text payments" in [`apps/api/docs/API.md`](../api/docs/API.md).
+
+| Text to Nest's number | What happens |
+| --- | --- |
+| `SEND 5 5555550142 PIN 4821` | Sends $5 and texts both people |
+| `BAL 4821` | Replies with the balance |
+| `HELP` | Lists the commands |
+| `STOP` | Turns text payments off until they're turned on again in the app |
+
+Limits: $10 per payment (enforced by a Privy policy) and $20 a day (enforced by the server). Five wrong PINs turn it off.
+
+**Already done:** the server code, the Privy signer and policy, and the demo Android gateway. The gateway is a phone with an eSIM running httpSMS, which forwards texts to the server.
+
+**For the app team:**
+
+1. Do the live mode setup above: the Privy app client, the three `EXPO_PUBLIC_` values in `.env` (get `EXPO_PUBLIC_DAT_API_URL` and the Privy app ID from the project owner), and a development build.
+2. Install the build on each demo phone and sign in with its phone number.
+3. Go to **You → Send without data**, choose a 4-digit PIN, and tap **Turn on text payments**. This gives Nest's server a limited signer for that wallet. The screen then shows the number to text.
+4. Test it: turn off Wi-Fi and cellular data, then text `BAL` and the PIN to that number. A reply should come back within about 10 seconds.
+
+Payments sent by text appear in the app's Activity as "Sent by text message" the next time the app is online. The app's part is only the one-time setup. Texting works from any phone after that, even without the app.
+
+Not yet verified on a device: turning it on from the app (`useSigners().addSigners` for a Solana wallet).
+
 ## What is still simulated
 
 **In demo mode, all money movement is simulated.** Balances, transfers, family goals, and MXN rates are local sample data. No real wallet, on-chain transfer, bank account, card charge, or fiat partner is connected. Demo wallets start at $0; use Add to fund tests or Reset demo to start over. Request links open a payment review with the recipient phone number, amount, and note filled in; demo payments stay on the sender’s device. Web links use the current site address (localhost links require access to that server); Expo Go links require the running Expo server, and development/TestFlight links require Nest installed. Live requests use the signed-in phone number and require a live Nest build to send devnet USDC. Existing version-1 demo data resets once to the empty wallet; subsequent test funds persist. Live mode is described above.
