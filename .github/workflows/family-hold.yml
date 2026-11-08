@@ -66,9 +66,16 @@ jobs:
             cargo generate-lockfile
             # The fallback resolver cannot backtrack a parent: proc-macro-crate 3.2+ drags in
             # toml_edit 0.23 (Rust 1.76+). 3.1.0 uses toml_edit 0.21, which builds on 1.75.
-            for v in $(awk '/^name = "proc-macro-crate"$/{getline; gsub(/version = |"/,""); print}' Cargo.lock); do
-              case "$v" in 3.*) cargo update -p "proc-macro-crate@$v" --precise 3.1.0 ;; esac
-            done
+            # name  major  version that builds on 1.75. `cargo update --precise` re-resolves the
+            # pinned crate's own dependencies to the newest, so pin those too.
+            pin() {
+              for v in $(awk -v n="$1" '$0 == "name = \"" n "\"" {getline; gsub(/version = |"/,""); print}' Cargo.lock); do
+                case "$v" in "$2".*) if [ "$v" != "$3" ]; then cargo update -p "$1@$v" --precise "$3"; fi ;; esac
+              done
+              return 0
+            }
+            pin proc-macro-crate 3 3.1.0
+            pin indexmap 2 2.2.6
           fi
           grep -A1 -E 'name = "(borsh|proc-macro-crate|toml_edit|hashbrown|indexmap)"' Cargo.lock
 
